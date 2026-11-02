@@ -1,21 +1,22 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../services/api.js";
+import { api } from "../services/api.ts";
+import type { FlashSale, Product } from "../types.ts";
 
-const formatPrice = (value) => `${value.toLocaleString("vi-VN")}₫`;
+const formatPrice = (value: number) => `${value.toLocaleString("vi-VN")}₫`;
 
 export default function HomePage() {
-  const [sales, setSales] = useState([]);
-  const [products, setProducts] = useState([]);
-  const [error, setError] = useState(null);
+  const [sales, setSales] = useState<FlashSale[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([api.get("/sales/active"), api.get("/products")])
+    Promise.all([api.get<FlashSale[]>("/sales/active"), api.get<Product[]>("/products")])
       .then(([activeSales, allProducts]) => {
         setSales(activeSales);
         setProducts(allProducts);
       })
-      .catch((err) => setError(err.message));
+      .catch((err: Error) => setError(err.message));
   }, []);
 
   if (error) return <p className="error">Không tải được dữ liệu: {error}</p>;

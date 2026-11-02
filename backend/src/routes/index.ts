@@ -2,6 +2,7 @@ import { Router } from "express";
 import mongoose from "mongoose";
 import { redis } from "../config/redis.js";
 import { notImplemented } from "../middlewares/error.js";
+import { login, register } from "../controllers/auth.controller.js";
 import { getProduct, listProducts } from "../controllers/product.controller.js";
 import { buy, getSale, listActiveSales } from "../controllers/sale.controller.js";
 
@@ -13,8 +14,8 @@ router.get("/health", async (req, res) => {
   res.status(mongoOk && redisOk ? 200 : 503).json({ mongo: mongoOk, redis: redisOk });
 });
 
-router.post("/auth/register", notImplemented("tuần 1"));
-router.post("/auth/login", notImplemented("tuần 1"));
+router.post("/auth/register", register);
+router.post("/auth/login", login);
 
 router.get("/products", listProducts);
 router.get("/products/:id", getProduct);

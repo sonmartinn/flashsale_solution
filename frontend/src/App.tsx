@@ -1,6 +1,6 @@
 import { NavLink, Route, Routes } from "react-router-dom";
-import Placeholder from "./components/Placeholder.jsx";
-import HomePage from "./pages/HomePage.jsx";
+import Placeholder from "./components/Placeholder.tsx";
+import HomePage from "./pages/HomePage.tsx";
 
 export default function App() {
   return (

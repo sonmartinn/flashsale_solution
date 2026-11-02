@@ -7,12 +7,11 @@ import { Order } from "../src/models/Order.js";
 import { Product } from "../src/models/Product.js";
 import { StockMovement } from "../src/models/StockMovement.js";
 import { User } from "../src/models/User.js";
-import { resetSale } from "../src/services/sale.service.js";
+import { resetSale, SALE_DURATION_MS } from "../src/services/sale.service.js";
 
 const USER_COUNT = 1000;
 const SALE_QTY = 100;
 const SEED_PASSWORD = "flashsale-test";
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 const products = [
   {
@@ -73,11 +72,13 @@ await redis.flushdb();
 
 // Băm một lần vì bcrypt chậm, các tài khoản thử dùng chung mật khẩu
 const passwordHash = await bcrypt.hash(SEED_PASSWORD, 10);
-const users = Array.from({ length: USER_COUNT }, (_, i) => {
-  const no = String(i + 1).padStart(4, "0");
-  return { name: `Khách ${no}`, email: `user${no}@flashsale.test`, passwordHash };
-});
-users.push({ name: "Admin", email: "admin@flashsale.test", passwordHash, role: "admin" });
+const users = [
+  ...Array.from({ length: USER_COUNT }, (_, i) => {
+    const no = String(i + 1).padStart(4, "0");
+    return { name: `Khách ${no}`, email: `user${no}@flashsale.test`, passwordHash };
+  }),
+  { name: "Admin", email: "admin@flashsale.test", passwordHash, role: "admin" as const },
+];
 await User.insertMany(users);
 
 const inserted = await Product.insertMany(products);
@@ -89,7 +90,7 @@ const sale = await FlashSale.create({
   totalQty: SALE_QTY,
   remainingQty: SALE_QTY,
   startAt: now,
-  endAt: new Date(now.getTime() + WEEK_MS),
+  endAt: new Date(now.getTime() + SALE_DURATION_MS),
   status: "active",
 });
 await resetSale(sale._id);

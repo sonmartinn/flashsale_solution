@@ -1,6 +1,12 @@
 import mongoose from "mongoose";
 
-export const BUY_MODES = ["v0", "v1", "v2"];
+export const BUY_MODES = ["v0", "v1", "v2"] as const;
+
+export type BuyMode = (typeof BUY_MODES)[number];
+
+export function isBuyMode(value: unknown): value is BuyMode {
+  return BUY_MODES.includes(value as BuyMode);
+}
 
 const flashSaleSchema = new mongoose.Schema(
   {

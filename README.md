@@ -17,13 +17,14 @@ MongoDB là nguồn dữ liệu gốc, Redis là lớp xử lý nhanh.
 **Đã chạy được**
 
 - Danh sách sản phẩm và đợt sale đang mở: `GET /api/products`, `/api/products/:id`, `/api/sales/active`, `/api/sales/:id`
+- Đăng ký, đăng nhập bằng JWT: `POST /api/auth/register`, `/api/auth/login`
 - Kiểm tra kết nối: `GET /api/health`
 - Trang chủ hiển thị đợt sale và sản phẩm
 - Tạo dữ liệu mẫu và reset đợt sale
 
 **Đang phát triển**
 
-- Đăng ký, đăng nhập (API trả 501, giao diện là trang tạm)
+- Giao diện đăng nhập (hiện là trang tạm)
 - Mua hàng V0, V1, V2 (API trả 501)
 - Đơn hàng của tôi, trang theo dõi và API admin (API trả 501, giao diện là trang tạm)
 - Kịch bản bắn tải trong `loadtest/`
@@ -32,7 +33,8 @@ MongoDB là nguồn dữ liệu gốc, Redis là lớp xử lý nhanh.
 
 | Thành phần | Công nghệ |
 |---|---|
-| Backend | Node.js, Express 5, Mongoose 9, ioredis 6 |
+| Ngôn ngữ | TypeScript 7 (`strict`) |
+| Backend | Node.js, Express 5, Mongoose 9, ioredis 6, JWT, bcrypt |
 | Frontend | React 19, React Router 7, Vite 8 |
 | Cơ sở dữ liệu | MongoDB 7, Redis 7 (bật AOF), chạy bằng Docker Compose |
 
@@ -79,14 +81,15 @@ Mở http://localhost:5173. Kiểm tra kết nối tại http://localhost:5000/a
 | `MONGODB_URI` | `mongodb://127.0.0.1:27018/flashsale` | Chuỗi kết nối MongoDB |
 | `REDIS_URL` | `redis://127.0.0.1:6379` | Chuỗi kết nối Redis |
 | `CLIENT_ORIGIN` | `http://localhost:5173` | Địa chỉ frontend được phép gọi API |
+| `JWT_SECRET` | Không có, bắt buộc phải đặt | Khóa ký token đăng nhập. Thiếu biến này thì API không khởi động |
 
-MongoDB trong Docker dùng cổng **27018** trên máy để không đụng MongoDB cài sẵn ở cổng 27017. Khi xem dữ liệu bằng Compass, kết nối tới `mongodb://127.0.0.1:27018`.
+MongoDB trong Docker dùng cổng **27018** trên máy để không đụng MongoDB cài sẵn ở cổng 27017. Khi xem dữ liệu bằng Compass, kết nối tới `mongodb://127.0.0.1:27018`. MongoDB và Redis chỉ mở cho chính máy đang chạy.
 
 ## Tài khoản
 
 MongoDB và Redis trong Docker không đặt mật khẩu, chỉ dùng cho máy phát triển.
 
-`npm run seed` tạo các tài khoản thử sau, dùng chung mật khẩu `flashsale-test`. Chức năng đăng nhập đang phát triển.
+`npm run seed` tạo các tài khoản thử sau, dùng chung mật khẩu `flashsale-test`. Hiện đăng nhập qua API `POST /api/auth/login`, giao diện đang phát triển.
 
 | Vai trò | Email |
 |---|---|
@@ -99,12 +102,14 @@ Chạy trong thư mục `backend/`:
 
 | Lệnh | Tác dụng |
 |---|---|
-| `npm run dev` | Chạy API, tự khởi động lại khi sửa mã |
-| `npm start` | Chạy API, dùng khi đo tải |
+| `npm run dev` | Chạy API trực tiếp từ TypeScript bằng `tsx`, tự khởi động lại khi sửa mã |
+| `npm start` | Biên dịch sang `dist/` rồi chạy JS, dùng khi đo tải |
+| `npm run build` | Chỉ biên dịch sang `dist/` |
+| `npm run typecheck` | Kiểm tra kiểu, không tạo file |
 | `npm run seed` | **Xóa toàn bộ dữ liệu** trong database `flashsale` và Redis, rồi tạo lại: 1.000 user, 1 admin, 6 sản phẩm, 1 đợt sale 100 chiếc |
-| `npm run reset` | Đưa đợt sale về ban đầu, xóa các đơn của đợt |
+| `npm run reset` | Đưa đợt sale về ban đầu, xóa các đơn của đợt và mở lại thời gian bán 7 ngày |
 
-Chạy trong thư mục `frontend/`: `npm run dev`, `npm run build`.
+Chạy trong thư mục `frontend/`: `npm run dev`, `npm run build`, `npm run typecheck`.
 
 ## Cấu trúc
 
@@ -114,7 +119,7 @@ backend/
   src/models       5 collection
   src/routes       khai báo API
   src/controllers  xử lý request
-  src/services     purchase (V0/V1/V2), sale (reset)
+  src/services     auth, purchase (V0/V1/V2), sale (reset)
   src/lua          script mua hàng cho V2
   scripts          seed, reset
 frontend/src       React: pages, components, services

@@ -9,7 +9,9 @@ import { resetSale } from "../src/services/sale.service.js";
 await connectDb();
 await redis.connect();
 
-const saleIds = process.argv[2] ? [process.argv[2]] : await FlashSale.distinct("_id");
+const saleIds = process.argv[2]
+  ? [process.argv[2]]
+  : (await FlashSale.find().select("_id")).map((sale) => sale._id);
 for (const saleId of saleIds) {
   const sale = await resetSale(saleId);
   console.log(`Đã reset đợt sale ${sale._id}: tồn kho ${sale.totalQty}`);

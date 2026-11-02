@@ -1,4 +1,9 @@
-export default function Placeholder({ title, milestone }) {
+interface PlaceholderProps {
+  title: string;
+  milestone?: string;
+}
+
+export default function Placeholder({ title, milestone }: PlaceholderProps) {
   return (
     <section>
       <h1>{title}</h1>

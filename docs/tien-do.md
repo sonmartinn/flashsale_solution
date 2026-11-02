@@ -6,7 +6,7 @@ Lộ trình đầy đủ nằm ở `de-tai-va-lo-trinh.md`, mục 10.
 
 ## Đang ở đâu
 
-**Tuần 1 (2–8/11), hướng tới mốc M1.** Khung dự án đã chạy được. Việc còn lại của tuần 1 là auth, git và bắt đầu Chương 1.
+**Tuần 1 (2–8/11), hướng tới mốc M1.** Khung dự án và API đăng ký, đăng nhập đã chạy được. Việc còn lại của tuần 1 là middleware auth và bắt đầu Chương 1.
 
 ## Đã xong và đã chạy thử
 
@@ -19,10 +19,14 @@ Lộ trình đầy đủ nằm ở `de-tai-va-lo-trinh.md`, mục 10.
 - Frontend: build được, trang chủ tải dữ liệu qua proxy Vite, không có lỗi console
 - `backend/src/lua/buy.lua`: đã chạy trực tiếp trên Redis qua `defineCommand` (ioredis 6): 1.000 lệnh song song trên kho 100 cho đúng 100 thành công. Chưa nối vào API, và cần sửa theo vấn đề 1 và 5 trong `review.md`
 - `GET /api/products/:id`: mã đúng 200, mã sai 400, không tồn tại 404
+- `npm run reset` khi đã có đơn và có `buyers:<saleId>`: xóa đơn và nhật ký, khôi phục kho ở cả hai bên, mở lại đợt sale đã hết hạn thêm 7 ngày
+- `POST /api/auth/register`, `/api/auth/login`: đã kiểm thử trên database riêng, gồm email trùng, 8 request đồng thời, gửi `role: admin`, NoSQL injection, nội dung token
+- TypeScript `strict` cho backend và frontend: `typecheck` và `build` đạt, kể cả trên bản cài sạch từ `npm ci`. `seed`, `reset` chạy qua `tsx`, API auth đạt 40/40 mục trên JS đã biên dịch
+- `npm run dev` của backend và frontend: nhóm đã chạy thử sau khi chuyển TypeScript, cả hai hoạt động bình thường
 
 ## Đã viết nhưng chưa kiểm chứng
 
-- `npm run reset` khi đã có đơn và có `buyers:<saleId>`
+- `tsx watch` tự khởi động lại khi sửa file
 
 ## Việc tiếp theo
 
@@ -31,9 +35,9 @@ Danh sách vấn đề và thứ tự xử lý chi tiết ở `review.md` (revie
 ### Tuần 1 (đến 8/11)
 
 - [x] `git init`, commit đầu tiên
-- [ ] Tạo repo GitHub, push `main` và `develop`
-- [ ] Sửa nhanh theo `review.md`: vấn đề 2, 6, 10, 13, 14, 15. Đợt sale seed ngày 2/11 hết hạn 9/11
-- [ ] Đăng ký, đăng nhập JWT (cài `jsonwebtoken`, thêm `JWT_SECRET` vào `.env.example`)
+- [x] Tạo repo GitHub, push `main` và `develop`: https://github.com/sonmartinn/flashsale_solution
+- [x] Sửa nhanh theo `review.md`: vấn đề 2, 6, 10, 13, 14, 15. Đợt sale trong dữ liệu hiện tại vẫn hết hạn 9/11 cho tới khi chạy `npm run reset`
+- [x] Đăng ký, đăng nhập JWT (cài `jsonwebtoken`, thêm `JWT_SECRET` vào `.env.example`)
 - [ ] Middleware `requireAuth`, `requireAdmin`, và `x-test-user` khi `NODE_ENV=test`
 - [ ] Bắt đầu Chương 1
 
@@ -66,3 +70,5 @@ Xem lộ trình. Không cắt V0, V1, V2, E1, E2 và báo cáo 3 chương.
 | 2/11 | V0 dùng `findOne` rồi `$inc` | Để tồn kho thật sự âm, khớp với mô tả đề tài. Nếu ghi đè `stock - 1` thì tồn kho không âm mà chỉ mất cập nhật |
 | 2/11 | `develop` là nhánh làm việc chính, `main` chỉ có mã nguồn chạy được | Yêu cầu của nhóm. `docs/` và `CLAUDE.md` chỉ ở `develop`. Không merge `develop` vào `main`, cách đưa mã sang `main` ghi trong `CLAUDE.md` |
 | 2/11 | Không thêm `Co-Authored-By` vào commit | Yêu cầu của nhóm, áp dụng cho mọi nhánh. Các commit đã có cũng đã được viết lại |
+| 2/11 | Không dùng GSD trong dự án này | Yêu cầu của nhóm. Đã gỡ bản cài trong `.claude/`, kế hoạch vẫn theo `docs/` |
+| 2/11 | Chuyển toàn bộ dự án sang TypeScript `strict` | Yêu cầu của nhóm. `dev`, `seed`, `reset` chạy bằng `tsx`. `npm start` biên dịch rồi chạy JS để số đo tải không đi qua trình biên dịch lúc chạy |

@@ -32,14 +32,16 @@ git switch develop
 docker compose up -d
 ```
 
-Trong `backend/`: `npm run dev`, `npm start`, `npm run seed` (xóa rồi tạo lại dữ liệu), `npm run reset`.
+Trong `backend/`: `npm run dev`, `npm start` (biên dịch rồi chạy JS, dùng khi đo tải), `npm run build`, `npm run typecheck`, `npm run seed` (xóa rồi tạo lại dữ liệu), `npm run reset`.
 
-Trong `frontend/`: `npm run dev`, `npm run build`.
+Trong `frontend/`: `npm run dev`, `npm run build`, `npm run typecheck`.
 
 ## Quy ước
 
 - MongoDB của dự án ở cổng **27018**, không phải 27017.
-- Backend dùng ES modules, Express 5, nên handler async không cần bọc try/catch. Lỗi nghiệp vụ dùng `HttpError` trong `src/middlewares/error.js`.
+- Toàn bộ mã là TypeScript `strict`. `tsx` và Vite không kiểm tra kiểu, nên chạy `npm run typecheck` trước khi coi một việc là xong.
+- Backend dùng ES modules, Express 5, nên handler async không cần bọc try/catch. Lỗi nghiệp vụ dùng `HttpError` trong `src/middlewares/error.ts`.
+- Import trong backend vẫn ghi đuôi `.js` dù file là `.ts`, vì `module: NodeNext` yêu cầu vậy. Frontend ghi đúng đuôi `.ts`, `.tsx`.
 - Chú thích và thông báo lỗi bằng tiếng Việt.
 - MongoDB là nguồn dữ liệu gốc, Redis chỉ là lớp xử lý nhanh.
 - Không làm ngoài phạm vi trong `docs/de-tai-va-lo-trinh.md` mục 2 nếu chưa hỏi. Không cắt V0, V1, V2, E1, E2.

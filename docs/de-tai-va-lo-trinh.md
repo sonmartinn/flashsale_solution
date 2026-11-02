@@ -5,7 +5,7 @@
 **Nghiên cứu Redis và MongoDB trong xây dựng hệ thống flash sale chống bán quá số lượng – ứng dụng cho shop thời trang**
 
 - Nhóm: 2 sinh viên
-- Công nghệ: Node.js, MongoDB, Redis, React
+- Công nghệ: Node.js, TypeScript, MongoDB, Redis, React
 - Hướng đề tài (theo `../instructions_docs/huong dan bai tap lon.docx`): *Mô phỏng ứng dụng web và MongoDB* + *Tìm hiểu NoSQL và ứng dụng*
 
 > **Giả định cần xác nhận:** nhóm dự đoán báo cáo vào khoảng **21–27/12/2026** (chưa có lịch chính thức). Lộ trình ở mục 10 tính theo **6 tuần, từ 2/11 đến 13/12**, phần còn lại đến ngày báo cáo là thời gian đệm. Cập nhật lại các mốc khi giáo viên chốt ngày.
@@ -108,8 +108,8 @@ React (Vite)  ──HTTP──►  Node.js / Express API  ──►  MongoDB   (
 Script bắn tải (autocannon/k6) ──HTTP──► API
 ```
 
-- Backend: Node.js, Express, Mongoose, ioredis, JWT, bcrypt.
-- Frontend: React (Vite), React Router, thư viện biểu đồ (ví dụ Recharts).
+- Backend: Node.js, TypeScript, Express, Mongoose, ioredis, JWT, bcrypt.
+- Frontend: React (Vite), TypeScript, React Router, thư viện biểu đồ (ví dụ Recharts).
 - Chạy hạ tầng: **Docker Compose** (MongoDB + Redis). Redis không chạy trực tiếp trên Windows, dùng Docker hoặc WSL.
 - Bắn tải: autocannon (cài bằng npm, tiện với Node) hoặc k6.
 - Quản lý mã nguồn: GitHub (cần để nộp link).
@@ -121,7 +121,7 @@ flashsale/
 ├─ docker-compose.yml
 ├─ backend/
 │  ├─ src/{config,models,routes,controllers,services,middlewares,lua}/
-│  └─ scripts/{seed.js,reset.js}
+│  └─ scripts/{seed.ts,reset.ts}
 ├─ frontend/
 │  └─ src/{pages,components,services}/
 ├─ loadtest/

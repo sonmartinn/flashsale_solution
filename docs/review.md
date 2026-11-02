@@ -2,6 +2,8 @@
 
 Ngày review: 2/11/2026, đầu tuần 1 của lộ trình. Đã đọc toàn bộ mã nguồn (khoảng 600 dòng), cấu hình và tài liệu trong `docs/`. Đợt review này không sửa mã nguồn.
 
+> Bản này ghi lại hiện trạng lúc review. Dự án đã chuyển sang TypeScript sau đó, nên các file `.js`, `.jsx` và số dòng được nhắc tới là của mã cũ. Các vấn đề đã xử lý được đánh dấu trong `tien-do.md`.
+
 ## Kết luận
 
 Khung dự án tốt: chạy được, gọn, bám sát thiết kế và không có gì ngoài phạm vi mục 2. Phần cốt lõi của đề tài (V0, V1, V2, auth, bắn tải) chưa được viết, nên chưa thể đánh giá việc chống bán quá.

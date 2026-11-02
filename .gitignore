@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+
+# Kết quả thô khi chạy test tải, chỉ giữ thư mục
+loadtest/results/*
+!loadtest/results/.gitkeep

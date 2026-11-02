@@ -1,0 +1,33 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: flashsale-mongo
+    ports:
+      # Cổng 27018 để không đụng MongoDB cài sẵn trên máy (27017)
+      - "27018:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: flashsale-redis
+    # Bật AOF để hạn chế mất dữ liệu khi Redis khởi động lại
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  mongo_data:
+  redis_data:

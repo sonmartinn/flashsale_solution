@@ -80,6 +80,13 @@ Dưới tải đồng thời, V1 và V2 **luôn** cho đúng `totalQty` đơn th
 | E1 dùng script Node riêng (`fetch` + `Promise.all`); E2 dùng autocannon | autocannon `requests` phân phối user sai, unique index che mất lỗi của V0 | — Pending |
 | Không dùng MongoDB transaction ở V1 | MongoDB chạy standalone. Hoàn kho bằng `$inc` khi tạo đơn lỗi | — Pending |
 | GSD lập kế hoạch cả phần tài liệu phân tích kết quả cho báo cáo | Người dùng muốn GSD lo cả README và tài liệu kết quả E1–E4 | — Pending |
+| E2 tự tính p95 từ `responseTime` của từng request | autocannon chỉ có p50/p90/p97.5/p99, không có p95; giữ đúng SPECS | — Pending |
+| Đổi `sale.mode` qua reset: `POST /admin/sales/:id/reset` nhận `{ mode }`, seed/CLI reset nhận `--mode` | SPECS không có cách đổi mode; cần cho demo UI và để `remaining` khớp với lần bắn tải | — Pending |
+| JSON lỗi có thêm trường `code` máy đọc được (`SOLD_OUT`, `ALREADY_BOUGHT`…), HTTP status giữ theo SPECS | Hai trường hợp 409 chỉ khác nhau ở thông báo tiếng Việt | — Pending |
+| Lỗi tạo đơn không phải E11000 thì kiểm tra `Order.exists` trước khi hoàn kho (V1, V2); V2 gặp E11000 chỉ `INCRBY`, không `SREM` | Tránh hoàn kho dư khi ghi đơn mơ hồ (timeout nhưng đã ghi) | — Pending |
+| Script tải luôn reset qua API admin; CLI reset in cảnh báo về cache | Cache đợt sale nằm trong tiến trình server, CLI không xóa được | — Pending |
+| Ghim `react-router@^7` | `@latest` là v8, cần Node ≥22.22, phá `engines` của SPECS | — Pending |
+| Đưa cả 4 mục có thể cắt (E4, biểu đồ web, trang admin, polling) vào v1, giữ thứ tự cắt của SPECS | Người dùng để Claude chọn; đúng phạm vi SPECS, cắt khi thiếu thời gian | — Pending |
 
 ## Evolution
 

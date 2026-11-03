@@ -7,3 +7,8 @@ dist/
 # Kết quả thô khi chạy test tải, chỉ giữ thư mục
 loadtest/results/*
 !loadtest/results/.gitkeep
+
+# Bộ cài GSD: mỗi thành viên tự cài bằng lệnh trong .claude/CLAUDE.md
+# (bộ cài ghi cứng đường dẫn tuyệt đối của từng máy). Chỉ chia sẻ CLAUDE.md.
+.claude/*
+!.claude/CLAUDE.md

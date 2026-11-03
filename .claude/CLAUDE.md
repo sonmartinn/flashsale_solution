@@ -236,3 +236,17 @@ Do not make direct repo edits outside a GSD workflow unless the user explicitly 
 > Profile not yet configured. Run `/gsd-profile-user` to generate your developer profile.
 > This section is managed by `generate-claude-profile` -- do not edit manually.
 <!-- GSD:profile-end -->
+
+## Cài GSD cho thành viên nhóm
+
+Cả nhóm dùng chung GSD **phiên bản 1.20.0**. Kế hoạch (`.planning/`) và file này nằm trên git; bộ cài GSD thì không, vì nó ghi cứng đường dẫn tuyệt đối của từng máy.
+
+Sau khi clone, chạy một lần ở thư mục gốc dự án:
+
+```
+npx -y @opengsd/gsd-core@1.20.0 --claude --local --profile=full
+```
+
+- Không nâng cấp GSD riêng lẻ. Khi cả nhóm thống nhất nâng cấp thì sửa số phiên bản ở đây trong cùng một commit.
+- `.claude/settings.local.json` (hooks, quyền) do bộ cài tạo và là thiết lập riêng của từng máy, không đưa lên git.
+- Không thêm dòng `Co-Authored-By` vào commit.

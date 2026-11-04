@@ -38,23 +38,19 @@ created: "2026-11-04"
 
 ## Per-Task Verification Map
 
-Filled by the planner/executor from PLAN.md tasks. Requirement → test map from RESEARCH.md:
+Filled by the planner from the 01-01…01-04 PLAN.md tasks. All commands run from the repo root. `npm --prefix backend test` = build + unit tests (`test/*.test.ts`, no Docker); `npm --prefix backend run test:int` = build + integration tests (`test/integration/*.test.ts`, `--test-concurrency=1`, needs `docker compose up -d --wait`). Integration tests use their own databases `flashsale_test_<name>_<pid>` and Redis db 1–4, never the demo `flashsale` db or Redis db 0.
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| TBD | TBD | TBD | INFRA-01 | — | Compose ports bound to 127.0.0.1 | smoke | `docker compose up -d --wait && docker exec flashsale-redis redis-cli CONFIG GET appendfsync` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | INFRA-02 | — | N/A | unit | `npm run build` + `test/build.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | INFRA-03 | — | No JWT_SECRET default; refuse 27017 URI | unit | `npm test` → `test/boot.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | INFRA-03 | — | Redis down → exit 1 | integration | `npm run test:int` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | INFRA-04 | — | N/A | integration | `npm run test:int` (health 200/503) | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | INFRA-05 | — | 500 never leaks internals | unit | `npm test` → `test/errors.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | INFRA-06 | — | N/A | integration | `npm run test:int` (health JSON maxPoolSize) | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | DATA-01/02 | — | Unique `(saleId, userId)` index | integration | `test/integration/models.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | DATA-03 | — | Seed never touches 27017 | integration + unit | `test/integration/seed.test.ts`, `test/cli-args.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | DATA-04 | — | Checked `multi()` result | integration | `test/integration/reset.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | AUTH-01 | — | Role forced `user`; non-string → 400 | unit + integration | `npm test` + `npm run test:int` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | AUTH-02 | — | HS256 pinned, 7-day exp | unit | `npm test` → `test/auth.test.ts` | ❌ W0 | ⬜ pending |
-| TBD | TBD | TBD | AUTH-03/04/05 | — | 401/403 matrix; x-test-user only in test mode | unit | `npm test` → `test/auth.test.ts` | ❌ W0 | ⬜ pending |
+| 01-01-T1 | 01-01 | 1 | (all installs) | T-01-SC | Human verifies express/mongoose/dotenv/@types/node on npmjs.com before install | manual (blocking-human checkpoint) | — | n/a | ⬜ pending |
+| 01-01-T2 | 01-01 | 1 | INFRA-01, INFRA-02, INFRA-04, INFRA-06 | T-01-01, T-01-04 | Compose ports bound to 127.0.0.1; health pings bounded | smoke + integration | `docker compose up -d --wait && docker exec flashsale-redis redis-cli CONFIG GET appendfsync`; `npm --prefix backend run typecheck && npm --prefix backend run build`; `npm --prefix backend run test:int` (health.test) | ❌ W0 (created by task) | ⬜ pending |
+| 01-01-T3 | 01-01 | 1 | INFRA-02, INFRA-03, INFRA-04, INFRA-06 | T-01-02, T-01-03, T-01-05, T-01-07 | No JWT_SECRET default; refuse 27017 (explicit + implicit); port probe before connect | unit + integration | `npm --prefix backend test` (config, boot, build); `npm --prefix backend run test:int` (health: Redis-down exit, 503, start:test) | ❌ W0 | ⬜ pending |
+| 01-02-T1 | 01-02 | 2 | INFRA-05 | T-01-08, T-01-09, T-01-10 | 500 never leaks internals; ids normalized | unit | `npm --prefix backend test` (errors, object-id) | ❌ W0 | ⬜ pending |
+| 01-02-T2 | 01-02 | 2 | DATA-01, DATA-02 | T-01-11 | Unique `(saleId, userId)` and email indexes exist before listen | integration | `npm --prefix backend run test:int` (models) | ❌ W0 | ⬜ pending |
+| 01-03-T1 | 01-03 | 3 | DATA-03 | T-01-12, T-01-14 | Seed refuses 27017 / unnamed db; FLUSHDB only on configured index | unit + integration + CLI | `npm --prefix backend test` (cli-args); `npm --prefix backend run test:int` (seed); seed CLI against the demo db + mongosh/redis-cli checks | ❌ W0 | ⬜ pending |
+| 01-03-T2 | 01-03 | 3 | DATA-04, DATA-05 | T-01-13, T-01-15, T-01-16 | Checked `multi()` result; cache warning on every run | integration + CLI | `npm --prefix backend run test:int` (reset); reset CLI output grep for the warning | ❌ W0 | ⬜ pending |
+| 01-04-T1 | 01-04 | 3 | AUTH-01, AUTH-02 | T-01-17, T-01-18, T-01-22, T-01-23 | Role forced `user`; non-string → 400; 72-byte limit; identical 401 | unit + integration | `npm --prefix backend test` (validate); `npm --prefix backend run test:int` (auth) | ❌ W0 | ⬜ pending |
+| 01-04-T2 | 01-04 | 3 | AUTH-03, AUTH-04, AUTH-05 | T-01-19, T-01-20, T-01-21 | HS256 pinned; 401/403 matrix; x-test-user only in test mode, never admin | unit | `npm --prefix backend test` (auth) | ❌ W0 | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -62,10 +58,10 @@ Filled by the planner/executor from PLAN.md tasks. Requirement → test map from
 
 ## Wave 0 Requirements
 
-- [ ] `backend/package.json` — `test` + `test:int` scripts; `tsconfig.json` includes `test`
-- [ ] `backend/test/helpers.ts` — `startApp(cfgOverrides)` on port 0; `spawnServer(env)` with `cwd: mkdtemp`
-- [ ] Unit test files: `boot`, `errors`, `auth`, `cli-args`, `config` (URI guards), `build`
-- [ ] Integration test files: `models`, `seed`, `reset`, `register-dup`, `health` (use `flashsale_test` DB + Redis db 1)
+- [ ] `backend/package.json` — `test` + `test:int` scripts; `tsconfig.json` includes `test` (01-01-T2)
+- [ ] `backend/test/helpers.ts` — `startApp`, `spawnServer` (cwd `mkdtemp`), `startServerProcess`, `testMongoUri`, `testRedisUrl`, `connectTestStores` (01-01-T2)
+- [ ] Unit test files (`backend/test/*.test.ts`): `config`, `boot`, `build` (01-01-T3), `errors`, `object-id` (01-02-T1), `cli-args` (01-03), `validate` (01-04-T1), `auth` (01-04-T2)
+- [ ] Integration test files (`backend/test/integration/*.test.ts`): `health` (01-01), `models` (01-02-T2), `seed`, `reset` (01-03), `auth` (01-04-T1); each uses `flashsale_test_<name>_<pid>` and its own Redis db (1–4)
 - [ ] Framework install: none (built-in `node:test`)
 
 ---
@@ -74,7 +70,7 @@ Filled by the planner/executor from PLAN.md tasks. Requirement → test map from
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| Reset CLI prints in-process cache warning | DATA-05 | CLI output text | Run `npm run reset` and read the warning |
+| Reset CLI prints in-process cache warning | DATA-05 | Now also automated (01-03-T2 verify greps the CLI output); manual read is optional | Run `npm run reset` and read the warning |
 | Boot fails fast in 4 real cases | INFRA-03 | Needs stopping Docker containers / holding a port | JWT_SECRET missing; Docker stopped; Redis container stopped; port 5000 held by `node -e "require('net').createServer().listen(5000,'127.0.0.1')"` |
 | Health flips to 503 when a container stops | INFRA-04 | Needs `docker stop` on a live server | `docker stop flashsale-redis`, then `GET /api/health` |
 

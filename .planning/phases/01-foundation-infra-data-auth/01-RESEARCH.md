@@ -659,17 +659,24 @@ Copy verbatim from SPECS [VERIFIED: docs/SPECS.md:241-252]. Do not wire `defineC
 | A5 | Admin display name "Quản trị viên" | Code Examples | Cosmetic |
 | A6 | `insertMany` applies `timestamps` (`createdAt`) to users | Code Examples | `createdAt` missing on seeded users. Cosmetic for Phase 1 |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **What `code` do non-JSON body-parser errors get (413 too large, 415 charset)?**
    - What we know: they arrive with a numeric `status` and `type`. The generic branch keeps the status (413 verified).
    - What's unclear: the D-15 table has no code for them.
    - Recommendation: keep the HTTP status and use `VALIDATION_ERROR` with the message "Yêu cầu không hợp lệ". No new code is needed. The planner can lock this without asking.
+   - **RESOLVED (01-02 Task 1):** adopted as recommended. In the error middleware, any error with a numeric `status` in 400-499 (other than `entity.parse.failed`, which gives 400 `INVALID_JSON`) keeps its status, with message `Yêu cầu không hợp lệ` and code `VALIDATION_ERROR`. No new code is added to the D-15 table. The 01-02 tracer test asserts that a 200 kB JSON body gives 413 `VALIDATION_ERROR`, and threat T-01-10 records it.
 2. **Where does the integration test point?**
    - What we know: seed drops the whole `flashsale` DB and `FLUSHDB`s Redis db 0.
    - Recommendation: integration tests use `MONGODB_URI=mongodb://127.0.0.1:27018/flashsale_test` and `REDIS_URL=redis://127.0.0.1:6379/1`, so running tests never destroys the demo data. This needs `seedDatabase()` and `resetSale()` to be importable services that take config, not code inlined in CLI files. Have `parseRedisUrl` also print the db index if non-zero.
+   - **RESOLVED (01-01 Task 2, used by 01-02, 01-03, 01-04):** the plans keep the goal (tests never touch the demo `flashsale` DB or Redis db 0) but replace the single shared target above with per-file isolation:
+     - **MongoDB:** `backend/test/helpers.ts` `testMongoUri(name)` returns `mongodb://127.0.0.1:27018/flashsale_test_<name>_<process.pid>`. Each test file gets its own database, and each file drops its database in `after`. This covers `health`, `models` + `modelsboot` (01-02), `seed`, `reset` (01-03) and `auth` (01-04).
+     - **Redis:** each integration file owns one db index through `testRedisUrl(db)`, which throws unless `1 <= db <= 15`, so db 0 cannot be used. health.test uses db 1 (01-01), seed.test db 2 and reset.test db 3 (01-03), and auth.test db 4 (01-04). The default `startApp()` client also uses db 1. models.test is MongoDB-only.
+     - **Runner:** `test:int` = `npm run build && node --import tsx --test --test-concurrency=1 "test/integration/*.test.ts"` (01-01 Task 2). Integration files run one at a time. Unit tests (`npm test`) use the non-recursive `test/*.test.ts` glob, so they never pick up integration files.
+     - **Services:** as recommended, seeding and reset are importable services that the CLIs only wrap: `seedDatabase({ redis, qty, mode, now? })` in `backend/src/services/seed.service.ts` (01-03 Task 1) and `createSaleAdminService({ redis, onSaleReset? }).resetSale(saleId, { mode? })` in `backend/src/services/sale-admin.service.ts` (01-03 Task 2). `parseRedisUrl` returns `host:port/db` when the db index is not 0 (01-01 Task 2).
 3. **Should a weak `JWT_SECRET` (< 32 chars) be refused?**
    - Recommendation: warn only (`console.warn`), don't refuse. SPECS only forbids a default, and Phase 4's start script generates 32 bytes.
+   - **RESOLVED (01-01 Task 2):** adopted as recommended. `server.ts` exits 1 only when `JWT_SECRET` is missing. If the secret is shorter than 32 characters, it prints a Vietnamese `console.warn` that does not include the secret, then boots normally. `TEST_JWT_SECRET` in the test helpers is at least 32 characters. Threat T-01-03 records it.
 
 ## Environment Availability
 
@@ -710,7 +717,7 @@ Copy verbatim from SPECS [VERIFIED: docs/SPECS.md:241-252]. Do not wire `defineC
 | INFRA-05 | error mapping table | unit (`createApp` on port 0 + fetch) | `npm test` → `test/errors.test.ts` | ❌ Wave 0 |
 | INFRA-06 | `maxPoolSize` in banner + health | unit/integration | health JSON assertion in `test:int` | ❌ Wave 0 |
 | DATA-01/02 | 5 collections named correctly, all indexes incl. unique `saleId_1_userId_1` | integration | `test/integration/models.test.ts` (`collection.indexes()`) | ❌ Wave 0 |
-| DATA-03 | seed counts 1001 users, 6 products, 1 sale, `stock:<id>` = qty, no buyers key | integration | `test/integration/seed.test.ts` against `flashsale_test` / redis db 1 | ❌ Wave 0 |
+| DATA-03 | seed counts 1001 users, 6 products, 1 sale, `stock:<id>` = qty, no buyers key | integration | `test/integration/seed.test.ts` against `flashsale_test_seed_<pid>` / redis db 2 (see Open Question 2) | ❌ Wave 0 |
 | DATA-03 | CLI arg validation | unit | `test/cli-args.test.ts` (pure parse function) | ❌ Wave 0 |
 | DATA-04 | reset restores qty, deletes orders/movements, Redis SET+DEL, reopens, writes reset movement, calls hook | integration | `test/integration/reset.test.ts` | ❌ Wave 0 |
 | DATA-05 | reset CLI warning printed | manual | `npm run reset` output check | — |
@@ -727,7 +734,7 @@ Copy verbatim from SPECS [VERIFIED: docs/SPECS.md:241-252]. Do not wire `defineC
 - [ ] `backend/package.json` `test` + `test:int` scripts; `tsconfig.json` include `test`
 - [ ] `backend/test/helpers.ts`: `startApp(cfgOverrides)` on port 0 with a fake/real Redis; `spawnServer(env)` with `cwd: mkdtemp`
 - [ ] Unit test files: `boot`, `errors`, `auth`, `cli-args`, `config` (URI guards)
-- [ ] Integration test files: `models`, `seed`, `reset`, `register-dup`, `health` (use `flashsale_test` DB + Redis db 1)
+- [ ] Integration test files: `models`, `seed`, `reset`, `register-dup`, `health` (per-file `flashsale_test_<name>_<pid>` DB + one Redis db in 1-4 each, `--test-concurrency=1`; see Open Question 2)
 - [ ] Framework install: none (built-in)
 
 ## Security Domain

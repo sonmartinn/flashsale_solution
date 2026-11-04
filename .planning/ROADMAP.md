@@ -30,7 +30,18 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. `npm run seed` (stock quantity and `mode` as parameters) wipes and recreates 1,000 users + 1 admin, 6 fashion products with category-specific `attributes`, and one active 7-day half-price sale with `stock:<saleId>` loaded in Redis. Every SPECS §6 index exists, including unique `(saleId, userId)`
   4. `npm run reset` (one or all sales, optional `--mode`) restores `remainingQty = totalQty`, deletes the sale's orders and stock_movements, resets Redis stock and buyers in one checked `multi()`, reopens the sale for 7 days and warns that it cannot clear a running server's in-process cache
   5. A user can register (role always `user`, duplicate email → 409, any non-string field → 400) and log in to get a 7-day JWT (`sub` + `role`). A missing or bad token gets 401, a non-admin on `/api/admin/*` gets 403, and an `x-test-user` ObjectId is accepted only when `NODE_ENV === "test"`. Errors follow the SPECS §7 table with Vietnamese messages and a machine-readable `code`, and a 500 never leaks internals
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+**Wave 1**
+- [ ] 01-01-PLAN.md — Docker MongoDB/Redis, fail-fast TypeScript ESM backend skeleton, GET /api/health, test harness (wave 1; package-legitimacy checkpoint)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 01-02-PLAN.md — Error contract { message, code } + 5 SPECS §6 models with indexes built before listen (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 01-03-PLAN.md — `npm run seed` and the shared reset service + `npm run reset` (wave 3)
+- [ ] 01-04-PLAN.md — Register/login JWT, requireAuth with x-test-user test mode, requireAdmin on /api/admin (wave 3)
 
 ### Phase 2: Buy Pipeline & Admin APIs
 **Goal**: Users can read products and sales and buy through V0, V1 or V2 with identical response codes; an admin can reset and inspect a sale and reconcile Redis against MongoDB
@@ -94,7 +105,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 (Phase 4 depends only
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation (Infra, Data, Auth) | 0/TBD | Not started | - |
+| 1. Foundation (Infra, Data, Auth) | 0/4 | Not started | - |
 | 2. Buy Pipeline & Admin APIs | 0/TBD | Not started | - |
 | 3. Experiments (E1-E4) | 0/TBD | Not started | - |
 | 4. Web App & Dev Scripts | 0/TBD | Not started | - |

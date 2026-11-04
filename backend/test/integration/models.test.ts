@@ -9,6 +9,7 @@ import {
   TEST_JWT_SECRET,
   dropTestDatabaseAndDisconnect,
   getFreePort,
+  spawnServer,
   startServerProcess,
   testMongoUri,
   testRedisUrl,
@@ -17,6 +18,8 @@ import {
 
 const BOOT_URI = testMongoUri("modelsboot");
 const BOOT_DB = new URL(BOOT_URI).pathname.slice(1);
+const BAD_URI = testMongoUri("modelsbadidx");
+const BAD_DB = new URL(BAD_URI).pathname.slice(1);
 
 interface IndexInfo {
   name?: string;
@@ -159,5 +162,27 @@ describe("models.test", () => {
       const names = ((await bootDb.collection("orders").indexes()) as IndexInfo[]).map((i) => i.name);
       assert.ok(names.includes("saleId_1_userId_1"), `index của orders: ${names.join(", ")}`);
     });
+  });
+
+  it("tạo index thất bại: server thoát mã 1 với thông báo tiếng Việt, không listen", async () => {
+    // Index trùng tên nhưng KHÔNG unique có sẵn => createIndexes() của Order bị MongoDB từ chối.
+    const conflictDb = mongoose.connection.useDb(BAD_DB);
+    try {
+      await conflictDb.dropDatabase();
+      await conflictDb.collection("orders").createIndex({ saleId: 1, userId: 1 }, { name: "saleId_1_userId_1" });
+      const result = await spawnServer({
+        env: {
+          MONGODB_URI: BAD_URI,
+          REDIS_URL: testRedisUrl(2),
+          JWT_SECRET: TEST_JWT_SECRET,
+          PORT: String(await getFreePort()),
+        },
+      });
+      assert.equal(result.code, 1, `stdout: ${result.stdout}\nstderr: ${result.stderr}`);
+      assert.match(result.stderr, /Không tạo được index MongoDB/);
+      assert.ok(!result.stdout.includes("API http://"), "server không được in banner khi index lỗi");
+    } finally {
+      await conflictDb.dropDatabase();
+    }
   });
 });

@@ -30,7 +30,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. `npm run seed` (stock quantity and `mode` as parameters) wipes and recreates 1,000 users + 1 admin, 6 fashion products with category-specific `attributes`, and one active 7-day half-price sale with `stock:<saleId>` loaded in Redis. Every SPECS §6 index exists, including unique `(saleId, userId)`
   4. `npm run reset` (one or all sales, optional `--mode`) restores `remainingQty = totalQty`, deletes the sale's orders and stock_movements, resets Redis stock and buyers in one checked `multi()`, reopens the sale for 7 days and warns that it cannot clear a running server's in-process cache
   5. A user can register (role always `user`, duplicate email → 409, any non-string field → 400) and log in to get a 7-day JWT (`sub` + `role`). A missing or bad token gets 401, a non-admin on `/api/admin/*` gets 403, and an `x-test-user` ObjectId is accepted only when `NODE_ENV === "test"`. Errors follow the SPECS §7 table with Vietnamese messages and a machine-readable `code`, and a 500 never leaks internals
-**Plans**: 4/5 plans executed
+**Plans**: 5/5 plans executed
 
 Plans:
 **Wave 1**
@@ -44,7 +44,7 @@ Plans:
 - [x] 01-04-PLAN.md — Register/login JWT, requireAuth with x-test-user test mode, requireAdmin on /api/admin (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 01-05-PLAN.md — Gap closure: isTestMode only when the raw NODE_ENV is exactly "test" (padded values no longer enable x-test-user) + exactness tests (wave 4)
+- [x] 01-05-PLAN.md — Gap closure: isTestMode only when the raw NODE_ENV is exactly "test" (padded values no longer enable x-test-user) + exactness tests (wave 4)
 
 ### Phase 2: Buy Pipeline & Admin APIs
 **Goal**: Users can read products and sales and buy through V0, V1 or V2 with identical response codes; an admin can reset and inspect a sale and reconcile Redis against MongoDB
@@ -108,7 +108,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 (Phase 4 depends only
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation (Infra, Data, Auth) | 4/4 | In Progress | - |
+| 1. Foundation (Infra, Data, Auth) | 5/5 | In Progress | - |
 | 2. Buy Pipeline & Admin APIs | 0/TBD | Not started | - |
 | 3. Experiments (E1-E4) | 0/TBD | Not started | - |
 | 4. Web App & Dev Scripts | 0/TBD | Not started | - |

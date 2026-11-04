@@ -97,7 +97,7 @@ status: complete
 
 - Closed the only gap in 01-VERIFICATION (AUTH-05, ROADMAP Phase 1 SC5). The flag is computed from the raw NODE_ENV in its single site in `backend/src/config/env.ts`. `nodeEnv` stays trimmed for display.
 - End-to-end proof through the real stack (`loadBaseConfig` -> `createApp` -> `requireAuth`). Padded values get 401 "Bạn chưa đăng nhập" on `/api/admin/thu`, and exact "test" still gets 403 (header honored as role user).
-- Exactness matrix in `config.test`: `"test "`, `" test"`, `"test\t"`, `"\ttest"`, `"test\r"`, `"test\n"`, `"test "`, `"﻿test"`, `"TEST"`, `"Test"` and `"tеst"` all give false. Empty and whitespace-only give false with nodeEnv "development".
+- Exactness matrix in `config.test`: `"test "`, `" test"`, `"test\t"`, `"\ttest"`, `"test\r"`, `"test\n"`, `"test\u00a0"`, `"\ufefftest"`, `"TEST"`, `"Test"` and `"t\u0435st"` all give false. Empty and whitespace-only give false with nodeEnv "development".
 - Regression: `npm run start:test`'s path through the committed CRLF `.env.test` still gives NODE_ENV exactly "test" (health.test integration case passes).
 
 ## Task Commits
@@ -139,7 +139,7 @@ status: complete
 
 None that change behavior. Two process notes:
 
-- **[Rule 3 - Blocking] Tool escape mangling in config.test (fixed before commit).** The Edit tool wrote ` `, `﻿` and `е` as raw characters, and a follow-up `sed` fix then mangled them further (`\u` is an uppercase operator in GNU sed). I restored the three literals as escape sequences with a small Node script in the scratchpad. A grep for raw Cyrillic, NBSP, BOM, tab and CR bytes now finds nothing. The runtime values were identical throughout, and I re-ran the mutation check on the final escaped file. Committed in `6cc032c`.
+- **[Rule 3 - Blocking] Tool escape mangling in config.test (fixed before commit).** The Edit tool wrote `\u00a0`, `\ufeff` and `\u0435` as raw characters, and a follow-up `sed` fix then mangled them further (`\u` is an uppercase operator in GNU sed). I restored the three literals as escape sequences with a small Node script in the scratchpad. A grep for raw Cyrillic, NBSP, BOM, tab and CR bytes now finds nothing. The runtime values were identical throughout, and I re-ran the mutation check on the final escaped file. Committed in `6cc032c`.
 - `npm --prefix backend ci` was run because the fresh worktree had no `node_modules` (allowed by the plan; lockfile only, no new packages). npm warned that esbuild's postinstall is not covered by allowScripts; tsx worked regardless.
 
 **Total deviations:** 1 auto-fixed (Rule 3). **Impact:** none on behavior or scope.

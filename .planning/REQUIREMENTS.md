@@ -27,11 +27,11 @@ Nguồn yêu cầu gốc: `docs/SPECS.md`. Chi tiết kỹ thuật (tên trườ
 
 ### Xác thực (AUTH)
 
-- [ ] **AUTH-01**: User đăng ký bằng `POST /api/auth/register` (name, email, password), luôn nhận vai trò `user` dù client gửi `role`; email trùng trả 409; mọi trường đầu vào không phải chuỗi bị từ chối 400
-- [ ] **AUTH-02**: User đăng nhập bằng `POST /api/auth/login` và nhận JWT ký bằng `JWT_SECRET`, hạn 7 ngày, payload `sub` + `role`
-- [ ] **AUTH-03**: `requireAuth` chỉ xác minh token, không tra MongoDB, gắn `req.user = { id, role }`; thiếu hoặc sai token trả 401
-- [ ] **AUTH-04**: `requireAdmin` áp chung cho mọi đường dẫn `/api/admin` bằng `router.use`; user thường trả 403
-- [ ] **AUTH-05**: Chỉ khi `NODE_ENV === "test"` (kiểm tra ở đúng một chỗ), `requireAuth` nhận header `x-test-user` (kiểm tra định dạng ObjectId, chuẩn hóa chữ thường, luôn quyền `user`); thao tác admin vẫn cần token thật
+- [x] **AUTH-01**: User đăng ký bằng `POST /api/auth/register` (name, email, password), luôn nhận vai trò `user` dù client gửi `role`; email trùng trả 409; mọi trường đầu vào không phải chuỗi bị từ chối 400
+- [x] **AUTH-02**: User đăng nhập bằng `POST /api/auth/login` và nhận JWT ký bằng `JWT_SECRET`, hạn 7 ngày, payload `sub` + `role`
+- [x] **AUTH-03**: `requireAuth` chỉ xác minh token, không tra MongoDB, gắn `req.user = { id, role }`; thiếu hoặc sai token trả 401
+- [x] **AUTH-04**: `requireAdmin` áp chung cho mọi đường dẫn `/api/admin` bằng `router.use`; user thường trả 403
+- [x] **AUTH-05**: Chỉ khi `NODE_ENV === "test"` (kiểm tra ở đúng một chỗ), `requireAuth` nhận header `x-test-user` (kiểm tra định dạng ObjectId, chuẩn hóa chữ thường, luôn quyền `user`); thao tác admin vẫn cần token thật
 
 ### API đọc (READ)
 
@@ -139,11 +139,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DATA-03 | Phase 1 | Pending |
 | DATA-04 | Phase 1 | Pending |
 | DATA-05 | Phase 1 | Pending |
-| AUTH-01 | Phase 1 | Pending |
-| AUTH-02 | Phase 1 | Pending |
-| AUTH-03 | Phase 1 | Pending |
-| AUTH-04 | Phase 1 | Pending |
-| AUTH-05 | Phase 1 | Pending |
+| AUTH-01 | Phase 1 | Complete |
+| AUTH-02 | Phase 1 | Complete |
+| AUTH-03 | Phase 1 | Complete |
+| AUTH-04 | Phase 1 | Complete |
+| AUTH-05 | Phase 1 | Complete |
 | READ-01 | Phase 2 | Pending |
 | READ-02 | Phase 2 | Pending |
 | READ-03 | Phase 2 | Pending |

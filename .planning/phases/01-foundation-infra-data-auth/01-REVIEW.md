@@ -1,231 +1,96 @@
 ---
 phase: 01-foundation-infra-data-auth
-reviewed: 2026-11-04T12:47:14Z
+reviewed: 2026-11-04T23:00:00Z
 depth: standard
-files_reviewed: 50
+files_reviewed: 3
 files_reviewed_list:
-  - backend/package.json
-  - backend/scripts/cli-args.ts
-  - backend/scripts/reset.ts
-  - backend/scripts/seed.ts
-  - backend/src/app.ts
-  - backend/src/config/db.ts
   - backend/src/config/env.ts
-  - backend/src/config/redis.ts
-  - backend/src/controllers/auth.controller.ts
-  - backend/src/controllers/health.controller.ts
-  - backend/src/lua/buy.lua
-  - backend/src/middlewares/auth.ts
-  - backend/src/middlewares/error.ts
-  - backend/src/models/flash-sale.ts
-  - backend/src/models/index.ts
-  - backend/src/models/order.ts
-  - backend/src/models/product.ts
-  - backend/src/models/stock-movement.ts
-  - backend/src/models/user.ts
-  - backend/src/routes/admin.routes.ts
-  - backend/src/routes/auth.routes.ts
-  - backend/src/routes/index.ts
-  - backend/src/server.ts
-  - backend/src/services/auth.service.ts
-  - backend/src/services/sale-admin.service.ts
-  - backend/src/services/seed.service.ts
-  - backend/src/types/express.d.ts
-  - backend/src/utils/fail.ts
-  - backend/src/utils/http-error.ts
-  - backend/src/utils/object-id.ts
-  - backend/src/utils/port.ts
-  - backend/src/utils/validate.ts
-  - backend/src/utils/with-timeout.ts
   - backend/test/auth.test.ts
-  - backend/test/boot.test.ts
-  - backend/test/build.test.ts
-  - backend/test/cli-args.test.ts
   - backend/test/config.test.ts
-  - backend/test/errors.test.ts
-  - backend/test/helpers.ts
-  - backend/test/integration/auth.test.ts
-  - backend/test/integration/health.test.ts
-  - backend/test/integration/models.test.ts
-  - backend/test/integration/reset.test.ts
-  - backend/test/integration/seed.test.ts
-  - backend/test/object-id.test.ts
-  - backend/test/validate.test.ts
-  - backend/tsconfig.build.json
-  - backend/tsconfig.json
-  - docker-compose.yml
 findings:
-  critical: 0
-  warning: 3
-  info: 10
-  total: 13
-  necessity: 3
+  critical: 1
+  warning: 0
+  info: 2
+  total: 3
+  necessity: 0
 status: issues_found
 ---
 
 # Phase 1: Code Review Report
 
-**Reviewed:** 2026-11-04T12:47:14Z
+**Reviewed:** 2026-11-04T23:00:00Z
 **Depth:** standard
-**Files Reviewed:** 50
+**Files Reviewed:** 3
 **Status:** issues_found
 
 ## Summary
 
-I reviewed the Phase 1 backend foundation: config and env loading, the MongoDB/Redis connectors, the startup sequence, auth (register, login, JWT, test-mode header), the error contract, the five models, the seed and reset services and their CLIs, the Lua script, docker-compose, and the unit and integration tests. `tsc --noEmit` passes. I used `docs/SPECS.md` §6–§8, `.claude/CLAUDE.md`, and `01-CONTEXT.md` (D-01..D-13) as the reference for intended behaviour. I also read `cicd-review-patterns.md` and `necessity-review.md`.
+Scope: the exact-match `isTestMode` change (diff base `7550d39`). `env.ts` now sets `isTestMode` with a raw `env["NODE_ENV"] === "test"`. The new tests in `config.test.ts` and `auth.test.ts` pin that behaviour, both at unit level and end to end through `loadBaseConfig -> requireAuth -> HTTP`.
 
-Overall the implementation is careful:
-- Inputs are string-typed, which blocks NoSQL operator injection.
-- The JWT algorithm is pinned to HS256, and `sub`/`role` are validated.
-- `role` is never taken from the client.
-- The 27017 guard works, `multi()` results are checked pair by pair, and indexes are created explicitly before `listen`.
-- `buy.lua` matches the spec text exactly.
+Checks run:
+- `tsc --noEmit` passed.
+- `node --import tsx --test test/config.test.ts test/auth.test.ts` passed 53 of 53.
+- I tested the `--env-file` loader on Node 24.22.1 with scratch files. It strips CR and trailing spaces, so the CRLF checkout of `backend/.env.test` (`git ls-files --eol`: `w/crlf`) still gives exactly `"test"`.
 
-I found no BLOCKER. The issues that matter:
+The comparison itself is correct and fails closed, which matches SPECS §7 and AUTH-05. The defect is around it: the display/health value `nodeEnv` is still trimmed. So in the exact case this change targets (`set NODE_ENV=test && ...`), the server reports `NODE_ENV=test` while test mode is off. The new test at `config.test.ts:141-148` locks in that inconsistency.
 
-1. The shared reset service runs non-atomic steps in an order that can leave V2 with more orders than `totalQty` if any buy is still in flight. A Redis failure part-way through leaves MongoDB and Redis inconsistent. Reset is the tool every E1/E2 run depends on (WR-01).
-2. The test-mode auth bypass (`x-test-user`) is reachable from the network, because the server binds all interfaces. `/api/health` also tells any caller that test mode is on (WR-02).
-3. The test helpers claim per-file and per-worktree isolation. That holds for MongoDB but not for Redis: fixed db numbers are shared and `FLUSHDB` is run on them (WR-03).
-
-docker-compose.yml: none of the CI/CD checks apply. There are no workflows and no deploy steps, images are pinned to minor tags, both ports bind to 127.0.0.1, and both services have healthchecks.
+Necessity rubric (`.claude/gsd-core/references/necessity-review.md`) was read. No necessity findings: the raw comparison guards environment input crossing a trust boundary.
 
 ## Narrative Findings (AI reviewer)
 
-## Warnings
+## Critical Issues
 
-### WR-01: Reset can leave MongoDB and Redis out of sync, letting V2 exceed `totalQty` when a buy is in flight or Redis fails part-way
+### CR-01: `nodeEnv` (banner + `/api/health`) reports "test" while `isTestMode` is false, which defeats the load-test preflight
 
-**File:** `backend/src/services/sale-admin.service.ts:56-81`
-**Issue:** `resetSale` runs five separate writes in this order:
-1. `updateOne` reopens the sale (`status: "active"`, `remainingQty = totalQty`).
-2. `Order.deleteMany`.
-3. `StockMovement.deleteMany`.
-4. Redis `SET stock` + `DEL buyers`.
-5. Insert the `reset` movement.
+**File:** `backend/src/config/env.ts:121-126` (consumers: `backend/src/controllers/health.controller.ts:18`, `backend/src/server.ts:56-71`; locked in by `backend/test/config.test.ts:141-144`)
 
-The sale is already marked `active` at step 1, and the Redis reset (step 4) only happens after the orders are deleted. This causes two problems:
+**Issue:** After this change, the two fields come from different versions of the same variable:
+- `nodeEnv = optionalVar(env, "NODE_ENV")`, which is **trimmed**
+- `isTestMode = env["NODE_ENV"] === "test"`, which is **raw**
 
-- **Race with in-flight buys.** This affects the Phase 2 admin route, which shares this function (D-09), and also a CLI reset run while the server is up. Suppose a V2 request runs its Lua script between step 2 and step 4. The script decrements the *old* `stock:<id>` and adds the user to the *old* `buyers:<id>`, and then the order is inserted. Step 4 then sets stock back to `totalQty` and deletes `buyers`. The new run therefore starts with full Redis stock *plus* a surviving order, so up to `totalQty + inFlight` orders can succeed, and the reconciliation check (§8) fails. For V1, an order inserted between steps 1 and 2 is deleted while its `$inc: -1` on `remainingQty` stays, so stock leaks by one. Stragglers from autocannon (E2) or from timed-out requests are a realistic source of in-flight buys. The Core Value ("V1/V2 never oversell, proven by repeated E1 runs") relies on reset producing a clean state.
-- **Partial failure.** If the Redis `multi()` fails (as the test at `reset.test.ts:157` exercises), MongoDB has already been reset, the sale is already `active`, and the audit log in `stock_movements` has been wiped without a `reset` row. Meanwhile Redis still holds the previous run's stock and buyers. The function rejects, but the sale stays open in a mixed state.
+For `NODE_ENV="test "`, which is the cmd `set NODE_ENV=test && npm start` value that the comment on line 125 cites as the reason for the change:
+- The startup banner prints `NODE_ENV=test` (`server.ts:70`).
+- `GET /api/health` returns `{"nodeEnv":"test", ...}` (`health.controller.ts:18`).
+- The `CHẾ ĐỘ TEST` warning is **not** printed (`server.ts:56`). Nothing tells the operator that the value was rejected.
+- Every `x-test-user` request gets 401.
 
-**Fix:** Close the sale first, reset Redis before deleting the orders, and reopen only as the very last write:
+The health controller's own docstring (`health.controller.ts:10`) says `nodeEnv` exists so load scripts can confirm test mode. `01-CONTEXT.md:147` says Phase 3 depends on health `nodeEnv`. EXP-01 requires a preflight check that the "server ở chế độ test". A preflight written against that contract (`health.nodeEnv === "test"`) passes on a server that is not in test mode. E1 then fires its burst and gets only 401s. 4xx responses don't count as errors under the project's measurement rules (only 5xx and connection errors count), so the run records 0 orders. For V0 that reads as "did not oversell", the opposite of the result the experiment exists to show.
+
+The test at `config.test.ts:141-144` ("nodeEnv vẫn trim để hiển thị nhưng không quyết định chế độ test") asserts `nodeEnv === "test"` together with `isTestMode === false`. That locks in the contradiction instead of catching it.
+
+**Fix:** Have health report the actual decision, and make the display show the raw value so it can't look like `"test"`:
 ```ts
-// 1. đóng đợt sale để mọi request mới nhận "đã kết thúc" (400)
-await FlashSale.updateOne({ _id: saleId }, { $set: { status: "ended" } });
-// 2. Redis trước, kiểm tra từng [err, res]
-const results = await redis.multi().set(stockKey(saleId), String(totalQty)).del(buyersKey(saleId)).exec();
-/* ...kiểm tra lỗi như hiện tại... */
-// 3. xóa dữ liệu của lần chạy trước
-await Order.deleteMany({ saleId });
-await StockMovement.deleteMany({ saleId });
-await StockMovement.create({ saleId, orderId: null, delta: totalQty, reason: "reset", at: now });
-// 4. mở lại cuối cùng
-await FlashSale.updateOne({ _id: saleId }, { $set: { remainingQty: totalQty, status: "active", startAt: now, endAt, ...modeSet } });
-```
-Even with this order, a request that passed the `active` check just before step 1 can still slip through. Also state in the JSDoc and in the load-script docs that reset must only be called after every request of the previous run has finished.
+// env.ts: keep the raw value for display. JSON.stringify makes "test " visible.
+const rawNodeEnv = env["NODE_ENV"];
+const nodeEnv = rawNodeEnv === undefined || rawNodeEnv.trim() === "" ? "development" : rawNodeEnv;
+const isTestMode = rawNodeEnv === "test";
 
-### WR-02: Test-mode auth bypass is reachable from the whole network, and `/api/health` advertises it
+// health.controller.ts: give scripts the boolean they actually need to check
+res.status(...).json({ mongo, redis, nodeEnv: deps.cfg.nodeEnv, testMode: deps.cfg.isTestMode, maxPoolSize: ... });
 
-**File:** `backend/src/server.ts:62`, `backend/src/middlewares/auth.ts:29-37`, `backend/src/controllers/health.controller.ts:15-20`
-**Issue:** `listen(cfg.port)` is called with no host, so Node binds `::` dual-stack on all interfaces, including the LAN or Wi-Fi interface. Under `npm run start:test` (`isTestMode`), anyone who can reach the port can act as any user just by sending `x-test-user: <any 24-hex>`, without credentials. They can place orders and skew E1/E2 numbers during a measurement on a campus or shared network. The project treats exactly this exposure as a constraint for compose ("Compose chỉ bind 127.0.0.1 vì không có mật khẩu"), and test mode is effectively a server without passwords. On top of that, the public, unauthenticated `/api/health` returns `nodeEnv` and `maxPoolSize`. The spec defines the body as `{ mongo, redis }`, so this extra output tells any caller that the bypass is active.
-
-The no-host listen comes from the stack guidance (so `localhost` resolves on both `::1` and `127.0.0.1`), so the fix needs to keep that property.
-**Fix:** In test mode, bind loopback only, and do not reveal the mode to anonymous callers:
-```ts
-// server.ts
-const app = createApp({ cfg, jwtSecret, redis });
-if (cfg.isTestMode) {
-  // chỉ máy cục bộ: header x-test-user thay cho đăng nhập
-  app.listen(cfg.port, "127.0.0.1", onListen);
-} else {
-  app.listen(cfg.port, onListen);
+// server.ts: tell the operator when a near-miss value was rejected
+if (!cfg.isTestMode && process.env["NODE_ENV"]?.trim().toLowerCase() === "test") {
+  console.warn(`[CẢNH BÁO] NODE_ENV=${JSON.stringify(process.env["NODE_ENV"])} có ký tự thừa: chế độ test KHÔNG bật. Dùng "npm run start:test".`);
 }
 ```
-Point the load scripts at `127.0.0.1` explicitly. For health, either drop `nodeEnv`/`maxPoolSize` from the public body or return them only when the request comes from loopback (`req.socket.remoteAddress`).
-
-### WR-03: Test isolation claim is false for Redis — fixed db numbers are shared across files and across parallel worktrees, and are `FLUSHDB`ed
-
-**File:** `backend/test/helpers.ts:7-9,32-44`, `backend/test/integration/seed.test.ts:36,46`, `backend/test/integration/reset.test.ts:57,79`, `backend/test/integration/models.test.ts:146,176`, `backend/test/integration/health.test.ts:32,82`
-**Issue:** The helper header says each integration file "giữ một chỉ số db từ 1 đến 15", and `testMongoUri` adds `process.pid` so that "các worktree song song không đụng nhau". Redis gets neither guarantee:
-- `testRedisUrl(db)` uses fixed numbers.
-- `models.test` (spawned servers) and `seed.test` both use db 2. `health.test` and the default `startApp()` both use db 1.
-- `seed.test` and `reset.test` run `seedDatabase`, which calls `redis.flushdb()` (`seed.service.ts:141`), and both run `redis.flushdb()` again in `after()`.
-
-`--test-concurrency=1` only serialises files within a single run. If two worktrees run `npm run test:int` at the same time (the GSD workflow uses parallel executor worktrees; see the recent `merge executor worktree` commits), one run's `FLUSHDB` on db 2 or db 3 wipes `stock:<id>` and `buyers:<id>` mid-test in the other. The result is intermittent failures, for example `redis.get(stockKey(...))` returning `null` in `reset.test.ts:109`.
-**Fix:** Give each file its own db number and document the allocation in one table in `helpers.ts`. To make parallel runs safe as well, either namespace the keys per pid (which needs a key-prefix seam in `stockKey`/`buyersKey`) or take a cross-process lock before integration tests run, for example a `SET test-lock:<db> <pid> NX EX 300` in `connectTestStores` that fails fast with a clear message. At a minimum, correct the comment so it does not claim isolation that does not exist.
+(Or compute a `testModeNearMiss` flag in `env.ts`, so `env.ts` stays the only place that reads `NODE_ENV`.) Then change `config.test.ts:141-144` to assert that `nodeEnv` does not equal `"test"` (or that `testMode` is false in health) for `"test "`, and update the `health.test.ts` expectations (`nodeEnv`/`testMode`). Phase 3 preflight should check `testMode === true`, not `nodeEnv`.
 
 ## Info
 
-### IN-01: Test-mode switch trims `NODE_ENV` before comparing, despite the spec's "exact comparison"
+### IN-01: The old case-sensitivity test is fully covered by the new exact-match test
 
-**File:** `backend/src/config/env.ts:88-92,121-123`
-**Issue:** `optionalVar` trims, so `NODE_ENV="test "` or `" test"` turns on the `x-test-user` bypass. SPECS §7 requires `NODE_ENV === "test"` "so sánh chính xác" for this switch. The risk is low, but this is the one flag that disables authentication.
-**Fix:** Read the raw value for this check, e.g. `const isTestMode = env["NODE_ENV"] === "test";`, and keep the trimmed value only for display.
+**File:** `backend/test/config.test.ts:106-109`, `backend/test/config.test.ts:130`
+**Issue:** The test at lines 106-109 checks `"test"` gives true and `"TEST"` gives false. The new test at 111-131 checks both again: `"TEST"` is in `notTest`, and line 130 re-asserts the positive case. Two tests pin one rule, so a future semantic change has to edit both.
+**Fix:** Delete lines 106-109, or drop `"TEST"` and the line-130 assertion from the new test and keep the old one as the positive and case check.
 
-### IN-02: Unguarded `await mongoose.disconnect()` in startup failure paths
+### IN-02: Exact match now depends on loader normalisation that is only checked on the Node version in use
 
-**File:** `backend/src/server.ts:43,52`
-**Issue:** If `disconnect()` rejects, the top-level await throws. The process then dies with a raw stack trace instead of the Vietnamese `[LỖI] ...` line that D-18/D-19 promise. The CLIs already use `.catch(() => {})` for the same call (`seed.ts:36`, `reset.ts:39`).
-**Fix:** `await mongoose.disconnect().catch(() => {});`
-
-### IN-03: `Authorization` scheme match is case-sensitive
-
-**File:** `backend/src/middlewares/auth.ts:12`
-**Issue:** `/^Bearer (...)$/` rejects `bearer <token>` as "Bạn chưa đăng nhập". The auth scheme is case-insensitive per RFC 7235 §2.1, and some clients and tools send it in lowercase.
-**Fix:** `const BEARER_RE = /^Bearer ([^\s]+)$/i;`
-
-### IN-04: No maximum length on email
-
-**File:** `backend/src/utils/validate.ts:49,55`
-**Issue:** `name` is capped at 100 characters, but `email` is only regex-checked. A register body can store an email of up to about 100 kB (the `express.json` limit), and it ends up in the unique index.
-**Fix:** Add `if (email.length > 254) throw invalid("Email không hợp lệ");`.
-
-### IN-05: `parseRedisUrl` accepts db indexes outside 0–15
-
-**File:** `backend/src/config/env.ts:72-76`
-**Issue:** `redis://127.0.0.1:6379/99` passes config validation. The failure then shows up later as a `SELECT` error at connect time, and gets reported as the misleading "Không kết nối được Redis ... Chạy docker compose up".
-**Fix:** Reject `db > 15` with a `ConfigError` (the default Redis has 16 databases).
-
-### IN-06: Duplicated constants and CLI bootstrap
-
-**File:** `backend/src/services/seed.service.ts:18-19`, `backend/src/services/sale-admin.service.ts:9`, `backend/src/services/auth.service.ts:26-27`, `backend/src/utils/validate.ts:22`, `backend/scripts/seed.ts:21-47`, `backend/scripts/reset.ts:26-50`
-**Issue:** These constants are each defined twice:
-- `SALE_DURATION_MS`: seed and reset. The two must stay equal for the 7-day rule.
-- `BCRYPT_COST`: seed and auth.
-- `PASSWORD_MAX_BYTES`: auth service and validate.
-
-The config, MongoDB and Redis connect-or-fail block is also copied verbatim between the two CLIs. If one copy is edited and the other is not, they drift silently.
-**Fix:** Export each constant once (for example from `models/flash-sale.ts`, `services/auth.service.ts`, `utils/validate.ts`), and move the CLI bootstrap into a shared `scripts/connect-stores.ts`.
-
-### IN-07: `npm run reset` (all sales) does not report sales already reset when a later one fails
-
-**File:** `backend/scripts/reset.ts:55-66`
-**Issue:** `resetAllSales` stops at the first failing sale and throws. Results are only printed after the whole call succeeds, so the operator sees only `[LỖI] ...`. Sales that were already reset are not listed, and the failed sale may be in the half-reset state described in WR-01.
-**Fix:** Loop over sales in the CLI, or have `resetAllSales` return partial results along with the error, and print each `Đã reset ...` line as it completes.
-
-### IN-08: Generality without instantiation — `signToken` exposed on `AuthService` with no consumer
-
-**File:** `backend/src/services/auth.service.ts:23,85`
-**Category:** necessity
-**Issue:** `signToken` is part of the public `AuthService` interface. A grep over `src/`, `scripts/` and `test/` finds only the internal use at line 52. Tests sign tokens with `jwt.sign` directly (`test/auth.test.ts:22-24`). Phase 2 might use it, so this rests on judgment.
-**Fix:** Drop it from the interface and the returned object until there is a caller.
-
-### IN-09: Already-defended-elsewhere — `qty` validation in `seedDatabase` duplicates (and disagrees with) the CLI parser
-
-**File:** `backend/src/services/seed.service.ts:136`
-**Category:** necessity
-**Issue:** The only production caller (`scripts/seed.ts:51`) passes `args.qty` from `parseQty` (`scripts/cli-args.ts:51-55`). That parser already enforces `^[1-9][0-9]*$` and `<= 1_000_000`. The test callers pass literals (5 and 7). The service check repeats the positive-integer rule without the upper bound, so the two layers disagree on what a valid `qty` is.
-**Fix:** Either remove the service check, or make it the single source of truth (with `MAX_QTY`) and have `parseQty` call it.
-
-### IN-10: Impossible-state guard — non-integer sale price check on a compile-time constant
-
-**File:** `backend/src/services/seed.service.ts:161-164`
-**Category:** necessity
-**Issue:** `sneaker.price` always comes from the module constant `SEED_PRODUCTS` (`price: 899_000`, line 78), so `price / 2` is always `449500`. `seed.test.ts:108` already asserts the exact value. The guard only protects against a future edit of the constant, which the test would catch. This is judgment, because someone could edit the constant.
-**Fix:** Remove the runtime branch and rely on the existing test, or move the check into a test asserting `Number.isInteger(price / 2)` for the sale product.
+**File:** `backend/src/config/env.ts:126` (input: `backend/.env.test`, checked out CRLF on Windows; `package.json` `engines.node >=20.19.0`)
+**Issue:** Before this change, `trim()` hid any `\r` or trailing space that the loader left in `NODE_ENV`. Now the comparison only works if the loader strips them. Node 24.22.1 does (I checked with a scratch CRLF file), and `health.test.ts:107-129` covers the `--env-file` path, but only on whatever Node runs the suite. Nothing in the repo shows the same behaviour on the 20.19 floor. There's also a related trap: a `.env.test` re-saved with a UTF-8 BOM gives key `\ufeffNODE_ENV`. I checked that on Node 24: `NODE_ENV` ends up `undefined`. That also fails closed with no message. It isn't a regression, but CR-01's near-miss warning would not catch it either.
+**Fix:** Add the CR-01 near-miss warning. Optionally add `backend/.env.test text eol=lf` to `.gitattributes` so the file has no CR on any platform. Either run the integration suite once on Node 20.19, or note in README that it was tested on Node 24.
 
 ---
 
-_Reviewed: 2026-11-04T12:47:14Z_
+_Reviewed: 2026-11-04T23:00:00Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_

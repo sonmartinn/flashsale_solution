@@ -1,0 +1,35 @@
+# Hạ tầng dev: chỉ MongoDB và Redis. Backend và frontend chạy trực tiếp trên máy.
+# Không đặt mật khẩu nên cả hai cổng chỉ mở cho 127.0.0.1.
+# Cổng 27017 trên máy là dịch vụ MongoDB của Windows, vì vậy MongoDB của dự án dùng 27018.
+name: flashsale
+services:
+  mongo:
+    image: mongo:7.0
+    container_name: flashsale-mongo
+    ports:
+      - "127.0.0.1:27018:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+  redis:
+    image: redis:7.4
+    container_name: flashsale-redis
+    # Bật AOF, ghi đĩa mỗi giây (có thể mất khoảng 1 giây dữ liệu khi sập)
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+volumes:
+  mongo-data:
+  redis-data:

@@ -1,7 +1,7 @@
 // Test đơn vị cho bộ phân tích tham số dòng lệnh của seed và reset (không đụng tới database).
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { CliArgsError, parseSeedArgs } from "../scripts/cli-args.js";
+import { CliArgsError, parseResetArgs, parseSeedArgs } from "../scripts/cli-args.js";
 
 describe("cli-args.test", () => {
   describe("parseSeedArgs", () => {
@@ -61,6 +61,47 @@ describe("cli-args.test", () => {
 
     it("từ chối --qty thiếu giá trị", () => {
       assert.throws(() => parseSeedArgs(["--qty"]), CliArgsError);
+    });
+  });
+
+  describe("parseResetArgs", () => {
+    it("không có tham số: trả về object rỗng (reset mọi sale, giữ mode)", () => {
+      assert.deepEqual(parseResetArgs([]), {});
+    });
+
+    it("--sale viết hoa được chuẩn hóa về chữ thường", () => {
+      assert.deepEqual(parseResetArgs(["--sale", "64AB64AB64AB64AB64AB64AB"]), { saleId: "64ab64ab64ab64ab64ab64ab" });
+    });
+
+    it("nhận --sale và --mode cùng lúc", () => {
+      assert.deepEqual(parseResetArgs(["--sale=64ab64ab64ab64ab64ab64ab", "--mode", "v0"]), {
+        saleId: "64ab64ab64ab64ab64ab64ab",
+        mode: "v0",
+      });
+    });
+
+    it("chỉ có --mode thì không có khóa saleId", () => {
+      assert.deepEqual(parseResetArgs(["--mode", "v1"]), { mode: "v1" });
+    });
+
+    it("từ chối --sale không phải ObjectId", () => {
+      assert.throws(() => parseResetArgs(["--sale", "abc"]), (err: unknown) => {
+        assert.ok(err instanceof CliArgsError);
+        assert.match(err.message, /--sale phải là ObjectId 24 ký tự hex/);
+        return true;
+      });
+    });
+
+    it("từ chối --mode v3", () => {
+      assert.throws(() => parseResetArgs(["--mode", "v3"]), CliArgsError);
+    });
+
+    it("từ chối cờ lạ --bogus", () => {
+      assert.throws(() => parseResetArgs(["--bogus"]), CliArgsError);
+    });
+
+    it("không có --qty cho reset (reset không đổi totalQty)", () => {
+      assert.throws(() => parseResetArgs(["--qty", "5"]), CliArgsError);
     });
   });
 });

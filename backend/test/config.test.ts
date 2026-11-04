@@ -108,6 +108,45 @@ describe("config.test", () => {
       assert.equal(loadBaseConfig({ ...VALID_ENV, NODE_ENV: "TEST" }).isTestMode, false);
     });
 
+    it('isTestMode chỉ bật khi NODE_ENV đúng chính xác "test" (không trim, không đổi hoa thường)', () => {
+      // Mọi giá trị dưới đây đều thành "test" nếu trim hoặc đổi hoa thường, nên phải đều cho false.
+      // Ký tự vô hình và ký tự ngoài ASCII được viết bằng escape để dễ đọc khi review.
+      const notTest = [
+        "test ",
+        " test",
+        "test\t",
+        "\ttest",
+        "test\r",
+        "test\n",
+        "test\u00a0", // khoảng trắng không ngắt dòng
+        "\ufefftest", // BOM
+        "TEST",
+        "Test",
+        "t\u0435st", // chữ e Kirin (U+0435) trông giống chữ e Latin
+      ];
+      for (const value of notTest) {
+        assert.equal(loadBaseConfig({ ...VALID_ENV, NODE_ENV: value }).isTestMode, false, JSON.stringify(value));
+      }
+      assert.equal(loadBaseConfig({ ...VALID_ENV, NODE_ENV: "test" }).isTestMode, true);
+    });
+
+    it("NODE_ENV rỗng hoặc chỉ có khoảng trắng: không bật chế độ test, nodeEnv là development", () => {
+      for (const value of ["", "   "]) {
+        const cfg = loadBaseConfig({ ...VALID_ENV, NODE_ENV: value });
+        assert.equal(cfg.isTestMode, false, JSON.stringify(value));
+        assert.equal(cfg.nodeEnv, "development", JSON.stringify(value));
+      }
+    });
+
+    it("nodeEnv vẫn trim để hiển thị nhưng không quyết định chế độ test", () => {
+      const padded = loadBaseConfig({ ...VALID_ENV, NODE_ENV: "test " });
+      assert.equal(padded.nodeEnv, "test");
+      assert.equal(padded.isTestMode, false);
+      const prod = loadBaseConfig({ ...VALID_ENV, NODE_ENV: "production" });
+      assert.equal(prod.nodeEnv, "production");
+      assert.equal(prod.isTestMode, false);
+    });
+
     it("không cần JWT_SECRET (seed/reset dùng được)", () => {
       assert.doesNotThrow(() => loadBaseConfig({ ...VALID_ENV }));
     });

@@ -118,9 +118,12 @@ export function loadBaseConfig(env: NodeJS.ProcessEnv = process.env): BaseConfig
     mongoMaxPoolSize = Number(rawPool);
   }
 
+  // nodeEnv đã trim, CHỈ dùng để hiển thị (banner khởi động, GET /api/health).
   const nodeEnv = optionalVar(env, "NODE_ENV") ?? "development";
-  // Kiểm tra chế độ test DUY NHẤT của cả backend (D-14)
-  const isTestMode = nodeEnv === "test";
+  // Kiểm tra chế độ test DUY NHẤT của cả backend (D-14, AUTH-05).
+  // So sánh giá trị THÔ, đúng chính xác "test": không trim, không đổi hoa thường. Nhờ vậy giá trị như
+  // "test " (do `set NODE_ENV=test && ...` trong cmd tạo ra) KHÔNG bật chế độ test và header x-test-user.
+  const isTestMode = env["NODE_ENV"] === "test";
 
   return { port, mongoUri, mongoTarget, redisUrl, redisTarget, clientOrigin, mongoMaxPoolSize, nodeEnv, isTestMode };
 }

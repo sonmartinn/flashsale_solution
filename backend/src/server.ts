@@ -4,6 +4,7 @@ import { connectMongo } from "./config/db.js";
 import { connectRedis, createRedis } from "./config/redis.js";
 import { createApp } from "./app.js";
 import { fail } from "./utils/fail.js";
+import { isPortFree } from "./utils/port.js";
 
 // Trình tự khởi động: mỗi điều kiện hỏng đều thoát mã 1 với một dòng [LỖI] tiếng Việt (D-18, D-19).
 
@@ -21,6 +22,11 @@ const { cfg, jwtSecret } = loadConfigOrFail();
 if (jwtSecret.length < 32) {
   // Chỉ cảnh báo, không từ chối; không bao giờ in giá trị của khóa
   console.warn("[CẢNH BÁO] JWT_SECRET ngắn hơn 32 ký tự. Nên dùng khóa ngẫu nhiên 32 byte (xem .env.example).");
+}
+
+// Dò cổng TRƯỚC khi kết nối MongoDB: thoát nhanh, và bắt được cả tiến trình chỉ giữ địa chỉ IPv4
+if (!(await isPortFree(cfg.port))) {
+  fail(`Cổng ${cfg.port} đang bị chiếm bởi tiến trình khác. Dừng tiến trình đó rồi chạy lại.`);
 }
 
 try {
@@ -42,7 +48,8 @@ if (cfg.isTestMode) {
   console.warn("!!! CHẾ ĐỘ TEST: header x-test-user được chấp nhận thay cho đăng nhập. KHÔNG dùng ngoài đo tải !!!");
 }
 
-// Không truyền host: Node bind dual-stack "::" nên localhost chạy được cả với ::1 và 127.0.0.1
+// Không truyền host: Node bind dual-stack "::" nên localhost chạy được cả với ::1 và 127.0.0.1.
+// Vẫn kiểm tra lỗi trong callback (SPECS §11): phủ khoảng thời gian giữa lúc dò cổng và lúc listen.
 createApp({ cfg, jwtSecret, redis }).listen(cfg.port, (error?: Error) => {
   if (error) {
     if ((error as NodeJS.ErrnoException).code === "EADDRINUSE") {

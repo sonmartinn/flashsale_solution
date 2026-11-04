@@ -3,6 +3,7 @@ import cors from "cors";
 import type { Redis } from "ioredis";
 import type { BaseConfig } from "./config/env.js";
 import { createApiRouter } from "./routes/index.js";
+import { errorHandler, notFound } from "./middlewares/error.js";
 
 /** Các phụ thuộc được truyền vào app (không đọc biến môi trường, không mở kết nối ở đây). */
 export interface AppDeps {
@@ -21,5 +22,8 @@ export function createApp(deps: AppDeps): Express {
   app.use(cors({ origin: deps.cfg.clientOrigin }));
   app.use(express.json());
   app.use("/api", createApiRouter(deps));
+  // Thứ tự quan trọng: notFound rồi mới tới errorHandler, không gắn gì sau errorHandler.
+  app.use(notFound);
+  app.use(errorHandler);
   return app;
 }

@@ -3,6 +3,7 @@ import { ConfigError, loadBaseConfig, loadJwtSecret, type BaseConfig } from "./c
 import { connectMongo } from "./config/db.js";
 import { connectRedis, createRedis } from "./config/redis.js";
 import { createApp } from "./app.js";
+import { ensureIndexes } from "./models/index.js";
 import { fail } from "./utils/fail.js";
 import { isPortFree } from "./utils/port.js";
 
@@ -33,6 +34,14 @@ try {
   await connectMongo(cfg.mongoUri, cfg.mongoMaxPoolSize);
 } catch {
   fail(`Không kết nối được MongoDB tại ${cfg.mongoTarget}. Chạy "docker compose up -d --wait" ở thư mục gốc.`);
+}
+
+// Index phải có đủ TRƯỚC khi nhận request: unique (saleId, userId) và unique email là chốt chặn dữ liệu (D-21).
+try {
+  await ensureIndexes();
+} catch (e) {
+  await mongoose.disconnect();
+  fail(`Không tạo được index MongoDB: ${e instanceof Error ? e.message : String(e)}`);
 }
 
 const redis = createRedis(cfg.redisUrl);

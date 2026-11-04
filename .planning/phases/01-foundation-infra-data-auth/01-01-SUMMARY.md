@@ -244,6 +244,13 @@ None for automated runs. For running the server by hand, copy `backend/.env.exam
 - Pending end-of-phase human check (D6): the manual 4-case boot matrix and the health 200 -> 503 -> 200 sequence with `docker stop/start flashsale-redis`.
 - Blocker for merge: commit `backend/.env.test` (see Issues Encountered).
 
+## Self-Check: PASSED
+
+- Commits on this branch: 7fb0b07, 826160c, ca6f0d5 (code), dcc756f (SUMMARY + REQUIREMENTS).
+- Files present: all 22 committed key files; `backend/.env.test` present on disk but uncommitted (guard-blocked, flagged above).
+- No commit carries a `Co-Authored-By` line.
+- Plan verification re-run: compose healthy + AOF everysec; typecheck + build; `npm test` 29/29; `npm run test:int` 5/5.
+
 ---
 *Phase: 01-foundation-infra-data-auth*
 *Completed: 2026-11-04*

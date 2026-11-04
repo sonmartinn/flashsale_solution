@@ -20,10 +20,10 @@ Nguồn yêu cầu gốc: `docs/SPECS.md`. Chi tiết kỹ thuật (tên trườ
 ### Dữ liệu, seed, reset (DATA)
 
 - [x] **DATA-01**: 5 model đúng SPECS mục 6 với tên collection tường minh (`flash_sales`, `stock_movements`…), index đầy đủ: `users.email` unique chữ thường, `products.slug` unique, `flash_sales (status, startAt)`, `orders (saleId, userId)` unique và `(userId, createdAt desc)`, `stock_movements (saleId, at)`; `remainingQty` không có `min`
-- [ ] **DATA-02**: Server và seed đều đảm bảo index tồn tại (`createIndexes`/`syncIndexes`) trước khi nhận request / chèn dữ liệu
-- [ ] **DATA-03**: `npm run seed` xóa sạch database `flashsale` và Redis, tạo 1.000 user + 1 admin (một mật khẩu thử, băm bcrypt một lần), 6 sản phẩm thời trang với `attributes` khác nhau theo loại, 1 đợt sale active 7 ngày giá bằng nửa giá gốc; số lượng kho (mặc định 100) và `mode` nhận qua tham số; nạp `stock:<saleId>` vào Redis
-- [ ] **DATA-04**: Service reset dùng chung (CLI và API admin): `remainingQty = totalQty`, xóa `orders` và `stock_movements` của đợt, Redis `stock = totalQty` và xóa `buyers` trong một `multi()` (kiểm tra từng kết quả `exec()`), mở lại đợt sale (`active`, `startAt = now`, `endAt = now + 7 ngày`), tùy chọn đặt `mode`, ghi `stock_movements` lý do reset, xóa cache đợt sale
-- [ ] **DATA-05**: `npm run reset` (một hoặc mọi đợt, tùy chọn `--mode`) chạy được và in cảnh báo rằng nó không xóa được cache trong tiến trình server đang chạy (script tải phải reset qua API)
+- [x] **DATA-02**: Server và seed đều đảm bảo index tồn tại (`createIndexes`/`syncIndexes`) trước khi nhận request / chèn dữ liệu
+- [x] **DATA-03**: `npm run seed` xóa sạch database `flashsale` và Redis, tạo 1.000 user + 1 admin (một mật khẩu thử, băm bcrypt một lần), 6 sản phẩm thời trang với `attributes` khác nhau theo loại, 1 đợt sale active 7 ngày giá bằng nửa giá gốc; số lượng kho (mặc định 100) và `mode` nhận qua tham số; nạp `stock:<saleId>` vào Redis
+- [x] **DATA-04**: Service reset dùng chung (CLI và API admin): `remainingQty = totalQty`, xóa `orders` và `stock_movements` của đợt, Redis `stock = totalQty` và xóa `buyers` trong một `multi()` (kiểm tra từng kết quả `exec()`), mở lại đợt sale (`active`, `startAt = now`, `endAt = now + 7 ngày`), tùy chọn đặt `mode`, ghi `stock_movements` lý do reset, xóa cache đợt sale
+- [x] **DATA-05**: `npm run reset` (một hoặc mọi đợt, tùy chọn `--mode`) chạy được và in cảnh báo rằng nó không xóa được cache trong tiến trình server đang chạy (script tải phải reset qua API)
 
 ### Xác thực (AUTH)
 
@@ -135,10 +135,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-05 | Phase 1 | Complete |
 | INFRA-06 | Phase 1 | Complete |
 | DATA-01 | Phase 1 | Complete |
-| DATA-02 | Phase 1 | Pending |
-| DATA-03 | Phase 1 | Pending |
-| DATA-04 | Phase 1 | Pending |
-| DATA-05 | Phase 1 | Pending |
+| DATA-02 | Phase 1 | Complete |
+| DATA-03 | Phase 1 | Complete |
+| DATA-04 | Phase 1 | Complete |
+| DATA-05 | Phase 1 | Complete |
 | AUTH-01 | Phase 1 | Pending |
 | AUTH-02 | Phase 1 | Pending |
 | AUTH-03 | Phase 1 | Pending |

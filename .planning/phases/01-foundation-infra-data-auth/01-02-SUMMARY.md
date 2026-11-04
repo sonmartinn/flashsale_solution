@@ -205,6 +205,13 @@ None.
 - 01-04 (auth) can throw `HttpError(..., "EMAIL_TAKEN" | "UNAUTHORIZED" | "INVALID_CREDENTIALS" | "FORBIDDEN")`, use `User` + `ROLES`, and use `normalizeObjectId` for `x-test-user`.
 - Phase 2 extends `ErrorCode` with SOLD_OUT, ALREADY_BOUGHT, SALE_NOT_ACTIVE, STOCK_NOT_LOADED, INVALID_MODE.
 
+## Self-Check: PASSED
+
+- All 12 created files are present on disk.
+- Commits on this branch: 2ff7b66, 515d415, 6d868e2 (code), 073a641 (SUMMARY + REQUIREMENTS).
+- No commit has a `Co-Authored-By` line.
+- Plan verification re-run: `typecheck` passes, `npm test` 48/48, `npm run test:int` 13/13. Every acceptance-criteria grep in both tasks passes.
+
 ---
 *Phase: 01-foundation-infra-data-auth*
 *Completed: 2026-11-04*

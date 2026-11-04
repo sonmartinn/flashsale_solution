@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import type { Server } from "node:http";
 import express from "express";
 import jwt from "jsonwebtoken";
+import { loadBaseConfig, type BaseConfig } from "../src/config/env.js";
 import { createAuthMiddleware } from "../src/middlewares/auth.js";
 import { errorHandler, notFound } from "../src/middlewares/error.js";
 import { TEST_JWT_SECRET, startApp, testConfig, type StartedApp } from "./helpers.js";
@@ -44,6 +45,15 @@ async function expectError(res: Response, status: number, code: string, message?
   const body = (await res.json()) as ErrorBody;
   assert.equal(body.code, code);
   if (message !== undefined) assert.equal(body.message, message);
+}
+
+/**
+ * Dựng cấu hình qua loadBaseConfig từ một env tự tạo (KHÔNG dùng process.env), chỉ đổi NODE_ENV.
+ * Nhờ vậy test đi trọn đường NODE_ENV -> loadBaseConfig -> requireAuth -> HTTP.
+ */
+function configFromNodeEnv(nodeEnv: string): BaseConfig {
+  const base = testConfig();
+  return loadBaseConfig({ MONGODB_URI: base.mongoUri, REDIS_URL: base.redisUrl, NODE_ENV: nodeEnv });
 }
 
 interface EchoApp {
@@ -253,5 +263,30 @@ describe("auth.test", () => {
     it("/api/admin/*: không header, không token thì 401", async () => {
       await expectError(await get(adminUrl), 401, "UNAUTHORIZED", "Bạn chưa đăng nhập");
     });
+  });
+
+  // AUTH-05, D-14: chỉ NODE_ENV thô đúng chính xác "test" mới bật x-test-user.
+  // "test " là giá trị mà `set NODE_ENV=test && npm start` của cmd tạo ra.
+  describe("NODE_ENV thô quyết định x-test-user (loadBaseConfig -> requireAuth)", () => {
+    it(`NODE_ENV ${JSON.stringify("test")}: x-test-user được nhận là user nên /api/admin/* trả 403`, async () => {
+      const api = await startApp({ cfg: configFromNodeEnv("test"), jwtSecret: TEST_JWT_SECRET });
+      try {
+        await expectError(await get(`${api.baseUrl}/api/admin/thu`, { "x-test-user": USER_ID }), 403, "FORBIDDEN");
+      } finally {
+        await api.close();
+      }
+    });
+
+    for (const value of ["test ", " test", "test\t"]) {
+      it(`NODE_ENV ${JSON.stringify(value)}: x-test-user bị bỏ qua, không token thì 401 'Bạn chưa đăng nhập'`, async () => {
+        const api = await startApp({ cfg: configFromNodeEnv(value), jwtSecret: TEST_JWT_SECRET });
+        try {
+          const res = await get(`${api.baseUrl}/api/admin/thu`, { "x-test-user": USER_ID });
+          await expectError(res, 401, "UNAUTHORIZED", "Bạn chưa đăng nhập");
+        } finally {
+          await api.close();
+        }
+      });
+    }
   });
 });

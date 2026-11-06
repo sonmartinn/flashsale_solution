@@ -178,6 +178,11 @@ export async function spawnServer(opts: SpawnOptions): Promise<SpawnResult> {
   }
 }
 
+/** Tách stderr thành các dòng không rỗng, để test đếm đúng số dòng (bỏ dòng chỉ có khoảng trắng). */
+export function stderrLines(text: string): string[] {
+  return text.split(/\r?\n/).filter((line) => line.trim() !== "");
+}
+
 export interface ServerProcess {
   baseUrl: string;
   stdout: () => string;

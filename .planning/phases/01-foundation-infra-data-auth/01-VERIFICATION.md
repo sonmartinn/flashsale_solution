@@ -69,6 +69,15 @@ covered_files:
 covered_digest: "v4:sha256:9a3f2003d463375bd926e96be4779f4d37388b214fa1d5c2ff801adc25253475"
 behavior_unverified: 0
 overrides_applied: 0
+overrides:
+  - must_have: 'nodeEnv keeps its trimmed display value for the boot banner and GET /api/health (NODE_ENV "test " displays "test" while isTestMode is false); every other loadBaseConfig output is unchanged, and the CHẾ ĐỘ TEST boot warning still depends only on cfg.isTestMode'
+    reason: "Superseded by the user's decision in 01-UAT test 1 (REVIEW CR-01 option b, gap G-01-1, plan 01-06): nodeEnv now shows the raw NODE_ENV (JSON-quoted in the banner), GET /api/health exposes testMode, and a near-miss NODE_ENV prints a [CẢNH BÁO] line. The rest of that must-have still holds: loadBaseConfig outputs are otherwise unchanged apart from the added testModeNearMiss field, and the CHẾ ĐỘ TEST warning still depends only on cfg.isTestMode."
+    accepted_by: "Le Trung Son (01-UAT test 1)"
+    accepted_at: "2026-11-05T04:57:29.000Z"
+  - must_have: 'Register or login with a missing body, an empty object, an array, a JSON primitive, blank strings or any non-string field returns 400 (VALIDATION_ERROR, or INVALID_JSON for unparsable bodies), never 500 (AUTH-01 empty edge)'
+    reason: "Accepted by the user in 01-UAT test 5: login with a blank password returns 401 INVALID_CREDENTIALS, as the 01-04 plan action and D-12 (uniform login failure) prescribe, and never 500. Register meets the truth fully."
+    accepted_by: "Le Trung Son (01-UAT test 5)"
+    accepted_at: "2026-11-05T04:57:29.000Z"
 re_verification:
   previous_status: gaps_found
   previous_score: 40/46

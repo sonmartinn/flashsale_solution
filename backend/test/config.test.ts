@@ -138,13 +138,55 @@ describe("config.test", () => {
       }
     });
 
-    it("nodeEnv vẫn trim để hiển thị nhưng không quyết định chế độ test", () => {
+    it('nodeEnv giữ giá trị thô của NODE_ENV; testModeNearMiss báo giá trị gần giống "test"', () => {
       const padded = loadBaseConfig({ ...VALID_ENV, NODE_ENV: "test " });
-      assert.equal(padded.nodeEnv, "test");
+      assert.equal(padded.nodeEnv, "test ");
       assert.equal(padded.isTestMode, false);
+      assert.equal(padded.testModeNearMiss, true);
       const prod = loadBaseConfig({ ...VALID_ENV, NODE_ENV: "production" });
       assert.equal(prod.nodeEnv, "production");
       assert.equal(prod.isTestMode, false);
+      assert.equal(prod.testModeNearMiss, false);
+    });
+
+    it('testModeNearMiss chỉ bật khi NODE_ENV gần giống "test" (thừa khoảng trắng hoặc sai hoa thường)', () => {
+      // Ký tự vô hình và ký tự ngoài ASCII được viết bằng escape để dễ đọc khi review.
+      const nearMiss = [
+        "test ",
+        " test",
+        "test\t",
+        "\ttest",
+        "test\r",
+        "test\n",
+        "test ", // khoảng trắng không ngắt dòng
+        "﻿test", // BOM
+        "TEST",
+        "Test",
+        " TEST ",
+      ];
+      for (const value of nearMiss) {
+        const cfg = loadBaseConfig({ ...VALID_ENV, NODE_ENV: value });
+        assert.equal(cfg.testModeNearMiss, true, JSON.stringify(value));
+        assert.equal(cfg.isTestMode, false, JSON.stringify(value));
+      }
+      const notNearMiss = [
+        "test",
+        "production",
+        "development",
+        "",
+        "   ",
+        "tеst", // chữ e Kirin (U+0435): không phải "test" kể cả sau khi trim
+        "testing",
+        "tes",
+      ];
+      for (const value of notNearMiss) {
+        assert.equal(loadBaseConfig({ ...VALID_ENV, NODE_ENV: value }).testModeNearMiss, false, JSON.stringify(value));
+      }
+      // Không đặt NODE_ENV
+      assert.equal(loadBaseConfig({ ...VALID_ENV }).testModeNearMiss, false, JSON.stringify(undefined));
+      const exact = loadBaseConfig({ ...VALID_ENV, NODE_ENV: "test" });
+      assert.equal(exact.isTestMode, true, JSON.stringify("test"));
+      assert.equal(exact.testModeNearMiss, false, JSON.stringify("test"));
     });
 
     it("không cần JWT_SECRET (seed/reset dùng được)", () => {

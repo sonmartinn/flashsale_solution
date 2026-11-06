@@ -56,6 +56,7 @@ export function testConfig(overrides: Partial<BaseConfig> = {}): BaseConfig {
     mongoMaxPoolSize: 100,
     nodeEnv: "development",
     isTestMode: false,
+    testModeNearMiss: false,
     ...overrides,
   };
 }

@@ -5,7 +5,7 @@ titles: json
 findings:
   - id: CR-01
     severity: critical
-    disposition: open
+    disposition: fixed
     title: "`nodeEnv` (banner + `/api/health`) reports \"test\" while `isTestMode` is false, which defeats the load-test preflight"
   - id: IN-01
     severity: info
@@ -15,7 +15,7 @@ findings:
     severity: info
     disposition: open
     title: "Exact match now depends on loader normalisation that is only checked on the Node version in use"
-open: 3
+open: 2
 total: 3
 recorded: 2026-11-04T15:48:27.924Z
 ---
@@ -24,7 +24,7 @@ recorded: 2026-11-04T15:48:27.924Z
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| CR-01 | critical | open | - |
+| CR-01 | critical | fixed | 01-06 (UAT G-01-1) |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 

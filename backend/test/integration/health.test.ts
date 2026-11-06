@@ -64,6 +64,8 @@ describe("health.test", () => {
       assert.ok(server);
       const s = server;
       assert.ok(await waitFor(() => s.stdout().includes("maxPoolSize=100")), `stdout: ${s.stdout()}`);
+      // NODE_ENV in trong ngoặc kép để thấy được khoảng trắng thừa
+      assert.ok(s.stdout().includes('NODE_ENV="development"'), `stdout: ${s.stdout()}`);
       assert.match(s.stdout(), /127\.0\.0\.1:27018\/flashsale_test_health_/);
       assert.doesNotMatch(s.stdout(), /mongodb:\/\//);
       assert.ok(!s.stdout().includes(TEST_JWT_SECRET));
@@ -141,6 +143,13 @@ describe("health.test", () => {
         `stdout: ${s.stdout()}\nstderr: ${s.stderr()}`,
       );
     });
+
+    it('banner in NODE_ENV="test" và không có dòng cảnh báo NODE_ENV gần giống', async () => {
+      assert.ok(server);
+      const s = server;
+      assert.ok(await waitFor(() => s.stdout().includes('NODE_ENV="test"')), `stdout: ${s.stdout()}`);
+      assert.ok(!s.stderr().includes("[CẢNH BÁO] NODE_ENV="), `stderr: ${s.stderr()}`);
+    });
   });
 
   describe('NODE_ENV có khoảng trắng thừa ("test "): chế độ test KHÔNG bật và health nói rõ điều đó', () => {
@@ -163,6 +172,17 @@ describe("health.test", () => {
       assert.equal(body.testMode, false);
       assert.equal(body.nodeEnv, "test ");
       assert.notEqual(body.nodeEnv, "test");
+    });
+
+    it('banner in NODE_ENV="test " và stderr có đúng dòng [CẢNH BÁO], không có CHẾ ĐỘ TEST', async () => {
+      assert.ok(server);
+      const s = server;
+      assert.ok(await waitFor(() => s.stdout().includes('NODE_ENV="test "')), `stdout: ${s.stdout()}`);
+      assert.ok(
+        await waitFor(() => s.stderr().includes('[CẢNH BÁO] NODE_ENV="test "')),
+        `stderr: ${s.stderr()}`,
+      );
+      assert.ok(!s.stderr().includes("CHẾ ĐỘ TEST"), `stderr: ${s.stderr()}`);
     });
   });
 

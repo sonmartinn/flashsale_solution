@@ -69,10 +69,11 @@ describe("errors.test", () => {
       assert.equal(body.code, "INVALID_JSON");
     });
 
-    it("body rỗng với content-type JSON: không bao giờ 500, vẫn trả JSON lỗi", async () => {
+    it("body rỗng với content-type JSON (Content-Length: 0): 400 INVALID_JSON", async () => {
       const { status, body } = await readError(await postJson(`${app.baseUrl}/api/anything`, ""));
-      assert.ok(status < 500, `body rỗng không được gây 500 (nhận ${status})`);
-      assert.notEqual(body.code, "INTERNAL_ERROR");
+      assert.equal(status, 400);
+      assert.equal(body.code, "INVALID_JSON");
+      assert.equal(body.message, "Body JSON không hợp lệ");
     });
 
     it("body JSON 200 kB: 413 VALIDATION_ERROR", async () => {

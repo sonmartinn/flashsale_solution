@@ -16,6 +16,7 @@ import {
   spawnServer,
   startApp,
   startServerProcess,
+  stderrLines,
   testMongoUri,
   testRedisUrl,
   waitFor,
@@ -77,8 +78,11 @@ describe("health.test", () => {
     const env = { ...(await serverEnv()), REDIS_URL: DEAD_REDIS_URL };
     const r = await spawnServer({ env, timeoutMs: 20_000 });
     assert.equal(r.code, 1, `stdout: ${r.stdout}\nstderr: ${r.stderr}`);
-    assert.match(r.stderr, /\[LỖI\].*Redis/);
-    assert.match(r.stderr, /127\.0\.0\.1:6390/);
+    // Đúng MỘT dòng stderr: không có dòng "[Redis] mất kết nối" hay stack trace của ioredis (G-01-2)
+    const lines = stderrLines(r.stderr);
+    assert.equal(lines.length, 1, `stderr: ${r.stderr}`);
+    assert.match(lines[0] ?? "", /^\[LỖI\] Không kết nối được Redis tại 127\.0\.0\.1:6390\./);
+    assert.ok(!r.stdout.includes("API http"), `stdout: ${r.stdout}`);
   });
 
   describe("app trong tiến trình: MongoDB chạy, Redis chưa kết nối", () => {

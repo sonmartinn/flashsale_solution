@@ -11,6 +11,7 @@ import {
   getFreePort,
   spawnServer,
   startServerProcess,
+  stderrLines,
   testMongoUri,
   testRedisUrl,
   type ServerProcess,
@@ -179,7 +180,10 @@ describe("models.test", () => {
         },
       });
       assert.equal(result.code, 1, `stdout: ${result.stdout}\nstderr: ${result.stderr}`);
-      assert.match(result.stderr, /Không tạo được index MongoDB/);
+      // Đúng một dòng stderr (D-21)
+      const lines = stderrLines(result.stderr);
+      assert.equal(lines.length, 1, `stderr: ${result.stderr}`);
+      assert.match(lines[0] ?? "", /^\[LỖI\] Không tạo được index MongoDB: /);
       assert.ok(!result.stdout.includes("API http://"), "server không được in banner khi index lỗi");
     } finally {
       await conflictDb.dropDatabase();

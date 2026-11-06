@@ -94,14 +94,14 @@ The user asked Claude to choose reasonable defaults for a course project ("Khôn
 
 ### Health, config and startup
 - **D-16:** Pool size is `MONGO_MAX_POOL_SIZE`, default **100** (the driver default, now explicit). It is read by config, passed to `mongoose.connect`, printed at boot, listed in `.env.example`, and exposed by health. `minPoolSize` and the warm-up policy belong to Phase 3.
-- **D-17:** `GET /api/health` returns `{ mongo: boolean, redis: boolean, nodeEnv: string, maxPoolSize: number }`. It is 200 only when both stores are up, otherwise 503. The checks are a Mongo admin `ping` and a Redis `PING`, each with a short timeout so the endpoint never hangs. `nodeEnv` and `maxPoolSize` let the Phase 3 harness confirm test mode and record the pool size in the CSV without a new endpoint. This is safe because the server listens behind localhost-only infra and exposes no secrets.
+- **D-17:** `GET /api/health` returns `{ mongo: boolean, redis: boolean, nodeEnv: string, testMode: boolean, maxPoolSize: number }`. It is 200 only when both stores are up, otherwise 503. The checks are a Mongo admin `ping` and a Redis `PING`, each with a short timeout so the endpoint never hangs. `testMode` is `cfg.isTestMode`, the single D-14 decision: the Phase 3 preflight (EXP-01) must check `testMode === true` and must never infer test mode from `nodeEnv`. `nodeEnv` is the raw `NODE_ENV` (blank or unset becomes "development") and is for display only; the boot banner prints it JSON-quoted. A near-miss value, where only padding or letter case differs from "test", prints one `[CẢNH BÁO]` line at boot while test mode stays off. `maxPoolSize` lets the Phase 3 harness record the pool size in the CSV without a new endpoint. This is safe because the server listens behind localhost-only infra and exposes no secrets. Amended 2026-11-05 by UAT test 1 / gap G-01-1 (plan 01-06): the user chose REVIEW CR-01 option (b); this supersedes 01-05 must-have 5 (trimmed nodeEnv display).
 - **D-18:** No implicit connection defaults. `MONGODB_URI`, `REDIS_URL` and (server only) `JWT_SECRET` are required, and a missing value means a Vietnamese error and `process.exit(1)`. `PORT` (5000) and `CLIENT_ORIGIN` (`http://localhost:5173`) may have defaults. Config **refuses a MongoDB URI whose port resolves to 27017** (including the implicit default port) with a message pointing to 27018. This guard applies to the server and to the seed/reset scripts.
 - **D-19:** Fail-fast timeouts:
   - Mongo: `serverSelectionTimeoutMS: 5000`
   - Redis: `connectTimeout: 5000`, `maxRetriesPerRequest: 1`, plus a startup `ping()`. Do not use `retryStrategy: () => null`.
   - `listen` callback: check `error`; on `EADDRINUSE`, print "Cổng 5000 đang bị chiếm…" and exit 1.
 
-  `app.listen(PORT)` takes no host. Boot prints: Mongo `host:port/db`, Redis `host:port`, `NODE_ENV`, `maxPoolSize`. Mongoose `bufferCommands` tuning is left to Phase 3 (E4).
+  `app.listen(PORT)` takes no host. Boot prints: Mongo `host:port/db`, Redis `host:port`, `NODE_ENV` (the raw value, JSON-quoted, e.g. `NODE_ENV="test "`), `maxPoolSize`. Mongoose `bufferCommands` tuning is left to Phase 3 (E4).
 - **D-20:** `backend/.env.test` contains only `NODE_ENV=test` and **is committed**. `node --env-file=.env.test` needs the file to exist, and the file holds no secret. `JWT_SECRET` still comes from `backend/.env` through `dotenv/config`, which does not override variables that are already set. `.env.example` lists `PORT`, `MONGODB_URI=mongodb://127.0.0.1:27018/flashsale`, `REDIS_URL=redis://127.0.0.1:6379`, `CLIENT_ORIGIN`, `JWT_SECRET=` (empty) and `MONGO_MAX_POOL_SIZE=100`.
 - **D-21:** Indexes. The server awaits `createIndexes()` (or `Model.init()`) for all 5 models before `listen`. Seed calls `createIndexes()` after `dropDatabase` and before inserting.
 
@@ -144,7 +144,7 @@ The user asked Claude to choose reasonable defaults for a course project ("Khôn
 
 ### Integration Points
 - Phase 2 hooks into: the reset service (admin route plus cache invalidation), `requireAuth`/`requireAdmin`, `HttpError` and the code table, models, the Redis singleton (Lua `defineCommand`), and `stock:`/`buyers:` key helpers.
-- Phase 3 depends on: health `nodeEnv`/`maxPoolSize`, admin credentials from seed (D-04), `seed --qty`, and test-mode header semantics (D-14).
+- Phase 3 depends on: health `testMode` (preflight checks `testMode === true`) and `maxPoolSize`, admin credentials from seed (D-04), `seed --qty`, and test-mode header semantics (D-14).
 - Phase 4 depends on: the register/login response shape (D-12), the error `code` field, and image paths (D-02).
 
 </code_context>

@@ -142,17 +142,22 @@ export interface SpawnResult {
 }
 
 /**
- * Chạy dist/server.js đã biên dịch trong một thư mục tạm (để không nạp backend/.env)
- * và chờ tiến trình thoát. Quá timeoutMs thì dừng tiến trình và trả code null.
+ * Chạy một lệnh node (process.execPath + argv) trong một thư mục tạm mới (để dotenv không nạp backend/.env),
+ * gom stdout/stderr và chờ tiến trình thoát. Quá timeoutMs thì dừng tiến trình và trả code null.
  */
-export async function spawnServer(opts: SpawnOptions): Promise<SpawnResult> {
-  const cwd = await mkdtemp(path.join(os.tmpdir(), "flashsale-boot-"));
+async function spawnNodeAndCollect(
+  argv: string[],
+  env: Record<string, string>,
+  timeoutMs: number,
+  tmpPrefix: string,
+): Promise<SpawnResult> {
+  const cwd = await mkdtemp(path.join(os.tmpdir(), tmpPrefix));
   try {
     return await new Promise<SpawnResult>((resolve, reject) => {
       const started = performance.now();
-      const child = spawn(process.execPath, [...(opts.args ?? []), SERVER_ENTRY], {
+      const child = spawn(process.execPath, argv, {
         cwd,
-        env: buildChildEnv(opts.env),
+        env: buildChildEnv(env),
         stdio: ["ignore", "pipe", "pipe"],
       });
       let stdout = "";
@@ -163,7 +168,7 @@ export async function spawnServer(opts: SpawnOptions): Promise<SpawnResult> {
       const timer = setTimeout(() => {
         timedOut = true;
         child.kill();
-      }, opts.timeoutMs ?? 15_000);
+      }, timeoutMs);
       child.once("error", (err) => {
         clearTimeout(timer);
         reject(err);
@@ -176,6 +181,86 @@ export async function spawnServer(opts: SpawnOptions): Promise<SpawnResult> {
   } finally {
     await rm(cwd, { recursive: true, force: true });
   }
+}
+
+/**
+ * Chạy dist/server.js đã biên dịch trong một thư mục tạm (để không nạp backend/.env)
+ * và chờ tiến trình thoát. Quá timeoutMs thì dừng tiến trình và trả code null.
+ */
+export async function spawnServer(opts: SpawnOptions): Promise<SpawnResult> {
+  return spawnNodeAndCollect(
+    [...(opts.args ?? []), SERVER_ENTRY],
+    opts.env,
+    opts.timeoutMs ?? 15_000,
+    "flashsale-boot-",
+  );
+}
+
+// Loader của tsx, phân giải từ backend/node_modules (URL file://, dùng được với node --import ở mọi thư mục chạy)
+const TSX_LOADER = import.meta.resolve("tsx");
+
+/**
+ * Chạy CLI TypeScript scripts/<script>.ts (giống npm run seed / npm run reset) bằng node --import tsx,
+ * trong một thư mục tạm mới nên dotenv không nạp được backend/.env. args là tham số của CLI.
+ * Quá timeoutMs (mặc định 15 giây) thì dừng tiến trình và trả code null.
+ */
+export async function spawnCli(
+  script: "seed" | "reset",
+  opts: { env: Record<string, string>; args?: string[]; timeoutMs?: number },
+): Promise<SpawnResult> {
+  const entry = path.join(BACKEND_ROOT, "scripts", `${script}.ts`);
+  return spawnNodeAndCollect(
+    ["--import", TSX_LOADER, entry, ...(opts.args ?? [])],
+    opts.env,
+    opts.timeoutMs ?? 15_000,
+    "flashsale-cli-",
+  );
+}
+
+export interface FakeRedis {
+  port: number;
+  url: string;
+  close: () => Promise<void>;
+}
+
+/**
+ * Server TCP giả làm một Redis hỏng trên 127.0.0.1 (cổng ngẫu nhiên), để test lỗi khởi động mà không dừng container:
+ * - "reset": hủy kết nối ngay sau khi nhận
+ * - "garbage": trả một dòng HTTP (không phải RESP) khi nhận dữ liệu đầu tiên
+ * - "silent": nhận kết nối rồi không bao giờ trả lời
+ * close() hủy mọi socket đã nhận rồi đóng server.
+ */
+export async function startFakeRedis(mode: "reset" | "garbage" | "silent"): Promise<FakeRedis> {
+  const sockets = new Set<net.Socket>();
+  const server = net.createServer((socket) => {
+    sockets.add(socket);
+    socket.on("close", () => sockets.delete(socket));
+    socket.on("error", () => {
+      // Client có thể đóng kết nối bất kỳ lúc nào; lỗi socket phía server giả không quan trọng
+    });
+    if (mode === "reset") {
+      socket.destroy();
+    } else if (mode === "garbage") {
+      socket.once("data", () => socket.write("HTTP/1.1 400 Bad Request\r\n\r\n"));
+    }
+    // "silent": nhận kết nối và không làm gì cả
+  });
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => resolve());
+  });
+  const addr = server.address();
+  if (addr === null || typeof addr === "string") throw new Error("Không đọc được cổng của Redis giả");
+  const port = addr.port;
+  return {
+    port,
+    url: `redis://127.0.0.1:${port}`,
+    close: async () => {
+      for (const s of sockets) s.destroy();
+      sockets.clear();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    },
+  };
 }
 
 /** Tách stderr thành các dòng không rỗng, để test đếm đúng số dòng (bỏ dòng chỉ có khoảng trắng). */

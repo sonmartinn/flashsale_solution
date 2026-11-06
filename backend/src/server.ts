@@ -53,8 +53,14 @@ try {
   fail(`Không kết nối được Redis tại ${cfg.redisTarget}. Chạy "docker compose up -d --wait" ở thư mục gốc.`);
 }
 
+// Hai cảnh báo dưới đây chỉ in SAU khi MongoDB và Redis đã kết nối: mọi lỗi khởi động ở trên vẫn chỉ in
+// đúng một dòng [LỖI]. server.ts không đọc biến môi trường, chỉ dùng kết quả từ config/env.ts (D-14).
 if (cfg.isTestMode) {
   console.warn("!!! CHẾ ĐỘ TEST: header x-test-user được chấp nhận thay cho đăng nhập. KHÔNG dùng ngoài đo tải !!!");
+} else if (cfg.testModeNearMiss) {
+  console.warn(
+    `[CẢNH BÁO] NODE_ENV=${JSON.stringify(cfg.nodeEnv)} gần giống "test" nhưng không khớp chính xác (thừa khoảng trắng hoặc sai chữ hoa/thường): chế độ test KHÔNG bật, header x-test-user bị bỏ qua. Đặt đúng NODE_ENV=test hoặc chạy npm run start:test.`,
+  );
 }
 
 // Không truyền host: Node bind dual-stack "::" nên localhost chạy được cả với ::1 và 127.0.0.1.
@@ -67,6 +73,6 @@ createApp({ cfg, jwtSecret, redis }).listen(cfg.port, (error?: Error) => {
     fail(`Không mở được cổng ${cfg.port}: ${error.message}`);
   }
   console.log(
-    `API http://localhost:${cfg.port} | MongoDB ${cfg.mongoTarget} | Redis ${cfg.redisTarget} | NODE_ENV=${cfg.nodeEnv} | maxPoolSize=${cfg.mongoMaxPoolSize}`,
+    `API http://localhost:${cfg.port} | MongoDB ${cfg.mongoTarget} | Redis ${cfg.redisTarget} | NODE_ENV=${JSON.stringify(cfg.nodeEnv)} | maxPoolSize=${cfg.mongoMaxPoolSize}`,
   );
 });

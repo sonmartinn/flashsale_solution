@@ -138,13 +138,15 @@ describe("config.test", () => {
       }
     });
 
-    it("nodeEnv vẫn trim để hiển thị nhưng không quyết định chế độ test", () => {
+    it('nodeEnv giữ giá trị thô của NODE_ENV; testModeNearMiss báo giá trị gần giống "test"', () => {
       const padded = loadBaseConfig({ ...VALID_ENV, NODE_ENV: "test " });
-      assert.equal(padded.nodeEnv, "test");
+      assert.equal(padded.nodeEnv, "test ");
       assert.equal(padded.isTestMode, false);
+      assert.equal(padded.testModeNearMiss, true);
       const prod = loadBaseConfig({ ...VALID_ENV, NODE_ENV: "production" });
       assert.equal(prod.nodeEnv, "production");
       assert.equal(prod.isTestMode, false);
+      assert.equal(prod.testModeNearMiss, false);
     });
 
     it("không cần JWT_SECRET (seed/reset dùng được)", () => {

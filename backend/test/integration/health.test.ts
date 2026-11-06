@@ -51,7 +51,13 @@ describe("health.test", () => {
       assert.ok(server);
       const res = await fetch(`${server.baseUrl}/api/health`);
       assert.equal(res.status, 200);
-      assert.deepEqual(await res.json(), { mongo: true, redis: true, nodeEnv: "development", maxPoolSize: 100 });
+      assert.deepEqual(await res.json(), {
+        mongo: true,
+        redis: true,
+        nodeEnv: "development",
+        testMode: false,
+        maxPoolSize: 100,
+      });
     });
 
     it("banner in maxPoolSize và đích MongoDB, không in URI thô hay khóa JWT", async () => {
@@ -96,7 +102,13 @@ describe("health.test", () => {
       const res = await fetch(`${app.baseUrl}/api/health`, { signal: AbortSignal.timeout(3000) });
       const elapsed = performance.now() - started;
       assert.equal(res.status, 503);
-      assert.deepEqual(await res.json(), { mongo: true, redis: false, nodeEnv: "development", maxPoolSize: 100 });
+      assert.deepEqual(await res.json(), {
+        mongo: true,
+        redis: false,
+        nodeEnv: "development",
+        testMode: false,
+        maxPoolSize: 100,
+      });
       assert.ok(elapsed < 3000, `mất ${Math.round(elapsed)} ms`);
     });
   });
@@ -116,17 +128,41 @@ describe("health.test", () => {
       await server?.stop();
     });
 
-    it("health báo nodeEnv test và server in cảnh báo CHẾ ĐỘ TEST", async () => {
+    it("health báo testMode true, nodeEnv test và server in cảnh báo CHẾ ĐỘ TEST", async () => {
       assert.ok(server);
       const s = server;
       const res = await fetch(`${s.baseUrl}/api/health`);
       assert.equal(res.status, 200);
-      const body = (await res.json()) as { nodeEnv: string };
+      const body = (await res.json()) as { nodeEnv: string; testMode: boolean };
+      assert.equal(body.testMode, true);
       assert.equal(body.nodeEnv, "test");
       assert.ok(
         await waitFor(() => (s.stdout() + s.stderr()).includes("CHẾ ĐỘ TEST")),
         `stdout: ${s.stdout()}\nstderr: ${s.stderr()}`,
       );
+    });
+  });
+
+  describe('NODE_ENV có khoảng trắng thừa ("test "): chế độ test KHÔNG bật và health nói rõ điều đó', () => {
+    let server: ServerProcess | undefined;
+
+    before(async () => {
+      // Giá trị này chính là thứ `set NODE_ENV=test && ...` của cmd.exe tạo ra
+      server = await startServerProcess({ env: { ...(await serverEnv()), NODE_ENV: "test " } });
+    });
+
+    after(async () => {
+      await server?.stop();
+    });
+
+    it("health trả testMode false và nodeEnv là giá trị thô \"test \" (không phải \"test\")", async () => {
+      assert.ok(server);
+      const res = await fetch(`${server.baseUrl}/api/health`);
+      assert.equal(res.status, 200);
+      const body = (await res.json()) as { nodeEnv: string; testMode: boolean };
+      assert.equal(body.testMode, false);
+      assert.equal(body.nodeEnv, "test ");
+      assert.notEqual(body.nodeEnv, "test");
     });
   });
 

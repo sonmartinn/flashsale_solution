@@ -3,7 +3,8 @@
 // để ném từng loại lỗi rồi đi qua notFound + errorHandler thật.
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import type { Server } from "node:http";
+import http, { type Server } from "node:http";
+import zlib from "node:zlib";
 import express from "express";
 import mongoose from "mongoose";
 import { startApp, type StartedApp } from "./helpers.js";
@@ -29,6 +30,31 @@ async function readError(res: Response): Promise<{ status: number; body: ErrorBo
 
 function postJson(url: string, body: string): Promise<Response> {
   return fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body });
+}
+
+/**
+ * POST thô bằng node:http để tự chọn khung body (chunked, gzip) mà fetch không cho đặt.
+ * Trả về một Response để dùng lại readError.
+ */
+function rawPost(url: string, headers: Record<string, string>, body?: Buffer): Promise<Response> {
+  return new Promise<Response>((resolve, reject) => {
+    const req = http.request(url, { method: "POST", headers }, (res) => {
+      const chunks: Buffer[] = [];
+      res.on("data", (chunk: Buffer) => chunks.push(chunk));
+      res.on("error", reject);
+      res.on("end", () => {
+        resolve(
+          new Response(Buffer.concat(chunks).toString("utf8"), {
+            status: res.statusCode ?? 0,
+            headers: { "content-type": res.headers["content-type"] ?? "" },
+          }),
+        );
+      });
+    });
+    req.on("error", reject);
+    if (body !== undefined) req.write(body);
+    req.end();
+  });
 }
 
 describe("errors.test", () => {
@@ -69,10 +95,76 @@ describe("errors.test", () => {
       assert.equal(body.code, "INVALID_JSON");
     });
 
-    it("body rỗng với content-type JSON: không bao giờ 500, vẫn trả JSON lỗi", async () => {
+    it("body rỗng với content-type JSON (Content-Length: 0): 400 INVALID_JSON", async () => {
       const { status, body } = await readError(await postJson(`${app.baseUrl}/api/anything`, ""));
-      assert.ok(status < 500, `body rỗng không được gây 500 (nhận ${status})`);
-      assert.notEqual(body.code, "INTERNAL_ERROR");
+      assert.equal(status, 400);
+      assert.equal(body.code, "INVALID_JSON");
+      assert.equal(body.message, "Body JSON không hợp lệ");
+    });
+
+    it("body rỗng với content-type JSON; charset=utf-8: 400 INVALID_JSON", async () => {
+      const res = await fetch(`${app.baseUrl}/api/anything`, {
+        method: "POST",
+        headers: { "content-type": "application/json; charset=utf-8" },
+        body: "",
+      });
+      const { status, body } = await readError(res);
+      assert.equal(status, 400);
+      assert.equal(body.code, "INVALID_JSON");
+      assert.equal(body.message, "Body JSON không hợp lệ");
+    });
+
+    it("body rỗng gửi chunked (transfer-encoding: chunked) với content-type JSON: 400 INVALID_JSON", async () => {
+      const res = await rawPost(`${app.baseUrl}/api/anything`, {
+        "content-type": "application/json",
+        "transfer-encoding": "chunked",
+      });
+      const { status, body } = await readError(res);
+      assert.equal(status, 400);
+      assert.equal(body.code, "INVALID_JSON");
+      assert.equal(body.message, "Body JSON không hợp lệ");
+    });
+
+    it("body gzip của chuỗi rỗng với content-type JSON: 400 INVALID_JSON", async () => {
+      const gz = zlib.gzipSync(Buffer.alloc(0));
+      const res = await rawPost(
+        `${app.baseUrl}/api/anything`,
+        {
+          "content-type": "application/json",
+          "content-encoding": "gzip",
+          "content-length": String(gz.length),
+        },
+        gz,
+      );
+      const { status, body } = await readError(res);
+      assert.equal(status, 400);
+      assert.equal(body.code, "INVALID_JSON");
+      assert.equal(body.message, "Body JSON không hợp lệ");
+    });
+
+    it("body chỉ có khoảng trắng với content-type JSON: 400 INVALID_JSON", async () => {
+      const { status, body } = await readError(await postJson(`${app.baseUrl}/api/anything`, "  \n"));
+      assert.equal(status, 400);
+      assert.equal(body.code, "INVALID_JSON");
+      assert.equal(body.message, "Body JSON không hợp lệ");
+    });
+
+    it("POST không body, không content-type vẫn tới routing: 404 NOT_FOUND", async () => {
+      const { status, body } = await readError(await fetch(`${app.baseUrl}/api/khong-ton-tai`, { method: "POST" }));
+      assert.equal(status, 404);
+      assert.equal(body.code, "NOT_FOUND");
+    });
+
+    it("POST không body, không content-type tới /api/auth/register: 400 VALIDATION_ERROR (handler nhận req.body undefined)", async () => {
+      const { status, body } = await readError(await fetch(`${app.baseUrl}/api/auth/register`, { method: "POST" }));
+      assert.equal(status, 400);
+      assert.equal(body.code, "VALIDATION_ERROR");
+    });
+
+    it('body "{}" với content-type JSON vẫn tới routing: 404 NOT_FOUND', async () => {
+      const { status, body } = await readError(await postJson(`${app.baseUrl}/api/khong-ton-tai`, "{}"));
+      assert.equal(status, 404);
+      assert.equal(body.code, "NOT_FOUND");
     });
 
     it("body JSON 200 kB: 413 VALIDATION_ERROR", async () => {

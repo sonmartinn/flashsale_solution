@@ -81,7 +81,7 @@ The user asked Claude to choose reasonable defaults for a course project ("Khôn
   |---|---|---|
   | `VALIDATION_ERROR` | 400 | ValidationError or invalid input |
   | `INVALID_ID` | 400 | CastError or bad ObjectId |
-  | `INVALID_JSON` | 400 | `entity.parse.failed` |
+  | `INVALID_JSON` | 400 | `entity.parse.failed`, or a request that declares `Content-Type: application/json` but sends a zero-byte body (Content-Length 0, empty chunked, compressed-empty), rejected by the `verify` guard in `app.ts` |
   | `DUPLICATE` | 409 | Generic E11000 |
   | `EMAIL_TAKEN` | 409 | Duplicate email on register |
   | `UNAUTHORIZED` | 401 | Missing or bad token. One code, different messages for missing, invalid and expired |
@@ -89,6 +89,8 @@ The user asked Claude to choose reasonable defaults for a course project ("Khôn
   | `FORBIDDEN` | 403 | Not enough privileges |
   | `NOT_FOUND` | 404 | Includes unknown `/api/*` routes |
   | `INTERNAL_ERROR` | 500 | Generic message only; the server logs the stack, the client never sees it |
+
+  Amended 2026-11-05 by UAT test 4 / gap G-01-4 (plan 01-07).
 
   Phase 2 adds `SOLD_OUT`, `ALREADY_BOUGHT`, `SALE_NOT_ACTIVE`, `STOCK_NOT_LOADED` and `INVALID_MODE`. The signature is `HttpError(status, message, code)`.
 
@@ -143,9 +145,9 @@ The user asked Claude to choose reasonable defaults for a course project ("Khôn
 - `.gitignore` already ignores `node_modules/`, `dist/`, `.env`, `*.log`, and `loadtest/results/*` (except `.gitkeep`). `backend/.env.test` is not matched by `.env`, so it can be committed as intended.
 
 ### Integration Points
-- Phase 2 hooks into: the reset service (admin route plus cache invalidation), `requireAuth`/`requireAdmin`, `HttpError` and the code table, models, the Redis singleton (Lua `defineCommand`), and `stock:`/`buyers:` key helpers.
-- Phase 3 depends on: health `testMode` (preflight checks `testMode === true`) and `maxPoolSize`, admin credentials from seed (D-04), `seed --qty`, and test-mode header semantics (D-14).
-- Phase 4 depends on: the register/login response shape (D-12), the error `code` field, and image paths (D-02).
+- Phase 2 hooks into: the reset service (admin route plus cache invalidation), `requireAuth`/`requireAdmin`, `HttpError` and the code table, models, the Redis singleton (Lua `defineCommand`), and `stock:`/`buyers:` key helpers. Body-less POSTs (the admin reset without `mode`) must omit `Content-Type`; the reset handler reads `req.body ?? {}` because `req.body` is `undefined` when no body is sent. Buy always sends `{ "qty": 1 }`.
+- Phase 3 depends on: health `testMode` (preflight checks `testMode === true`) and `maxPoolSize`, admin credentials from seed (D-04), `seed --qty`, and test-mode header semantics (D-14). The harness sends `Content-Type: application/json` only together with a body (reset always carries `{ mode }`, buy carries `{ qty: 1 }`).
+- Phase 4 depends on: the register/login response shape (D-12), the error `code` field, and image paths (D-02). The frontend API helper sets `Content-Type: application/json` only when it sends a body: fetch adds `Content-Length: 0` to a body-less POST, which then gets 400 `INVALID_JSON`.
 
 </code_context>
 

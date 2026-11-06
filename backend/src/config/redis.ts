@@ -39,12 +39,23 @@ function attachRuntimeErrorLog(client: Redis): void {
 }
 
 /**
- * Kết nối và PING một lần lúc khởi động. Thành công thì bật ghi log mất kết nối lúc chạy.
- * Thất bại thì reject mà KHÔNG in gì, để nơi gọi in đúng một dòng [LỖI] rồi thoát.
+ * Hạn cho TOÀN BỘ bước khởi động Redis: mở TCP, bắt tay HELLO/ready và PING (D-19).
+ * connectTimeout chỉ phủ lúc mở TCP, nên một Redis nhận kết nối mà không trả lời sẽ làm khởi động treo mãi
+ * nếu không có hạn này.
  */
-export async function connectRedis(client: Redis): Promise<void> {
-  await client.connect();
-  await client.ping();
+export const REDIS_STARTUP_TIMEOUT_MS = 5000;
+
+/**
+ * Kết nối và PING một lần lúc khởi động, tất cả trong hạn `timeoutMs`. Thành công thì bật ghi log mất kết nối
+ * lúc chạy. Thất bại (kể cả quá hạn) thì reject mà KHÔNG in gì, để nơi gọi in đúng một dòng [LỖI] rồi thoát.
+ */
+export async function connectRedis(client: Redis, timeoutMs: number = REDIS_STARTUP_TIMEOUT_MS): Promise<void> {
+  // Một chuỗi promise duy nhất: nếu connect/ping reject SAU khi quá hạn, withTimeout vẫn giữ handler nên
+  // không thành unhandledRejection.
+  await withTimeout(
+    client.connect().then(() => client.ping()),
+    timeoutMs,
+  );
   attachRuntimeErrorLog(client);
 }
 

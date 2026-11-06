@@ -2,13 +2,12 @@
 // Cần "docker compose up -d --wait" (MongoDB 127.0.0.1:27018, Redis 127.0.0.1:6379).
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import path from "node:path";
 import mongoose from "mongoose";
 import type { Redis } from "ioredis";
 import { connectMongo } from "../../src/config/db.js";
 import { createRedis } from "../../src/config/redis.js";
+import { isPortFree } from "../../src/utils/port.js";
 import {
-  BACKEND_ROOT,
   TEST_JWT_SECRET,
   connectTestStores,
   dropTestDatabaseAndDisconnect,
@@ -119,15 +118,12 @@ describe("health.test", () => {
     });
   });
 
-  describe("chạy với --env-file=.env.test (giống npm run start:test)", () => {
+  describe("chạy như npm run start:test (dotenv run --override nạp .env.test)", () => {
     let server: ServerProcess | undefined;
 
     before(async () => {
-      server = await startServerProcess({
-        env: await serverEnv(),
-        // Đường dẫn tuyệt đối vì tiến trình con chạy trong thư mục tạm
-        args: ["--env-file=" + path.join(BACKEND_ROOT, ".env.test")],
-      });
+      // NODE_ENV không có trong môi trường kế thừa (buildChildEnv đã xóa)
+      server = await startServerProcess({ env: await serverEnv(), launcher: "start:test" });
     });
 
     after(async () => {
@@ -153,6 +149,49 @@ describe("health.test", () => {
       const s = server;
       assert.ok(await waitFor(() => s.stdout().includes('NODE_ENV="test"')), `stdout: ${s.stdout()}`);
       assert.ok(!s.stderr().includes("[CẢNH BÁO] NODE_ENV="), `stderr: ${s.stderr()}`);
+    });
+  });
+
+  describe('npm run start:test khi shell còn giữ NODE_ENV="test " (G-01-9): chế độ test vẫn bật', () => {
+    let server: ServerProcess | undefined;
+    let port = 0;
+
+    before(async () => {
+      // Giống một cửa sổ cmd vừa chạy `set NODE_ENV=test && npm run start` rồi chạy tiếp npm run start:test
+      const env: Record<string, string> = { ...(await serverEnv()), NODE_ENV: "test " };
+      port = Number(env["PORT"]);
+      server = await startServerProcess({ env, launcher: "start:test" });
+    });
+
+    after(async () => {
+      await server?.stop();
+    });
+
+    it('health báo testMode true, nodeEnv "test", có CHẾ ĐỘ TEST và không có cảnh báo NODE_ENV gần giống', async () => {
+      assert.ok(server);
+      const s = server;
+      const res = await fetch(`${s.baseUrl}/api/health`);
+      assert.equal(res.status, 200);
+      const body = (await res.json()) as { nodeEnv: string; testMode: boolean };
+      assert.equal(body.testMode, true, `stderr: ${s.stderr()}`);
+      assert.equal(body.nodeEnv, "test");
+      assert.ok(await waitFor(() => s.stdout().includes('NODE_ENV="test"')), `stdout: ${s.stdout()}`);
+      assert.ok(!s.stdout().includes('NODE_ENV="test "'), `stdout: ${s.stdout()}`);
+      assert.ok(await waitFor(() => s.stderr().includes("CHẾ ĐỘ TEST")), `stderr: ${s.stderr()}`);
+      assert.ok(!s.stderr().includes("[CẢNH BÁO] NODE_ENV="), `stderr: ${s.stderr()}`);
+      assert.ok(!s.stderr().includes("injected env"), `stderr: ${s.stderr()}`);
+    });
+
+    it("stop() dừng cả cây tiến trình: cổng được giải phóng trong 5 giây", async () => {
+      assert.ok(server);
+      await server.stop();
+      const deadline = Date.now() + 5000;
+      let free = await isPortFree(port);
+      while (!free && Date.now() < deadline) {
+        await new Promise<void>((resolve) => setTimeout(resolve, 100));
+        free = await isPortFree(port);
+      }
+      assert.ok(free, `cổng ${port} vẫn có tiến trình lắng nghe sau stop()`);
     });
   });
 

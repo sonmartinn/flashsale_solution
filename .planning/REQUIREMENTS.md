@@ -14,7 +14,7 @@ Nguồn yêu cầu gốc: `docs/SPECS.md`. Chi tiết kỹ thuật (tên trườ
 - [ ] **INFRA-02**: Backend TypeScript strict, ESM `NodeNext` (import đuôi `.js`), có `npm run dev`, `build` (chép `src/lua/` sang `dist/lua/`), `start`, `start:test` (nạp `.env.test`, chạy JS đã biên dịch), `typecheck`
 - [ ] **INFRA-03**: Server thoát với thông báo tiếng Việt rõ ràng khi thiếu `JWT_SECRET`, không kết nối được MongoDB hoặc Redis (timeout ngắn, đặt tường minh), hoặc cổng bị chiếm (kiểm tra `err` trong callback `listen`); không có chuỗi kết nối mặc định ngầm trỏ về cổng 27017
 - [x] **INFRA-04**: `GET /api/health` trả `{ mongo, redis }`, 200 khi cả hai sống, 503 khi một trong hai chết
-- [ ] **INFRA-05**: Middleware lỗi ánh xạ đúng bảng mã SPECS mục 7 (CastError/JSON hỏng/ValidationError → 400, E11000 → 409, 401, 403, 404, khác → 500 không lộ chi tiết), thông báo tiếng Việt; lỗi nghiệp vụ dùng `HttpError(status, message, code)`; JSON lỗi có trường `code` máy đọc được (ví dụ `SOLD_OUT`, `ALREADY_BOUGHT`, `SALE_NOT_ACTIVE`, `STOCK_NOT_LOADED`)
+- [x] **INFRA-05**: Middleware lỗi ánh xạ đúng bảng mã SPECS mục 7 (CastError/JSON hỏng/ValidationError → 400, E11000 → 409, 401, 403, 404, khác → 500 không lộ chi tiết), thông báo tiếng Việt; lỗi nghiệp vụ dùng `HttpError(status, message, code)`; JSON lỗi có trường `code` máy đọc được (ví dụ `SOLD_OUT`, `ALREADY_BOUGHT`, `SALE_NOT_ACTIVE`, `STOCK_NOT_LOADED`)
 - [ ] **INFRA-06**: `maxPoolSize` của Mongoose đặt tường minh qua cấu hình và được in ra khi khởi động; `.env.example` có đủ biến SPECS mục 11
 
 ### Dữ liệu, seed, reset (DATA)
@@ -132,7 +132,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-02 | Phase 1 | Gaps Found |
 | INFRA-03 | Phase 1 | Gaps Found |
 | INFRA-04 | Phase 1 | Complete |
-| INFRA-05 | Phase 1 | Gaps Found |
+| INFRA-05 | Phase 1 | Complete |
 | INFRA-06 | Phase 1 | Gaps Found |
 | DATA-01 | Phase 1 | Gaps Found |
 | DATA-02 | Phase 1 | Gaps Found |

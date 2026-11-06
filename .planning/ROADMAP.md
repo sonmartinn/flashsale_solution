@@ -30,7 +30,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. `npm run seed` (stock quantity and `mode` as parameters) wipes and recreates 1,000 users + 1 admin, 6 fashion products with category-specific `attributes`, and one active 7-day half-price sale with `stock:<saleId>` loaded in Redis. Every SPECS §6 index exists, including unique `(saleId, userId)`
   4. `npm run reset` (one or all sales, optional `--mode`) restores `remainingQty = totalQty`, deletes the sale's orders and stock_movements, resets Redis stock and buyers in one checked `multi()`, reopens the sale for 7 days and warns that it cannot clear a running server's in-process cache
   5. A user can register (role always `user`, duplicate email → 409, any non-string field → 400) and log in to get a 7-day JWT (`sub` + `role`). A missing or bad token gets 401, a non-admin on `/api/admin/*` gets 403, and an `x-test-user` ObjectId is accepted only when `NODE_ENV === "test"`. Errors follow the SPECS §7 table with Vietnamese messages and a machine-readable `code`, and a 500 never leaks internals
-**Plans**: 6/8 plans executed
+**Plans**: 8/8 plans executed
 
 Plans:
 **Wave 1**
@@ -50,8 +50,8 @@ Plans:
 - [x] 01-06-PLAN.md — Gap G-01-1: GET /api/health exposes testMode, raw NODE_ENV (JSON-quoted banner) and a near-miss [CẢNH BÁO] line; D-17 amended so the Phase 3 preflight checks testMode === true (wave 5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 01-07-PLAN.md — Gap G-01-4: a declared-JSON zero-byte body (CL 0, chunked, gzip) returns 400 INVALID_JSON via an express.json verify guard; body-less POST without Content-Type still routes (wave 6)
-- [ ] 01-08-PLAN.md — Gap G-01-2: exactly one [LỖI] line on every startup failure of server, seed and reset (Redis error logging armed only after boot, 5 s Redis startup deadline), runtime disconnect logging kept (wave 6)
+- [x] 01-07-PLAN.md — Gap G-01-4: a declared-JSON zero-byte body (CL 0, chunked, gzip) returns 400 INVALID_JSON via an express.json verify guard; body-less POST without Content-Type still routes (wave 6)
+- [x] 01-08-PLAN.md — Gap G-01-2: exactly one [LỖI] line on every startup failure of server, seed and reset (Redis error logging armed only after boot, 5 s Redis startup deadline), runtime disconnect logging kept (wave 6)
 
 ### Phase 2: Buy Pipeline & Admin APIs
 **Goal**: Users can read products and sales and buy through V0, V1 or V2 with identical response codes; an admin can reset and inspect a sale and reconcile Redis against MongoDB
@@ -115,7 +115,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 (Phase 4 depends only
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation (Infra, Data, Auth) | 6/8 | In Progress | - |
+| 1. Foundation (Infra, Data, Auth) | 8/8 | In Progress | - |
 | 2. Buy Pipeline & Admin APIs | 0/TBD | Not started | - |
 | 3. Experiments (E1-E4) | 0/TBD | Not started | - |
 | 4. Web App & Dev Scripts | 0/TBD | Not started | - |

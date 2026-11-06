@@ -157,6 +157,10 @@ None.
 
 - G-01-4 is closed in code and tests. Phase 2's admin reset must read `req.body ?? {}`, and its callers must omit Content-Type when they send no body. The Phase 4 API helper must set Content-Type only together with a body.
 
+## Self-Check: PASSED
+
+- 01-07-SUMMARY.md exists. The commits 8f11f16, 74c7664, 33d908d and 84c4f03 are all on HEAD (`git log f8288fe..HEAD`), and the working tree is clean.
+
 ---
 *Phase: 01-foundation-infra-data-auth*
 *Completed: 2026-11-06*

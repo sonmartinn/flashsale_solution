@@ -150,6 +150,20 @@ function resolveDotenvCli(): string {
   return path.resolve(path.dirname(pkgPath), cli);
 }
 
+export function startTestArgv(script: string): string[] {
+  return [
+    DOTENV_CLI,
+    "run",
+    "-q",
+    "--override",
+    "-f",
+    path.join(BACKEND_ROOT, ".env.test"),
+    "--",
+    process.execPath,
+    SERVER_ENTRY,
+  ];
+}
+
 /** Cách khởi động server: "node" chạy thẳng dist/server.js, "start:test" đi qua wrapper dotenv như npm run start:test. */
 export type ServerLauncher = "node" | "start:test";
 
@@ -164,17 +178,7 @@ function serverArgv(launcher: ServerLauncher, args: string[] | undefined): strin
   if (args !== undefined && args.length > 0) {
     throw new Error("launcher \"start:test\" không nhận args: script start:test không truyền cờ node nào");
   }
-  return [
-    DOTENV_CLI,
-    "run",
-    "-q",
-    "--override",
-    "-f",
-    path.join(BACKEND_ROOT, ".env.test"),
-    "--",
-    process.execPath,
-    SERVER_ENTRY,
-  ];
+  return startTestArgv(START_TEST_SCRIPT);
 }
 
 /**

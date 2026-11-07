@@ -7,10 +7,6 @@ findings:
     severity: warning
     disposition: open
     title: "Kill path on Windows can hang the test run forever when `taskkill` fails"
-  - id: WR-02
-    severity: warning
-    disposition: fixed
-    title: "The guard against drift between the `start:test` script and the helper is one-directional, so the tests can pass against a script that behaves differently"
   - id: WR-03
     severity: warning
     disposition: open
@@ -47,13 +43,25 @@ findings:
     severity: info
     disposition: open
     title: "`DOTENV_CLI` is resolved eagerly at import, so the dedicated `build.test` assertion is unreachable on failure"
+  - id: IN-08
+    severity: info
+    disposition: open
+    title: "`startTestArgv` accepts spellings it cannot replay and rejects others with a wrong reason, because the allowlist and the exact-token mapping do not match dotenv's argument grammar"
+  - id: IN-09
+    severity: info
+    disposition: open
+    title: "Already-defended-elsewhere: the per-flag assertion in the new `build.test` case can never fail independently"
+  - id: WR-02
+    severity: warning
+    disposition: fixed
+    title: "The guard against drift between the `start:test` script and the helper is one-directional, so the tests can pass against a script that behaves differently"
   - id: CR-01
     severity: critical
     disposition: fixed
     title: "`nodeEnv` (banner + `/api/health`) reports \"test\" while `isTestMode` is false, which defeats the load-test preflight"
-open: 10
-total: 12
-recorded: 2026-11-07T09:35:54.779Z
+open: 12
+total: 14
+recorded: 2026-11-07T10:36:41.116Z
 ---
 
 # Phase 01: Code Review Disposition
@@ -61,7 +69,6 @@ recorded: 2026-11-07T09:35:54.779Z
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
 | WR-01 | warning | open | - |
-| WR-02 | warning | fixed | 01-10 (VERIFICATION gap G-01-V1) |
 | WR-03 | warning | open | - |
 | WR-04 | warning | open | - |
 | IN-01 | info | open | - |
@@ -71,6 +78,9 @@ recorded: 2026-11-07T09:35:54.779Z
 | IN-05 | info | open | - |
 | IN-06 | info | open | - |
 | IN-07 | info | open | - |
+| IN-08 | info | open | - |
+| IN-09 | info | open | - |
+| WR-02 | warning | fixed | 01-10 (VERIFICATION gap G-01-V1) (not in the current review) |
 | CR-01 | critical | fixed | 01-06 (UAT G-01-1) (not in the current review) |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.

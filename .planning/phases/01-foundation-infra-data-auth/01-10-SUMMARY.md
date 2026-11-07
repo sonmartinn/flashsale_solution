@@ -182,3 +182,8 @@ None.
 ---
 *Phase: 01-foundation-infra-data-auth*
 *Completed: 2026-11-07*
+
+## Self-Check: PASSED
+
+- The commits 766578b, 4cd13f7 and 65290c5 are all present in `354162c..HEAD`.
+- backend/test/helpers.ts, backend/test/build.test.ts and this SUMMARY exist, and the working tree is clean.

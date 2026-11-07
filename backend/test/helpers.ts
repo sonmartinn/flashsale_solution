@@ -129,9 +129,10 @@ function buildChildEnv(env: Record<string, string>): NodeJS.ProcessEnv {
 const SERVER_ENTRY = path.join(BACKEND_ROOT, "dist", "server.js");
 
 /**
- * Giá trị mong đợi của script "start:test" trong backend/package.json (G-01-9).
- * build.test so khớp package.json với hằng này, và helper khởi động server theo đúng các token của nó,
- * nên test tích hợp không thể lệch khỏi script thật.
+ * Giá trị mong đợi của script "start:test" trong backend/package.json (G-01-9, D-20).
+ * build.test so khớp package.json với hằng này. startTestArgv suy ra argv của launcher "start:test" từ chính
+ * hằng này, và build.test kiểm tra phép suy ra đó từng token. Vì vậy sửa script và hằng cùng lúc sẽ đổi thứ
+ * mà test tích hợp thật sự khởi động.
  */
 export const START_TEST_SCRIPT = "npm run build && dotenv run -q --override -f .env.test -- node dist/server.js";
 
@@ -150,18 +151,51 @@ function resolveDotenvCli(): string {
   return path.resolve(path.dirname(pkgPath), cli);
 }
 
+// Ký tự được phép trong một token: tách theo khoảng trắng không phát lại được dấu nháy hay ký tự đặc biệt của shell.
+const START_TEST_TOKEN = /^[A-Za-z0-9._/=-]+$/;
+
+/**
+ * Suy ra argv (sau process.execPath) của launcher "start:test" từ một script start:test, thường là START_TEST_SCRIPT.
+ *
+ * Các đoạn ngăn bởi && đứng trước đoạn cuối phải đúng là npm run build và được bỏ qua: script test và test:int
+ * đã chạy npm run build trước khi helper nào chạy. Đoạn cuối được tách theo khoảng trắng và ánh xạ một-một, giữ
+ * nguyên thứ tự:
+ * - token đầu tiên dotenv -> DOTENV_CLI (file CLI của gói dotenv, chạy bằng process.execPath);
+ * - node -> process.execPath, tức Node đang chạy test. npm tìm node trên PATH, trong dùng bình thường là cùng một
+ *   bản cài; đây là chỗ lệch có chủ ý và được ghi lại (REVIEW WR-02);
+ * - .env.test -> đường dẫn tuyệt đối trong backend/, dist/server.js -> SERVER_ENTRY (tuyệt đối), vì tiến trình con
+ *   chạy trong thư mục tạm để dotenv/config không nạp được backend/.env;
+ * - mọi token khác (kể cả mọi cờ) giữ nguyên văn.
+ *
+ * Ném Error khi: có bước chạy trước khác npm run build; một token chứa ký tự ngoài chữ, số, dấu chấm, gạch dưới,
+ * gạch chéo, dấu bằng và gạch nối (dấu nháy, ký tự đặc biệt của shell); token đầu không phải dotenv; hoặc không
+ * có dist/server.js (helper chờ /api/health của server đã biên dịch).
+ */
 export function startTestArgv(script: string): string[] {
-  return [
-    DOTENV_CLI,
-    "run",
-    "-q",
-    "--override",
-    "-f",
-    path.join(BACKEND_ROOT, ".env.test"),
-    "--",
-    process.execPath,
-    SERVER_ENTRY,
-  ];
+  const fail = (detail: string): never => {
+    throw new Error(
+      `Không phát lại được script start:test "${script}": ${detail}. ` +
+        "Phải sửa serverArgv/startTestArgv cùng lúc với script.",
+    );
+  };
+  const segments = script.split("&&").map((segment) => segment.trim());
+  const last = segments.pop() ?? "";
+  for (const pre of segments) {
+    if (pre !== "npm run build") fail(`bước chạy trước "${pre}" không phải npm run build`);
+  }
+  const tokens = last.split(/\s+/).filter((token) => token !== "");
+  for (const token of tokens) {
+    if (!START_TEST_TOKEN.test(token)) fail(`token "${token}" có dấu nháy hoặc ký tự đặc biệt của shell`);
+  }
+  if (tokens[0] !== "dotenv") fail(`launcher "${tokens[0] ?? ""}" không phải dotenv`);
+  if (!tokens.includes("dist/server.js")) fail("không chạy dist/server.js");
+  return tokens.map((token, i) => {
+    if (i === 0) return DOTENV_CLI;
+    if (token === "node") return process.execPath;
+    if (token === ".env.test") return path.join(BACKEND_ROOT, ".env.test");
+    if (token === "dist/server.js") return SERVER_ENTRY;
+    return token;
+  });
 }
 
 /** Cách khởi động server: "node" chạy thẳng dist/server.js, "start:test" đi qua wrapper dotenv như npm run start:test. */
@@ -170,8 +204,7 @@ export type ServerLauncher = "node" | "start:test";
 /**
  * argv (sau process.execPath) để khởi động server.
  * - "node" (mặc định): các cờ node trong args rồi tới dist/server.js, như trước đây.
- * - "start:test": lặp lại START_TEST_SCRIPT từng token (bỏ bước build vì script test đã build) với đường dẫn
- *   tuyệt đối, vì tiến trình con chạy trong thư mục tạm để dotenv/config không nạp được backend/.env.
+ * - "start:test": trả startTestArgv(START_TEST_SCRIPT), argv suy ra từ script start:test (xem startTestArgv).
  */
 function serverArgv(launcher: ServerLauncher, args: string[] | undefined): string[] {
   if (launcher === "node") return [...(args ?? []), SERVER_ENTRY];

@@ -226,6 +226,10 @@ describe("health.test", () => {
         `stderr: ${s.stderr()}`,
       );
       assert.ok(!s.stderr().includes("CHẾ ĐỘ TEST"), `stderr: ${s.stderr()}`);
+      // Lời khuyên phải đúng cả khi shell vẫn giữ "test " (G-01-9): npm run start:test luôn đặt NODE_ENV=test
+      const warning = s.stderr().split(/\r?\n/).find((line) => line.includes('[CẢNH BÁO] NODE_ENV="test "')) ?? "";
+      assert.ok(warning.includes("npm run start:test"), `dòng cảnh báo: ${warning}`);
+      assert.ok(warning.includes("luôn đặt NODE_ENV=test"), `dòng cảnh báo: ${warning}`);
     });
   });
 

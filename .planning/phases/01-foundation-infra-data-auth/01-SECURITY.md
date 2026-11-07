@@ -11,7 +11,7 @@ created: "2026-11-06"
 # Phase 1 — Security
 
 > Per-phase security contract: threat register, accepted risks, and audit trail.
-> Register built from the `<threat_model>` blocks of 01-01…01-08 PLAN.md (authored at plan time). Verified at ASVS L1 (grep depth) on 2026-11-06 after gap-closure plans 01-06…01-08 merged; full suite green (unit 149/149, integration 57/57).
+> Register built from the `<threat_model>` blocks of 01-01…01-09 PLAN.md (authored at plan time). Verified at ASVS L1 (grep depth) on 2026-11-06 after gap-closure plans 01-06…01-08 merged (unit 149/149, integration 57/57), and re-verified on 2026-11-07 after gap-closure plan 01-09 merged (T-01-37…T-01-41 added, T-01-26 evidence updated; typecheck clean, unit 151/151, integration 59/59).
 
 ---
 
@@ -24,6 +24,9 @@ created: "2026-11-06"
 | Environment / `.env` → config | Process configuration read once in `config/env.ts` | `JWT_SECRET`, Mongo URI, `NODE_ENV` |
 | Developer CLI → seed/reset | Destructive operations on the configured databases | Database targets, sale ids |
 | npm registry → backend | Third-party packages | Supply chain |
+| Parent shell → `start:test` wrapper → server | Shell variables reach the server; the wrapper applies the committed `.env.test` over the shell for `NODE_ENV` only (01-09) | `NODE_ENV` |
+| Test suite → spawned process trees | Tests spawn a dotenv wrapper plus a server and must stop exactly the tree they spawned (01-09) | Process signals, ports |
+| Developer terminal → `backend/.env` | Secret file created by hand on each machine; never printed or committed (01-09) | `JWT_SECRET` |
 
 ---
 
@@ -56,7 +59,7 @@ created: "2026-11-06"
 | T-01-23 | Tampering | bcrypt 72-byte truncation | medium | mitigate | UTF-8 byte limit (utils/validate.ts:21) | closed |
 | T-01-24 | Denial of service | bcrypt cost on login floods | low | accept | See Accepted Risks AR-04 | closed |
 | T-01-25 | Spoofing | env.ts isTestMode | high | mitigate | Exact `env["NODE_ENV"] === "test"` (env.ts:139); the only `"test"` equality in backend/src | closed |
-| T-01-26 | Denial of service | npm run start:test | medium | mitigate | `node --env-file=.env.test` (package.json:14); test:int proves test mode | closed |
+| T-01-26 | Denial of service | npm run start:test | medium | mitigate | `dotenv run -q --override -f .env.test -- node dist/server.js` (package.json:14, 01-09 replaced Node's env-file flag); test:int proves test mode, also with an inherited NODE_ENV `"test "` (health.test G-01-9) | closed |
 | T-01-27 | Repudiation | health + banner test-mode observability | high | mitigate | `testMode` in health body (health.controller.ts:10), JSON-quoted banner, near-miss warning | closed |
 | T-01-28 | Elevation of privilege | env.ts near-miss flag | high | mitigate | `testModeNearMiss` feeds only a warning; decision line unchanged (env.ts:34) | closed |
 | T-01-29 | Information disclosure | health body, boot banner | low | accept | See Accepted Risks AR-05 | closed |
@@ -67,7 +70,12 @@ created: "2026-11-06"
 | T-01-34 | Repudiation | startup diagnostics on stderr | low | mitigate | Runtime log armed after connect; exact line-count tests (boot, redis-boot) | closed |
 | T-01-35 | Information disclosure | ioredis unhandled-error stack | low | mitigate | Silent error listener from creation (config/redis.ts:19) | closed |
 | T-01-36 | Denial of service | integration tests vs shared containers | medium | mitigate | Unused port 6390, fake TCP servers, proxy (test/boot.test.ts:3) | closed |
-| T-01-SC | Tampering | npm installs | high | mitigate | Human legitimacy checkpoint (01-01-T1); lockfile committed; later plans only `npm ci` | closed |
+| T-01-37 | Elevation of privilege | `start:test` (`dotenv run --override`) | medium | mitigate | Override only from the committed `.env.test` (unchanged by 01-09); plain `start` = `node dist/server.js` never loads it (package.json:13); single raw `"test"` comparison stays env.ts:139; `process.env` read only in env.ts | closed |
+| T-01-38 | Denial of service | orphaned server under the start:test wrapper | medium | mitigate | `killProcessTree` → `taskkill /pid <child> /T /F` on Windows (test/helpers.ts:187-190), used on timeout and `stop()` (helpers.ts:239, 381); health.test waits for `isPortFree(port)` after stop (health.test.ts:189) | closed |
+| T-01-39 | Tampering | killProcessTree signalling a reused PID | low | mitigate | Returns early when `child.exitCode !== null \|\| child.signalCode !== null` (test/helpers.ts:188) | closed |
+| T-01-40 | Repudiation | start:test stderr diagnostics | low | mitigate | `-q` in the start:test launcher argv (test/helpers.ts:170); boot.test start:test case asserts exit 1 with exactly one `[LỖI]` line (boot.test.ts:100) | closed |
+| T-01-41 | Information disclosure | `backend/.env` creation and env-source checks | medium | mitigate | `.env.example` header command writes the 32-byte key straight into the file with `flag:'wx'` (line 4); `JWT_SECRET=` stays empty (line 16); presence checks print names only (01-VERIFICATION.md `human_verification`); `.env` ignored (.gitignore:3); no 01-09 commit touches `backend/.env` | closed |
+| T-01-SC | Tampering | npm installs | high | mitigate | Human legitimacy checkpoint (01-01-T1); lockfile committed; later plans only `npm ci`; 01-09 adds no package (dotenv CLI ships with dotenv 18.0.9, lockfile unchanged) | closed |
 
 *Status: open · closed · open — below {block_on} threshold (non-blocking)*
 *Severity: critical > high > medium > low — only open threats at or above workflow.security_block_on count toward threats_open*
@@ -95,6 +103,7 @@ created: "2026-11-06"
 | Audit Date | Threats Total | Closed | Open | Run By |
 |------------|---------------|--------|------|--------|
 | 2026-11-06 | 37 | 37 | 0 | secure-phase (orchestrator, L1 grep verification) |
+| 2026-11-07 | 42 | 42 | 0 | secure-phase (orchestrator, L1 grep verification after 01-09) |
 
 ---
 
@@ -105,4 +114,14 @@ created: "2026-11-06"
 - [x] `threats_open: 0` confirmed
 - [x] `status: verified` set in frontmatter
 
-**Approval:** verified 2026-11-06
+**Approval:** verified 2026-11-06; re-verified 2026-11-07 after 01-09
+
+*Note (non-blocking, outside the register):* `backend/.env.example` line 15 still carries the older 01-01 comment that generates a key with `console.log(...)`, which prints it in the developer's own terminal. Plan 01-09 deliberately changed nothing below its new header. The header command (line 4) is the documented path and never prints the key.
+
+## Security Audit 2026-11-07
+
+| Metric | Count |
+|---|---|
+| Threats found | 42 |
+| Closed | 42 |
+| Open | 0 |

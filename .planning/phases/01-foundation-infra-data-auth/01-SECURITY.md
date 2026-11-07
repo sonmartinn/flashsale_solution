@@ -11,7 +11,7 @@ created: "2026-11-06"
 # Phase 1 — Security
 
 > Per-phase security contract: threat register, accepted risks, and audit trail.
-> Register built from the `<threat_model>` blocks of 01-01…01-09 PLAN.md (authored at plan time). Verified at ASVS L1 (grep depth) on 2026-11-06 after gap-closure plans 01-06…01-08 merged (unit 149/149, integration 57/57), and re-verified on 2026-11-07 after gap-closure plan 01-09 merged (T-01-37…T-01-41 added, T-01-26 evidence updated; typecheck clean, unit 151/151, integration 59/59).
+> Register built from the `<threat_model>` blocks of 01-01…01-09 PLAN.md (authored at plan time). Verified at ASVS L1 (grep depth) on 2026-11-06 after gap-closure plans 01-06…01-08 merged (unit 149/149, integration 57/57), and re-verified on 2026-11-07 after gap-closure plan 01-09 merged (T-01-37…T-01-41 added, T-01-26 evidence updated; typecheck clean, unit 151/151, integration 59/59), and again on 2026-11-07 after gap-closure plan 01-10 merged (T-01-42…T-01-45 added, T-01-40 and T-01-SC evidence updated; typecheck clean, unit 154/154, integration 59/59).
 
 ---
 
@@ -73,9 +73,13 @@ created: "2026-11-06"
 | T-01-37 | Elevation of privilege | `start:test` (`dotenv run --override`) | medium | mitigate | Override only from the committed `.env.test` (unchanged by 01-09); plain `start` = `node dist/server.js` never loads it (package.json:13); single raw `"test"` comparison stays env.ts:139; `process.env` read only in env.ts | closed |
 | T-01-38 | Denial of service | orphaned server under the start:test wrapper | medium | mitigate | `killProcessTree` → `taskkill /pid <child> /T /F` on Windows (test/helpers.ts:187-190), used on timeout and `stop()` (helpers.ts:239, 381); health.test waits for `isPortFree(port)` after stop (health.test.ts:189) | closed |
 | T-01-39 | Tampering | killProcessTree signalling a reused PID | low | mitigate | Returns early when `child.exitCode !== null \|\| child.signalCode !== null` (test/helpers.ts:188) | closed |
-| T-01-40 | Repudiation | start:test stderr diagnostics | low | mitigate | `-q` in the start:test launcher argv (test/helpers.ts:170); boot.test start:test case asserts exit 1 with exactly one `[LỖI]` line (boot.test.ts:100) | closed |
+| T-01-40 | Repudiation | start:test stderr diagnostics | low | mitigate | `-q` in START_TEST_SCRIPT (test/helpers.ts:137), which the launcher argv is now derived from (`startTestArgv`, helpers.ts:174; `serverArgv` returns it, helpers.ts:214); 01-10 M2 mutation (drop `-q` in both places) turns this case red; boot.test start:test case asserts exit 1 with exactly one `[LỖI]` line (boot.test.ts:100) | closed |
 | T-01-41 | Information disclosure | `backend/.env` creation and env-source checks | medium | mitigate | `.env.example` header command writes the 32-byte key straight into the file with `flag:'wx'` (line 4); `JWT_SECRET=` stays empty (line 16); presence checks print names only (01-VERIFICATION.md `human_verification`); `.env` ignored (.gitignore:3); no 01-09 commit touches `backend/.env` | closed |
-| T-01-SC | Tampering | npm installs | high | mitigate | Human legitimacy checkpoint (01-01-T1); lockfile committed; later plans only `npm ci`; 01-09 adds no package (dotenv CLI ships with dotenv 18.0.9, lockfile unchanged) | closed |
+| T-01-SC | Tampering | npm installs | high | mitigate | Human legitimacy checkpoint (01-01-T1); lockfile committed; later plans only `npm ci`; 01-09 adds no package (dotenv CLI ships with dotenv 18.0.9, lockfile unchanged); 01-10 adds no package (`git log 354162c..HEAD -- backend/package.json backend/package-lock.json` empty; worktree used `npm ci` only) | closed |
+| T-01-42 | Tampering | test/helpers.ts serverArgv/startTestArgv (start:test drift guard) | medium | mitigate | `serverArgv("start:test")` returns `startTestArgv(START_TEST_SCRIPT)` (helpers.ts:214); build.test pins package.json to the constant and the constant to the argv token by token (build.test.ts:42, :55); 01-10 M1 mutation (drop `--override` in both places) turns the G-01-9 case red (health.test.ts:155) | closed |
+| T-01-43 | Spoofing | startTestArgv replaying a script it cannot represent | low | mitigate | Token allowlist `/^[A-Za-z0-9._/=-]+$/` (helpers.ts:155); pre-step must be exactly `npm run build` (helpers.ts:184); first token dotenv and `dist/server.js` required; build.test rejects four shapes with `assert.throws` (build.test.ts:69-82) | closed |
+| T-01-44 | Tampering | 01-10 Task 2 mutations left in the tree | medium | mitigate | Restored with `git checkout`; `git diff --quiet -- backend` exit 0 recorded in 01-10-SUMMARY; `git log --format= --name-only 354162c..HEAD -- backend/src backend/scripts backend/package.json` prints nothing; start:test unchanged (helpers.ts:137) | closed |
+| T-01-45 | Denial of service | Server processes left by the mutation runs | low | accept | See AR-07; killProcessTree acts only on the helper's own child (helpers.ts:224-227); unbounded wait when taskkill fails is REVIEW WR-01 (open in 01-REVIEW-DISPOSITION.md) | closed |
 
 *Status: open · closed · open — below {block_on} threshold (non-blocking)*
 *Severity: critical > high > medium > low — only open threats at or above workflow.security_block_on count toward threats_open*
@@ -93,6 +97,7 @@ created: "2026-11-06"
 | AR-04 | T-01-24 | No login rate limiting — out of scope per REQUIREMENTS; localhost course project | Plan 01-04 threat model | 2026-11-04 |
 | AR-05 | T-01-29 | `testMode` boolean and raw `NODE_ENV` string in health/banner; no secret involved, 127.0.0.1 only | Plan 01-06 threat model | 2026-11-05 |
 | AR-06 | T-01-32 | One Buffer length check per JSON request; identical for V0/V1/V2 so E2 stays fair | Plan 01-07 threat model | 2026-11-05 |
+| AR-07 | T-01-45 | Mutation runs reuse the regular suite helpers; health.test asserts the port is freed; the taskkill-failure wait is tracked as REVIEW WR-01 | Plan 01-10 threat model | 2026-11-07 |
 
 *Accepted risks do not resurface in future audit runs.*
 
@@ -104,6 +109,7 @@ created: "2026-11-06"
 |------------|---------------|--------|------|--------|
 | 2026-11-06 | 37 | 37 | 0 | secure-phase (orchestrator, L1 grep verification) |
 | 2026-11-07 | 42 | 42 | 0 | secure-phase (orchestrator, L1 grep verification after 01-09) |
+| 2026-11-07 | 46 | 46 | 0 | secure-phase (orchestrator, L1 grep verification after 01-10) |
 
 ---
 
@@ -114,7 +120,7 @@ created: "2026-11-06"
 - [x] `threats_open: 0` confirmed
 - [x] `status: verified` set in frontmatter
 
-**Approval:** verified 2026-11-06; re-verified 2026-11-07 after 01-09
+**Approval:** verified 2026-11-06; re-verified 2026-11-07 after 01-09 and again after 01-10
 
 *Note (non-blocking, outside the register):* `backend/.env.example` line 15 still carries the older 01-01 comment that generates a key with `console.log(...)`, which prints it in the developer's own terminal. Plan 01-09 deliberately changed nothing below its new header. The header command (line 4) is the documented path and never prints the key.
 
@@ -124,4 +130,12 @@ created: "2026-11-06"
 |---|---|
 | Threats found | 42 |
 | Closed | 42 |
+| Open | 0 |
+
+## Security Audit 2026-11-07
+
+| Metric | Count |
+|---|---|
+| Threats found | 46 |
+| Closed | 46 |
 | Open | 0 |

@@ -30,7 +30,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. `npm run seed` (stock quantity and `mode` as parameters) wipes and recreates 1,000 users + 1 admin, 6 fashion products with category-specific `attributes`, and one active 7-day half-price sale with `stock:<saleId>` loaded in Redis. Every SPECS §6 index exists, including unique `(saleId, userId)`
   4. `npm run reset` (one or all sales, optional `--mode`) restores `remainingQty = totalQty`, deletes the sale's orders and stock_movements, resets Redis stock and buyers in one checked `multi()`, reopens the sale for 7 days and warns that it cannot clear a running server's in-process cache
   5. A user can register (role always `user`, duplicate email → 409, any non-string field → 400) and log in to get a 7-day JWT (`sub` + `role`). A missing or bad token gets 401, a non-admin on `/api/admin/*` gets 403, and an `x-test-user` ObjectId is accepted only when `NODE_ENV === "test"`. Errors follow the SPECS §7 table with Vietnamese messages and a machine-readable `code`, and a 500 never leaks internals
-**Plans**: 9/10 plans executed
+**Plans**: 10/10 plans executed
 
 Plans:
 **Wave 1**
@@ -57,7 +57,7 @@ Plans:
 - [x] 01-09-PLAN.md — Gap G-01-9: npm run start:test forces NODE_ENV=test over an inherited shell value (dotenv run -q --override on .env.test, no new package), start:test boot failures keep one [LỖI] line, near-miss advice corrected; human tests list backend/.env as a prerequisite with an explicit env source (wave 7)
 
 **Wave 8** *(verification gap closure; blocked on Wave 7 completion)*
-- [ ] 01-10-PLAN.md — Gap G-01-V1 (VERIFICATION, = REVIEW WR-02): the test helper derives the start:test launcher argv from START_TEST_SCRIPT (startTestArgv), build.test pins constant -> argv as well as package.json -> constant, and coordinated script+constant mutations prove the G-01-9 and one-line boot cases now go red (wave 8)
+- [x] 01-10-PLAN.md — Gap G-01-V1 (VERIFICATION, = REVIEW WR-02): the test helper derives the start:test launcher argv from START_TEST_SCRIPT (startTestArgv), build.test pins constant -> argv as well as package.json -> constant, and coordinated script+constant mutations prove the G-01-9 and one-line boot cases now go red (wave 8)
 
 ### Phase 2: Buy Pipeline & Admin APIs
 **Goal**: Users can read products and sales and buy through V0, V1 or V2 with identical response codes; an admin can reset and inspect a sale and reconcile Redis against MongoDB
@@ -121,7 +121,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 (Phase 4 depends only
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation (Infra, Data, Auth) | 9/9 | In Progress | - |
+| 1. Foundation (Infra, Data, Auth) | 10/10 | In Progress | - |
 | 2. Buy Pipeline & Admin APIs | 0/TBD | Not started | - |
 | 3. Experiments (E1-E4) | 0/TBD | Not started | - |
 | 4. Web App & Dev Scripts | 0/TBD | Not started | - |

@@ -38,7 +38,7 @@ created: "2026-11-04"
 
 ## Per-Task Verification Map
 
-Filled by the planner from the 01-01…01-04 PLAN.md tasks; gap-closure rows 01-05…01-08 added by validate-phase on 2026-11-06, rows 01-09 on 2026-11-07. All commands run from the repo root. `npm --prefix backend test` = build + unit tests (`test/*.test.ts`, no Docker); `npm --prefix backend run test:int` = build + integration tests (`test/integration/*.test.ts`, `--test-concurrency=1`, needs `docker compose up -d --wait`). Integration tests use their own databases `flashsale_test_<name>_<pid>` and Redis db 1–4, never the demo `flashsale` db or Redis db 0.
+Filled by the planner from the 01-01…01-04 PLAN.md tasks; gap-closure rows 01-05…01-08 added by validate-phase on 2026-11-06, rows 01-09 and 01-10 on 2026-11-07. All commands run from the repo root. `npm --prefix backend test` = build + unit tests (`test/*.test.ts`, no Docker); `npm --prefix backend run test:int` = build + integration tests (`test/integration/*.test.ts`, `--test-concurrency=1`, needs `docker compose up -d --wait`). Integration tests use their own databases `flashsale_test_<name>_<pid>` and Redis db 1–4, never the demo `flashsale` db or Redis db 0.
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
@@ -64,6 +64,8 @@ Filled by the planner from the 01-01…01-04 PLAN.md tasks; gap-closure rows 01-
 | 01-09-T1 | 01-09 | 7 | INFRA-02, AUTH-05 | T-01-37, T-01-38, T-01-39, T-01-SC | `start:test` = `dotenv run -q --override -f .env.test` forces test mode even when the shell holds NODE_ENV `"test "`; stopping the wrapper tree frees the port; only the helper's own live child is signalled | unit + integration | `npm --prefix backend run typecheck && npm --prefix backend test && npm --prefix backend run test:int` (build: start:test pinned to START_TEST_SCRIPT; health: G-01-9 describe + isPortFree after stop) | ✅ | ✅ green |
 | 01-09-T2 | 01-09 | 7 | INFRA-03, AUTH-05 | T-01-40 | start:test boot failure exits 1 with exactly one `[LỖI]` line through the wrapper; near-miss advice says start:test always sets NODE_ENV=test | unit + integration | same as 01-09-T1 (boot: start:test with MongoDB down; health: near-miss advice) | ✅ | ✅ green |
 | 01-09-T3 | 01-09 | 7 | — (docs) | T-01-41 | Human tests runnable: backend/.env prerequisite (key never printed), pinned Env source, D-20 amended, `.env.example` header | doc check | `gsd-tools query frontmatter.get 01-VERIFICATION.md --field human_verification \| grep -c "Env source:"` (= 2) | ✅ | ✅ green |
+| 01-10-T1 | 01-10 | 8 | INFRA-02, INFRA-03, AUTH-05 | T-01-42, T-01-43 | start:test launcher argv derived from START_TEST_SCRIPT (`startTestArgv`); token order pinned, synthetic script followed, unreplayable shapes rejected | unit + integration | `npm --prefix backend run typecheck && npm --prefix backend test && npm --prefix backend run test:int` (build: three WR-02 cases; health/boot start:test cases now launch the derived argv) | ✅ | ✅ green |
+| 01-10-T2 | 01-10 | 8 | INFRA-03, AUTH-05 | T-01-44 | Coordinated script + constant edit is caught: dropping `--override` fails G-01-9 health case, dropping `-q` fails the one-line boot case; mutations restored | mutation proof (one-off) + doc check | `git diff --quiet -- backend && npm --prefix backend test && grep -c "\| WR-02 \| warning \| fixed \| 01-10" 01-REVIEW-DISPOSITION.md` (= 1) | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -100,7 +102,7 @@ Filled by the planner from the 01-01…01-04 PLAN.md tasks; gap-closure rows 01-
 - [x] Feedback latency < 30s
 - [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** approved 2026-11-07 (validate-phase re-audit after 01-09: all tasks automated and green — typecheck clean, unit 151/151, integration 59/59; frontmatter `nyquist_compliant` corrected to true, the 2026-11-06 audit had ticked the sign-off but left the field false)
+**Approval:** approved 2026-11-07 (validate-phase re-audit after 01-09: all tasks automated and green — typecheck clean, unit 151/151, integration 59/59; frontmatter `nyquist_compliant` corrected to true, the 2026-11-06 audit had ticked the sign-off but left the field false). Re-audited 2026-11-07 after 01-10: 01-10-T1/T2 automated and green on the merged tree — typecheck clean, unit 154/154, integration 59/59
 
 ## Validation Audit 2026-11-06
 

@@ -9,7 +9,7 @@ findings:
     title: "Kill path on Windows can hang the test run forever when `taskkill` fails"
   - id: WR-02
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "The guard against drift between the `start:test` script and the helper is one-directional, so the tests can pass against a script that behaves differently"
   - id: WR-03
     severity: warning
@@ -51,7 +51,7 @@ findings:
     severity: critical
     disposition: fixed
     title: "`nodeEnv` (banner + `/api/health`) reports \"test\" while `isTestMode` is false, which defeats the load-test preflight"
-open: 11
+open: 10
 total: 12
 recorded: 2026-11-07T09:35:54.779Z
 ---
@@ -61,7 +61,7 @@ recorded: 2026-11-07T09:35:54.779Z
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
 | WR-01 | warning | open | - |
-| WR-02 | warning | open | - |
+| WR-02 | warning | fixed | 01-10 (VERIFICATION gap G-01-V1) |
 | WR-03 | warning | open | - |
 | WR-04 | warning | open | - |
 | IN-01 | info | open | - |

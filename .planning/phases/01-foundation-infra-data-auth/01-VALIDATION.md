@@ -2,9 +2,9 @@
 phase: "1"
 slug: "foundation-infra-data-auth"
 # status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
-# audit-milestone §5.5 distinguishes NOT-VALIDATED (draft) from PARTIAL (validated + nyquist_compliant: true) (#2117)
+# audit-milestone §5.5 distinguishes NOT-VALIDATED (draft) from PARTIAL (validated + nyquist_compliant: false) (#2117)
 status: validated
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: true
 created: "2026-11-04"
 ---
@@ -38,7 +38,7 @@ created: "2026-11-04"
 
 ## Per-Task Verification Map
 
-Filled by the planner from the 01-01…01-04 PLAN.md tasks; gap-closure rows 01-05…01-08 added by validate-phase on 2026-11-06. All commands run from the repo root. `npm --prefix backend test` = build + unit tests (`test/*.test.ts`, no Docker); `npm --prefix backend run test:int` = build + integration tests (`test/integration/*.test.ts`, `--test-concurrency=1`, needs `docker compose up -d --wait`). Integration tests use their own databases `flashsale_test_<name>_<pid>` and Redis db 1–4, never the demo `flashsale` db or Redis db 0.
+Filled by the planner from the 01-01…01-04 PLAN.md tasks; gap-closure rows 01-05…01-08 added by validate-phase on 2026-11-06, rows 01-09 on 2026-11-07. All commands run from the repo root. `npm --prefix backend test` = build + unit tests (`test/*.test.ts`, no Docker); `npm --prefix backend run test:int` = build + integration tests (`test/integration/*.test.ts`, `--test-concurrency=1`, needs `docker compose up -d --wait`). Integration tests use their own databases `flashsale_test_<name>_<pid>` and Redis db 1–4, never the demo `flashsale` db or Redis db 0.
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
@@ -61,6 +61,9 @@ Filled by the planner from the 01-01…01-04 PLAN.md tasks; gap-closure rows 01-
 | 01-08-T1 | 01-08 | 6 | INFRA-03 | — | Redis down at boot → exactly one `[LỖI]` line (runtime log armed after connect) | unit + integration | `npm --prefix backend test && npm --prefix backend run test:int` (boot, redis-boot) | ✅ | ✅ green |
 | 01-08-T2 | 01-08 | 6 | INFRA-03, DATA-03, DATA-05 | — | 5 s startup deadline for a silent Redis; seed/reset with MongoDB down print one line | unit | `npm --prefix backend run typecheck && npm --prefix backend test` (redis, boot) | ✅ | ✅ green |
 | 01-08-T3 | 01-08 | 6 | INFRA-03, DATA-03, DATA-05 | — | Server + both CLIs vs fake/silent Redis; runtime disconnect still logged | integration | `npm --prefix backend run test:int` (redis-boot, models, health) | ✅ | ✅ green |
+| 01-09-T1 | 01-09 | 7 | INFRA-02, AUTH-05 | T-01-37, T-01-38, T-01-39, T-01-SC | `start:test` = `dotenv run -q --override -f .env.test` forces test mode even when the shell holds NODE_ENV `"test "`; stopping the wrapper tree frees the port; only the helper's own live child is signalled | unit + integration | `npm --prefix backend run typecheck && npm --prefix backend test && npm --prefix backend run test:int` (build: start:test pinned to START_TEST_SCRIPT; health: G-01-9 describe + isPortFree after stop) | ✅ | ✅ green |
+| 01-09-T2 | 01-09 | 7 | INFRA-03, AUTH-05 | T-01-40 | start:test boot failure exits 1 with exactly one `[LỖI]` line through the wrapper; near-miss advice says start:test always sets NODE_ENV=test | unit + integration | same as 01-09-T1 (boot: start:test with MongoDB down; health: near-miss advice) | ✅ | ✅ green |
+| 01-09-T3 | 01-09 | 7 | — (docs) | T-01-41 | Human tests runnable: backend/.env prerequisite (key never printed), pinned Env source, D-20 amended, `.env.example` header | doc check | `gsd-tools query frontmatter.get 01-VERIFICATION.md --field human_verification \| grep -c "Env source:"` (= 2) | ✅ | ✅ green |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -82,7 +85,7 @@ Filled by the planner from the 01-01…01-04 PLAN.md tasks; gap-closure rows 01-
 |----------|-------------|------------|-------------------|
 | Reset CLI prints in-process cache warning | DATA-05 | Now also automated (01-03-T2 verify greps the CLI output); manual read is optional | Run `npm run reset` and read the warning |
 | Boot fails fast in 4 real cases | INFRA-03 | Needs stopping Docker containers / holding a port | JWT_SECRET missing; Docker stopped; Redis container stopped; port 5000 held by `node -e "require('net').createServer().listen(5000,'127.0.0.1')"` |
-| `set NODE_ENV=test && npm run start` in real cmd.exe shows quoted banner, `[CẢNH BÁO]` and `testMode: false` | AUTH-05 | Needs a real cmd.exe session (01-06 D4) | Run in cmd.exe, read banner/stderr, `GET /api/health` |
+| `set NODE_ENV=test && npm run start` in real cmd.exe shows quoted banner, `[CẢNH BÁO]` and `testMode: false`; then `npm run start:test` in the SAME window boots in test mode and a real Ctrl+C frees port 5000 | AUTH-05 | Needs a real cmd.exe session and a real Ctrl+C through npm, the .cmd shim and the dotenv wrapper (01-06 D4, 01-09 T1) | Prerequisite `backend/.env` (`.env.example` header command); follow UAT test 2 in 01-VERIFICATION.md `human_verification` |
 | Server, `npm run seed`, `npm run reset` with the real Redis container stopped print one `[LỖI]` line each | INFRA-03, DATA-03, DATA-05 | Stopping the shared container is the user's call (01-08) | `docker stop flashsale-redis`; run the three; `docker start flashsale-redis` |
 | Health flips to 503 when a container stops | INFRA-04 | Needs `docker stop` on a live server | `docker stop flashsale-redis`, then `GET /api/health` |
 
@@ -97,7 +100,7 @@ Filled by the planner from the 01-01…01-04 PLAN.md tasks; gap-closure rows 01-
 - [x] Feedback latency < 30s
 - [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** approved 2026-11-06 (validate-phase audit: all tasks automated and green — unit 149/149, integration 57/57)
+**Approval:** approved 2026-11-07 (validate-phase re-audit after 01-09: all tasks automated and green — typecheck clean, unit 151/151, integration 59/59; frontmatter `nyquist_compliant` corrected to true, the 2026-11-06 audit had ticked the sign-off but left the field false)
 
 ## Validation Audit 2026-11-06
 

@@ -6,34 +6,54 @@ findings:
   - id: WR-01
     severity: warning
     disposition: open
-    title: "`connectTestStores` leaks a reconnecting Redis client on failure, so `npm run test:int` hangs forever when Redis is down"
+    title: "Kill path on Windows can hang the test run forever when `taskkill` fails"
+  - id: WR-02
+    severity: warning
+    disposition: open
+    title: "The guard against drift between the `start:test` script and the helper is one-directional, so the tests can pass against a script that behaves differently"
+  - id: WR-03
+    severity: warning
+    disposition: open
+    title: "Short `JWT_SECRET` warning breaks the \"exactly one stderr line\" boot-failure contract"
+  - id: WR-04
+    severity: warning
+    disposition: open
+    title: "Test mode (identity taken from `x-test-user`, no auth) is served on every network interface"
   - id: IN-01
     severity: info
     disposition: open
-    title: "Duplicate case-sensitivity test (carried forward from the previous review, still open)"
+    title: "`.env.example` gives two conflicting ways to generate the secret, and one of them prints it"
   - id: IN-02
     severity: info
     disposition: open
-    title: "Near-miss test list uses literal invisible characters, contradicting its own comment"
+    title: "\"start:test chỉ ép riêng NODE_ENV=test\" holds only while `.env.test` has a single key"
   - id: IN-03
     severity: info
     disposition: open
-    title: "Warnings printed before `listen` break the \"exactly one stderr line\" contract when listen then fails"
+    title: "Quoted glob in `--test` may not work on the declared minimum Node (20.19)"
   - id: IN-04
     severity: info
     disposition: open
-    title: "`mongoose.disconnect()` on startup-failure paths is not guarded, unlike in seed/reset"
+    title: "Generality without instantiation: `args` option of the spawn helpers has no caller"
   - id: IN-05
     severity: info
     disposition: open
-    title: "Runtime Redis has no command deadline; a connected-but-unresponsive Redis hangs requests indefinitely"
+    title: "Boot catch blocks drop the underlying error, so non-\"not running\" failures are misreported"
+  - id: IN-06
+    severity: info
+    disposition: open
+    title: "Helper does not clear `DOTENV_*` variables, so a developer shell can break test isolation"
+  - id: IN-07
+    severity: info
+    disposition: open
+    title: "`DOTENV_CLI` is resolved eagerly at import, so the dedicated `build.test` assertion is unreachable on failure"
   - id: CR-01
     severity: critical
     disposition: fixed
     title: "`nodeEnv` (banner + `/api/health`) reports \"test\" while `isTestMode` is false, which defeats the load-test preflight"
-open: 6
-total: 7
-recorded: 2026-11-06T07:26:41.192Z
+open: 11
+total: 12
+recorded: 2026-11-07T09:35:54.779Z
 ---
 
 # Phase 01: Code Review Disposition
@@ -41,11 +61,16 @@ recorded: 2026-11-06T07:26:41.192Z
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
 | WR-01 | warning | open | - |
+| WR-02 | warning | open | - |
+| WR-03 | warning | open | - |
+| WR-04 | warning | open | - |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
 | IN-04 | info | open | - |
 | IN-05 | info | open | - |
+| IN-06 | info | open | - |
+| IN-07 | info | open | - |
 | CR-01 | critical | fixed | 01-06 (UAT G-01-1) (not in the current review) |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.

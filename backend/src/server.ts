@@ -59,7 +59,7 @@ if (cfg.isTestMode) {
   console.warn("!!! CHẾ ĐỘ TEST: header x-test-user được chấp nhận thay cho đăng nhập. KHÔNG dùng ngoài đo tải !!!");
 } else if (cfg.testModeNearMiss) {
   console.warn(
-    `[CẢNH BÁO] NODE_ENV=${JSON.stringify(cfg.nodeEnv)} gần giống "test" nhưng không khớp chính xác (thừa khoảng trắng hoặc sai chữ hoa/thường): chế độ test KHÔNG bật, header x-test-user bị bỏ qua. Đặt đúng NODE_ENV=test hoặc chạy npm run start:test.`,
+    `[CẢNH BÁO] NODE_ENV=${JSON.stringify(cfg.nodeEnv)} gần giống "test" nhưng không khớp chính xác (thừa khoảng trắng hoặc sai chữ hoa/thường): chế độ test KHÔNG bật, header x-test-user bị bỏ qua. Muốn bật chế độ test, chạy npm run start:test (lệnh này luôn đặt NODE_ENV=test, kể cả khi shell đang giữ giá trị khác).`,
   );
 }
 

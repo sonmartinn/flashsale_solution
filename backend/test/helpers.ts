@@ -7,7 +7,8 @@
 // Cách ly dữ liệu: test không bao giờ đụng vào database demo "flashsale" hay Redis db 0.
 // - MongoDB: mỗi file dùng database riêng flashsale_test_<tên>_<pid> và tự xóa trong after().
 // - Redis: mỗi file integration giữ một chỉ số db từ 1 đến 15.
-import { spawn } from "node:child_process";
+import { spawn, spawnSync, type ChildProcess } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import type { Server } from "node:http";
 import net from "node:net";
@@ -127,10 +128,78 @@ function buildChildEnv(env: Record<string, string>): NodeJS.ProcessEnv {
 
 const SERVER_ENTRY = path.join(BACKEND_ROOT, "dist", "server.js");
 
+/**
+ * Giá trị mong đợi của script "start:test" trong backend/package.json (G-01-9).
+ * build.test so khớp package.json với hằng này, và helper khởi động server theo đúng các token của nó,
+ * nên test tích hợp không thể lệch khỏi script thật.
+ */
+export const START_TEST_SCRIPT = "npm run build && dotenv run -q --override -f .env.test -- node dist/server.js";
+
+/**
+ * File CLI của gói dotenv (trường bin.dotenv trong package.json của nó): chính là file npm liên kết thành
+ * node_modules/.bin/dotenv. Helper chạy file này bằng process.execPath vì các shim trong .bin là script shell.
+ */
+export const DOTENV_CLI = resolveDotenvCli();
+
+function resolveDotenvCli(): string {
+  const pkgPath = fileURLToPath(import.meta.resolve("dotenv/package.json"));
+  const pkg: unknown = JSON.parse(readFileSync(pkgPath, "utf8"));
+  const bin = typeof pkg === "object" && pkg !== null ? (pkg as { bin?: unknown }).bin : undefined;
+  const cli = typeof bin === "object" && bin !== null ? (bin as { dotenv?: unknown }).dotenv : undefined;
+  if (typeof cli !== "string") throw new Error(`Không tìm thấy bin.dotenv trong ${pkgPath}`);
+  return path.resolve(path.dirname(pkgPath), cli);
+}
+
+/** Cách khởi động server: "node" chạy thẳng dist/server.js, "start:test" đi qua wrapper dotenv như npm run start:test. */
+export type ServerLauncher = "node" | "start:test";
+
+/**
+ * argv (sau process.execPath) để khởi động server.
+ * - "node" (mặc định): các cờ node trong args rồi tới dist/server.js, như trước đây.
+ * - "start:test": lặp lại START_TEST_SCRIPT từng token (bỏ bước build vì script test đã build) với đường dẫn
+ *   tuyệt đối, vì tiến trình con chạy trong thư mục tạm để dotenv/config không nạp được backend/.env.
+ */
+function serverArgv(launcher: ServerLauncher, args: string[] | undefined): string[] {
+  if (launcher === "node") return [...(args ?? []), SERVER_ENTRY];
+  if (args !== undefined && args.length > 0) {
+    throw new Error("launcher \"start:test\" không nhận args: script start:test không truyền cờ node nào");
+  }
+  return [
+    DOTENV_CLI,
+    "run",
+    "-q",
+    "--override",
+    "-f",
+    path.join(BACKEND_ROOT, ".env.test"),
+    "--",
+    process.execPath,
+    SERVER_ENTRY,
+  ];
+}
+
+/**
+ * Dừng cả cây tiến trình mà helper đã spawn.
+ * Trên Windows, chỉ dừng wrapper dotenv sẽ để server con mồ côi: nó vẫn giữ cổng và các pipe stdout/stderr,
+ * nên sự kiện 'close' không bao giờ xảy ra. Vì vậy dùng taskkill /T /F trên PID của chính tiến trình con.
+ * Nơi khác, SIGTERM tới wrapper, và wrapper tự dừng nhóm tiến trình con của nó.
+ * Tiến trình đã thoát thì không làm gì: PID có thể đã thuộc về tiến trình khác (không được dừng tiến trình lạ).
+ */
+function killProcessTree(child: ChildProcess): void {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  if (process.platform === "win32") {
+    spawnSync("taskkill", ["/pid", String(child.pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
+  } else {
+    child.kill();
+  }
+}
+
 export interface SpawnOptions {
   env: Record<string, string>;
+  /** Cờ node đặt trước dist/server.js (chỉ dùng với launcher "node") */
   args?: string[];
   timeoutMs?: number;
+  /** Mặc định "node" */
+  launcher?: ServerLauncher;
 }
 
 export interface SpawnResult {
@@ -167,7 +236,7 @@ async function spawnNodeAndCollect(
       let timedOut = false;
       const timer = setTimeout(() => {
         timedOut = true;
-        child.kill();
+        killProcessTree(child);
       }, timeoutMs);
       child.once("error", (err) => {
         clearTimeout(timer);
@@ -189,7 +258,7 @@ async function spawnNodeAndCollect(
  */
 export async function spawnServer(opts: SpawnOptions): Promise<SpawnResult> {
   return spawnNodeAndCollect(
-    [...(opts.args ?? []), SERVER_ENTRY],
+    serverArgv(opts.launcher ?? "node", opts.args),
     opts.env,
     opts.timeoutMs ?? 15_000,
     "flashsale-boot-",
@@ -281,11 +350,16 @@ const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
  * Chạy dist/server.js (env phải có PORT) và chờ tới khi GET /api/health trả về bất kỳ phản hồi HTTP nào
  * (tối đa 20 giây). Server thoát sớm thì ném lỗi kèm stderr.
  */
-export async function startServerProcess(opts: { env: Record<string, string>; args?: string[] }): Promise<ServerProcess> {
+export async function startServerProcess(opts: {
+  env: Record<string, string>;
+  args?: string[];
+  launcher?: ServerLauncher;
+}): Promise<ServerProcess> {
   const port = opts.env["PORT"];
   if (port === undefined) throw new Error("startServerProcess cần PORT trong env");
+  const argv = serverArgv(opts.launcher ?? "node", opts.args);
   const cwd = await mkdtemp(path.join(os.tmpdir(), "flashsale-server-"));
-  const child = spawn(process.execPath, [...(opts.args ?? []), SERVER_ENTRY], {
+  const child = spawn(process.execPath, argv, {
     cwd,
     env: buildChildEnv(opts.env),
     stdio: ["ignore", "pipe", "pipe"],
@@ -304,7 +378,7 @@ export async function startServerProcess(opts: { env: Record<string, string>; ar
 
   const stop = async (): Promise<void> => {
     if (!exited) {
-      child.kill();
+      killProcessTree(child);
       await exitedPromise;
     }
     await rm(cwd, { recursive: true, force: true });

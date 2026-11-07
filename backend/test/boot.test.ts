@@ -94,6 +94,14 @@ describe("boot.test", () => {
     assert.ok(r.durationMs < 10_000, `mất ${Math.round(r.durationMs)} ms`);
   });
 
+  it('npm run start:test khi MongoDB không chạy (shell còn NODE_ENV="test "): thoát mã 1 với đúng một dòng [LỖI] MongoDB', async () => {
+    // Chạy qua wrapper dotenv giống script start:test (G-01-9): wrapper phải im lặng (-q) và trả lại mã thoát 1
+    const env = { ...(await baseEnv()), NODE_ENV: "test " };
+    const r = await spawnServer({ env, launcher: "start:test", timeoutMs: 15_000 });
+    assertSingleLineExit(r, stderrLines(r.stderr), MONGO_DOWN_LINE);
+    assert.ok(r.durationMs < 10_000, `mất ${Math.round(r.durationMs)} ms`);
+  });
+
   describe("seed/reset CLI khi MongoDB không chạy", () => {
     const cliEnv = { MONGODB_URI: DEAD_MONGO_URI, REDIS_URL: DEAD_REDIS_URL };
 

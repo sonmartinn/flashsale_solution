@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { AppDeps } from "../app.js";
 import { createHealthController } from "../controllers/health.controller.js";
 import { createAuthMiddleware } from "../middlewares/auth.js";
+import { createCatalogService } from "../services/catalog.service.js";
 import { createPurchaseService } from "../services/purchase.service.js";
 import { createSaleAdminService } from "../services/sale-admin.service.js";
 import { createSaleCache } from "../services/sale-cache.js";
@@ -19,9 +20,11 @@ export function createApiRouter(deps: AppDeps): Router {
   const purchase = createPurchaseService({ redis: deps.redis, saleCache });
   // Reset qua API dùng CÙNG service với npm run reset (D-09) và xóa CÙNG cache mà purchase đọc (BUY-02, D-17).
   const saleAdmin = createSaleAdminService({ redis: deps.redis, onSaleReset: saleCache.invalidate });
+  // Đường đọc (sản phẩm, đợt sale, đơn của tôi) đọc MongoDB mới, không qua saleCache (D-19).
+  const catalog = createCatalogService({ redis: deps.redis });
   router.get("/health", createHealthController(deps));
   router.use("/auth", createAuthRouter(deps));
-  router.use("/sales", createSaleRouter({ auth, purchase }));
+  router.use("/sales", createSaleRouter({ auth, purchase, catalog }));
   router.use("/admin", createAdminRouter(auth, { saleAdmin }));
   return router;
 }

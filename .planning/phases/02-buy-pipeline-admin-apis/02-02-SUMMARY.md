@@ -158,3 +158,9 @@ None. No external service configuration is required.
 ---
 *Phase: 02-buy-pipeline-admin-apis*
 *Completed: 2026-11-08*
+
+## Self-Check: PASSED
+
+- All 3 created files exist on disk, and so does the SUMMARY.
+- Commits c940091, b090642 and 0ac44ce are on HEAD.
+- Plan verification: `npm run typecheck` exit 0. `npm test` exit 0 (164 pass, includes the build and parseReconcileArgs). `npm run test:int` exit 0 (84 pass, includes reconcile.test).

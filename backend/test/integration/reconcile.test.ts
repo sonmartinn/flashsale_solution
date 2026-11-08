@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { Types } from "mongoose";
 import type { Redis } from "ioredis";
 import { buyersKey, stockKey } from "../../src/config/redis.js";
-import { ensureIndexes, FlashSale, Order, Product } from "../../src/models/index.js";
+import { ensureIndexes, FlashSale, Order, Product, StockMovement } from "../../src/models/index.js";
 import { createReconcileService, type ReconcileService } from "../../src/services/reconcile.service.js";
 import { HttpError } from "../../src/utils/http-error.js";
 import {
@@ -28,6 +28,24 @@ function isHttpError(status: number, code: string) {
     assert.equal(err.code, code);
     return true;
   };
+}
+
+/**
+ * Redis giả cho nhánh lỗi của --fix: get/smembers đọc Redis thật (để fixSale thấy lệch),
+ * còn multi().set().del().sadd().exec() trả về kết quả cho trước.
+ */
+function fakeMultiRedis(real: Redis, execResult: [Error | null, unknown][] | null): Redis {
+  const chain = {
+    set: () => chain,
+    del: () => chain,
+    sadd: () => chain,
+    exec: async () => execResult,
+  };
+  return {
+    get: real.get.bind(real),
+    smembers: real.smembers.bind(real),
+    multi: () => chain,
+  } as unknown as Redis;
 }
 
 /** Chạy npm run reconcile thật, KHÔNG có JWT_SECRET trong env (D-26). */
@@ -232,6 +250,121 @@ describe("reconcile.test", () => {
       assert.equal(r.code, 1);
       assert.match(r.stderr, /\[LỖI\]/);
       assertNote(r);
+    });
+  });
+
+  describe("fixSale", () => {
+    /** Các biến động reconcile_fix của một đợt sale. */
+    function fixMoves(saleId: string) {
+      return StockMovement.find({ saleId, reason: "reconcile_fix" }).lean();
+    }
+
+    it("stock 9, buyers {u1, u2, x}: sửa về stock 7, buyers {u1, u2, u3}, ghi 1 biến động delta -2", async () => {
+      await StockMovement.deleteMany({ reason: "reconcile_fix" });
+      await setRedis(saleA, "9", [u1, u2, x]);
+      const result = await service.fixSale(saleA);
+      assert.equal(result.before.inSync, false);
+      assert.equal(result.after.inSync, true);
+      assert.equal(result.oldStock, 9);
+      assert.equal(result.newStock, 7);
+      assert.equal(await redis.get(stockKey(saleA)), "7");
+      assert.deepEqual((await redis.smembers(buyersKey(saleA))).sort(), [u1, u2, u3].sort());
+      const moves = await fixMoves(saleA);
+      assert.equal(moves.length, 1);
+      assert.equal(moves[0]!.delta, -2);
+      assert.equal(moves[0]!.orderId, null);
+    });
+
+    it("thiếu khóa stock: oldStock 0, newStock 7, delta 7", async () => {
+      await StockMovement.deleteMany({ reason: "reconcile_fix" });
+      await setRedis(saleA, null, [u1, u2, u3]);
+      const result = await service.fixSale(saleA);
+      assert.equal(result.oldStock, 0);
+      assert.equal(result.newStock, 7);
+      assert.equal(result.after.inSync, true);
+      const moves = await fixMoves(saleA);
+      assert.equal(moves.length, 1);
+      assert.equal(moves[0]!.delta, 7);
+    });
+
+    it("đợt v2 không có đơn nào: stock 4, không còn khóa buyers (bỏ qua SADD), delta 3", async () => {
+      const saleC = await createSale(4, "v2");
+      try {
+        await setRedis(saleC, "1", [x]);
+        const result = await service.fixSale(saleC);
+        assert.equal(result.after.inSync, true);
+        assert.equal(await redis.get(stockKey(saleC)), "4");
+        assert.equal(await redis.exists(buyersKey(saleC)), 0);
+        const moves = await fixMoves(saleC);
+        assert.equal(moves.length, 1);
+        assert.equal(moves[0]!.delta, 3);
+      } finally {
+        await FlashSale.deleteOne({ _id: saleC });
+        await StockMovement.deleteMany({ saleId: saleC });
+        await redis.del(stockKey(saleC), buyersKey(saleC));
+      }
+    });
+
+    it("một lệnh trong multi() báo lỗi: fixSale reject, không ghi biến động reconcile_fix", async () => {
+      await StockMovement.deleteMany({ reason: "reconcile_fix" });
+      await setRedis(saleA, "9", [u1, u2, u3]);
+      const broken = createReconcileService({
+        redis: fakeMultiRedis(redis, [
+          [null, "OK"],
+          [new Error("boom"), null],
+        ]),
+      });
+      await assert.rejects(broken.fixSale(saleA), /boom/);
+      assert.equal((await fixMoves(saleA)).length, 0);
+    });
+
+    it("exec() trả về null (multi bị hủy): fixSale reject, không ghi biến động", async () => {
+      await StockMovement.deleteMany({ reason: "reconcile_fix" });
+      await setRedis(saleA, "9", [u1, u2, u3]);
+      const aborted = createReconcileService({ redis: fakeMultiRedis(redis, null) });
+      await assert.rejects(aborted.fixSale(saleA), /multi\(\) bị hủy/);
+      assert.equal((await fixMoves(saleA)).length, 0);
+    });
+
+    it("P3: fixSale không sửa FlashSale hay Order trong MongoDB", async () => {
+      await setRedis(saleA, "9", [u1, x]);
+      const saleBefore = await FlashSale.findById(saleA).lean();
+      const ordersBefore = await Order.find({ saleId: saleA }).sort({ _id: 1 }).lean();
+      await service.fixSale(saleA);
+      const saleAfter = await FlashSale.findById(saleA).lean();
+      const ordersAfter = await Order.find({ saleId: saleA }).sort({ _id: 1 }).lean();
+      assert.deepEqual(saleAfter, saleBefore);
+      assert.deepEqual(ordersAfter, ordersBefore);
+      assert.equal(ordersAfter.length, 3);
+    });
+  });
+
+  describe("CLI --fix", () => {
+    it("stock 9 với --sale A --fix: mã 0, in Đã sửa và KHỚP, Redis đã được sửa", async () => {
+      await setRedis(saleA, "9", [u1, u2, u3]);
+      const r = await runCli(["--sale", saleA, "--fix"]);
+      assert.equal(r.code, 0, r.stderr);
+      assert.match(r.stdout, /Đã sửa/);
+      assert.match(r.stdout, /KHỚP/);
+      assert.equal(await redis.get(stockKey(saleA)), "7");
+      assert.deepEqual((await redis.smembers(buyersKey(saleA))).sort(), [u1, u2, u3].sort());
+      assertNote(r);
+    });
+
+    it("đợt đã khớp với --fix: mã 0, không ghi biến động mới", async () => {
+      await setRedis(saleA, "7", [u1, u2, u3]);
+      await StockMovement.deleteMany({ reason: "reconcile_fix" });
+      const r = await runCli(["--sale", saleA, "--fix"]);
+      assert.equal(r.code, 0, r.stderr);
+      assert.doesNotMatch(r.stdout, /Đã sửa/);
+      assert.equal(await StockMovement.countDocuments({ reason: "reconcile_fix" }), 0);
+    });
+
+    it("lệch mà không có --fix: vẫn mã 2 và Redis giữ nguyên", async () => {
+      await setRedis(saleA, "9", [u1, u2, u3]);
+      const r = await runCli(["--sale", saleA]);
+      assert.equal(r.code, 2, r.stderr);
+      assert.equal(await redis.get(stockKey(saleA)), "9");
     });
   });
 });

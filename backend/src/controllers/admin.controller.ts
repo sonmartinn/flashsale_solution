@@ -32,7 +32,10 @@ function paramId(value: string | string[] | undefined): string {
  * Handler của /api/admin (đã qua requireAuth + requireAdmin ở router).
  * Express 5 tự chuyển lỗi async tới middleware lỗi, không cần try/catch.
  */
-export function createAdminController(deps: { saleAdmin: SaleAdminService }): { resetSale: RequestHandler } {
+export function createAdminController(deps: { saleAdmin: SaleAdminService }): {
+  resetSale: RequestHandler;
+  getStats: RequestHandler;
+} {
   const { saleAdmin } = deps;
 
   /**
@@ -60,5 +63,10 @@ export function createAdminController(deps: { saleAdmin: SaleAdminService }): { 
     res.json({ sale: toResetDto(result) });
   };
 
-  return { resetSale };
+  /** GET /api/admin/sales/:id/stats -> 200 { stats } với mười một trường của D-25 (400 INVALID_ID, 404 NOT_FOUND). */
+  const getStats: RequestHandler = async (req, res) => {
+    res.json({ stats: await saleAdmin.getStats(paramId(req.params["id"])) });
+  };
+
+  return { resetSale, getStats };
 }

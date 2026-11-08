@@ -14,6 +14,7 @@
     "start:test": "npm run build && dotenv run -q --override -f .env.test -- node dist/server.js",
     "seed": "tsx scripts/seed.ts",
     "reset": "tsx scripts/reset.ts",
+    "reconcile": "tsx scripts/reconcile.ts",
     "test": "npm run build && node --import tsx --test \"test/*.test.ts\"",
     "test:int": "npm run build && node --import tsx --test --test-concurrency=1 \"test/integration/*.test.ts\""
   },

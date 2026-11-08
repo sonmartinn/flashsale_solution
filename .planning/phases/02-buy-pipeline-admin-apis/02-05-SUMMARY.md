@@ -178,6 +178,12 @@ None. No external service configuration is required.
 - Phase 4 can render the home, sale and orders pages from these shapes. Phase 3 can read `remaining` and `stockLoaded` per mode.
 - Flagged assumptions carried from the plan: a V2 read while Redis is down answers 500 with no fallback (RESEARCH A3). `remaining` for a v2 sale reads Redis even while a script buys it with `?mode=v0|v1` (Pitfall 7, by design).
 
+## Self-Check: PASSED
+
+- All 7 created source/test files and this SUMMARY exist on disk.
+- Commits c465649, e4322e6, 3f3a7f2, 2026966, efadb3f are on this branch (5 code commits since ebe2c1e).
+- Acceptance greps: `createCatalogService(` in index.ts = 1, `remainingFor(` in catalog.service.ts = 1, `router.use("/products"` = 1, `router.use("/orders"` = 1, `auth.requireAuth` in order.routes.ts = 1, `/active` line before `/:id` line.
+
 ---
 *Phase: 02-buy-pipeline-admin-apis*
 *Completed: 2026-11-08*

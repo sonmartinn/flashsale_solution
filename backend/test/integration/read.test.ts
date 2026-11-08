@@ -197,4 +197,128 @@ describe("read.test", () => {
       assert.equal(missing.body["code"], "NOT_FOUND");
     });
   });
+
+  describe("GET /api/sales/active (READ-02)", () => {
+    let a: string;
+    let b: string;
+    let c: string;
+    let excluded: string[];
+
+    before(async () => {
+      // Chỉ giữ các đợt sale của nhóm case này trong danh sách đang mở
+      await FlashSale.updateMany({}, { $set: { status: "ended" } });
+      const now = Date.now();
+      a = await createSale({ mode: "v2", totalQty: 10, redisStock: "5", startAt: new Date(now - 3 * HOUR) });
+      b = await createSale({ mode: "v1", totalQty: 10, remainingQty: 6, startAt: new Date(now - HOUR) });
+      c = await createSale({ mode: "v2", totalQty: 10, redisStock: null, startAt: new Date(now - 2 * HOUR) });
+      await Order.create({
+        userId: new Types.ObjectId(),
+        saleId: c,
+        productId,
+        qty: 1,
+        price: SALE_PRICE,
+        status: "success",
+        mode: "v2",
+      });
+      excluded = [
+        await createSale({ mode: "v1", totalQty: 5, status: "scheduled", startAt: new Date(now - HOUR) }),
+        await createSale({ mode: "v1", totalQty: 5, status: "ended", startAt: new Date(now - HOUR) }),
+        await createSale({ mode: "v2", totalQty: 5, redisStock: "5", startAt: new Date(now + HOUR) }),
+        await createSale({
+          mode: "v1",
+          totalQty: 5,
+          startAt: new Date(now - 48 * HOUR),
+          endAt: new Date(now - 24 * HOUR),
+        }),
+      ];
+    });
+
+    it("chỉ liệt kê đợt active trong khung giờ, theo startAt tăng dần, remaining đúng từng mode, một MGET", async (t) => {
+      const mget = t.mock.method(redis, "mget");
+      const { status, body } = await getJson("/api/sales/active");
+      assert.equal(status, 200, JSON.stringify(body));
+      assertNoMongoInternals(body);
+      assert.deepEqual(Object.keys(body).sort(), ["now", "sales"]);
+      assertIso(body["now"], "now");
+      const sales = body["sales"] as Json[];
+      assert.deepEqual(
+        sales.map((s) => s["id"]),
+        [a, c, b],
+      );
+      for (const id of excluded) assert.ok(!sales.some((s) => s["id"] === id), `không được liệt kê ${id}`);
+      for (const s of sales) {
+        assert.deepEqual(Object.keys(s).sort(), SALE_KEYS);
+        assert.deepEqual(Object.keys(s["product"] as Json).sort(), PRODUCT_SUMMARY_KEYS);
+      }
+      const [sa, sc, sb] = sales;
+      assert.equal(sa?.["remaining"], 5);
+      assert.equal(sa?.["stockLoaded"], true);
+      assert.equal(sc?.["remaining"], 9);
+      assert.equal(sc?.["stockLoaded"], false);
+      assert.equal(sb?.["remaining"], 6);
+      assert.equal(sb?.["stockLoaded"], true);
+      assert.equal(mget.mock.callCount(), 1, "mọi khóa v2 phải được đọc bằng đúng một MGET");
+    });
+
+    it("không còn đợt v2 nào: vẫn 200 và không gọi MGET", async (t) => {
+      await FlashSale.updateMany({ _id: { $in: [a, c] } }, { $set: { status: "ended" } });
+      const mget = t.mock.method(redis, "mget");
+      const { status, body } = await getJson("/api/sales/active");
+      assert.equal(status, 200, JSON.stringify(body));
+      assert.deepEqual(
+        (body["sales"] as Json[]).map((s) => s["id"]),
+        [b],
+      );
+      assert.equal(mget.mock.callCount(), 0, "MGET không khóa là lỗi của Redis");
+    });
+
+    it("/active không bị route /:id bắt (không bao giờ trả 400 INVALID_ID)", async () => {
+      const { status, body } = await getJson("/api/sales/active");
+      assert.notEqual(body["code"], "INVALID_ID");
+      assert.equal(status, 200);
+    });
+  });
+
+  describe("GET /api/products, /api/products/:id (READ-01)", () => {
+    it("liệt kê 6 sản phẩm theo _id tăng dần, mỗi sản phẩm đúng các khóa của ProductDto", async () => {
+      const { status, body } = await getJson("/api/products");
+      assert.equal(status, 200, JSON.stringify(body));
+      assertNoMongoInternals(body);
+      assert.deepEqual(Object.keys(body), ["products"]);
+      const products = body["products"] as Json[];
+      assert.equal(products.length, SEED_PRODUCTS.length);
+      const ids = products.map((p) => String(p["id"]));
+      assert.deepEqual(ids, [...ids].sort());
+      for (const p of products) {
+        const seed = SEED_PRODUCTS.find((s) => s.slug === p["slug"]);
+        assert.ok(seed !== undefined, `sản phẩm lạ ${String(p["slug"])}`);
+        const expected = ["attributes", "category", "id", "images", "name", "price", "slug"];
+        if (seed.description !== undefined) expected.push("description");
+        assert.deepEqual(Object.keys(p).sort(), expected.sort());
+        assert.deepEqual(p["attributes"], seed.attributes);
+        assert.equal(p["description"], seed.description);
+        assert.equal(p["price"], seed.price);
+      }
+    });
+
+    it("GET /api/products/:id trả { product }; 400 INVALID_ID; 404 NOT_FOUND", async () => {
+      const ok = await getJson(`/api/products/${String(productId)}`);
+      assert.equal(ok.status, 200, JSON.stringify(ok.body));
+      assertNoMongoInternals(ok.body);
+      assert.deepEqual(Object.keys(ok.body), ["product"]);
+      const product = ok.body["product"] as Json;
+      assert.equal(product["id"], String(productId));
+      assert.equal(product["slug"], SEED_PRODUCTS[0]?.slug);
+
+      const bad = await getJson("/api/products/abc");
+      assert.equal(bad.status, 400);
+      assert.equal(bad.body["code"], "INVALID_ID");
+      assert.equal(bad.body["message"], "Mã sản phẩm không hợp lệ");
+
+      const missing = await getJson(`/api/products/${String(new Types.ObjectId())}`);
+      assert.equal(missing.status, 404);
+      assert.equal(missing.body["code"], "NOT_FOUND");
+      assert.equal(missing.body["message"], "Không tìm thấy sản phẩm");
+    });
+  });
 });

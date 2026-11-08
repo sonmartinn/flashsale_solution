@@ -43,7 +43,7 @@ Nguồn yêu cầu gốc: `docs/SPECS.md`. Chi tiết kỹ thuật (tên trườ
 ### Mua hàng (BUY)
 
 - [ ] **BUY-01**: `POST /api/sales/:id/buy?mode=v0|v1|v2` chạy phần kiểm tra chung đúng thứ tự SPECS mục 8: auth → `mode` hợp lệ (chuỗi đơn) → `qty` đúng bằng 1 → đợt sale tồn tại, `active`, trong `[startAt, endAt]` → `buyHandlers[mode]`
-- [ ] **BUY-02**: Thông tin tĩnh của đợt sale (`salePrice`, `productId`, `startAt`, `endAt`, `status`, `totalQty`) đọc qua cache trong bộ nhớ Node dùng chung cho cả ba chế độ, xóa khi reset; không bao giờ cache `remainingQty`
+- [x] **BUY-02**: Thông tin tĩnh của đợt sale (`salePrice`, `productId`, `startAt`, `endAt`, `status`, `totalQty`) đọc qua cache trong bộ nhớ Node dùng chung cho cả ba chế độ, xóa khi reset; không bao giờ cache `remainingQty`
 - [ ] **BUY-03**: Mã trả về thống nhất giữa ba phiên bản: 201 trả đơn, 409 hết hàng, 409 đã mua (thông báo và `code` khác), 400 đợt sale chưa mở/đã kết thúc, 503 khi V2 chưa nạp kho
 - [ ] **BUY-04**: V0 đọc `remainingQty` bằng `findOne`, nếu đủ thì `updateOne` `$inc: -qty`, rồi tạo đơn; dưới tải đồng thời có thể bán quá và tồn kho âm (không ghi đè giá trị đọc được)
 - [ ] **BUY-05**: V1 trừ kho nguyên tử bằng `findOneAndUpdate({ remainingQty: { $gte: qty } }, { $inc })`, `null` là hết hàng; tạo đơn; nếu tạo đơn lỗi thì hoàn kho `$inc +qty` (có `await`), riêng lỗi không phải E11000 thì chỉ hoàn kho khi `Order.exists` xác nhận đơn không tồn tại
@@ -54,8 +54,8 @@ Nguồn yêu cầu gốc: `docs/SPECS.md`. Chi tiết kỹ thuật (tên trườ
 
 ### Quản trị & đối chiếu (ADMIN)
 
-- [ ] **ADMIN-01**: Admin reset đợt sale qua `POST /api/admin/sales/:id/reset`, body tùy chọn `{ mode }` để đổi chế độ đợt sale
-- [ ] **ADMIN-02**: Admin xem `GET /api/admin/sales/:id/stats`: tồn kho MongoDB, tồn kho Redis, số đơn, số user khác nhau, số đơn vượt (`số đơn - totalQty` nếu dương), kèm `totalQty`, `mode`, `status`
+- [x] **ADMIN-01**: Admin reset đợt sale qua `POST /api/admin/sales/:id/reset`, body tùy chọn `{ mode }` để đổi chế độ đợt sale
+- [x] **ADMIN-02**: Admin xem `GET /api/admin/sales/:id/stats`: tồn kho MongoDB, tồn kho Redis, số đơn, số user khác nhau, số đơn vượt (`số đơn - totalQty` nếu dương), kèm `totalQty`, `mode`, `status`
 - [x] **ADMIN-03**: Script đối chiếu kiểm tra `stock:<saleId> = totalQty - số đơn thành công` và tập `buyers:<saleId>` trùng tập `userId` trong `orders`, in chênh lệch, thoát mã khác 0 khi lệch, có tùy chọn `--fix` sửa Redis theo MongoDB
 
 ### Thí nghiệm (EXP)
@@ -149,7 +149,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | READ-03 | Phase 2 | Pending |
 | READ-04 | Phase 2 | Pending |
 | BUY-01 | Phase 2 | Pending |
-| BUY-02 | Phase 2 | Pending |
+| BUY-02 | Phase 2 | Complete |
 | BUY-03 | Phase 2 | Pending |
 | BUY-04 | Phase 2 | Pending |
 | BUY-05 | Phase 2 | Pending |
@@ -157,8 +157,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BUY-07 | Phase 2 | Pending |
 | BUY-08 | Phase 2 | Pending |
 | BUY-09 | Phase 2 | Pending |
-| ADMIN-01 | Phase 2 | Pending |
-| ADMIN-02 | Phase 2 | Pending |
+| ADMIN-01 | Phase 2 | Complete |
+| ADMIN-02 | Phase 2 | Complete |
 | ADMIN-03 | Phase 2 | Complete |
 | EXP-01 | Phase 3 | Pending |
 | EXP-02 | Phase 3 | Pending |

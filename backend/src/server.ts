@@ -4,6 +4,7 @@ import { connectMongo } from "./config/db.js";
 import { connectRedis, createRedis } from "./config/redis.js";
 import { createApp } from "./app.js";
 import { ensureIndexes } from "./models/index.js";
+import { registerBuyScript } from "./services/lua.js";
 import { fail } from "./utils/fail.js";
 import { isPortFree } from "./utils/port.js";
 
@@ -51,6 +52,16 @@ try {
   redis.disconnect();
   await mongoose.disconnect();
   fail(`Không kết nối được Redis tại ${cfg.redisTarget}. Chạy "docker compose up -d --wait" ở thư mục gốc.`);
+}
+
+// Đăng ký script Lua của V2 trước khi nhận request (D-13). File thiếu (build quên chép dist/lua) thì vẫn chỉ
+// in đúng một dòng [LỖI] như mọi lỗi khởi động khác.
+try {
+  registerBuyScript(redis);
+} catch (e) {
+  redis.disconnect();
+  await mongoose.disconnect();
+  fail(`Không đọc được script Lua buy.lua: ${e instanceof Error ? e.message : String(e)}`);
 }
 
 // Hai cảnh báo dưới đây chỉ in SAU khi MongoDB và Redis đã kết nối: mọi lỗi khởi động ở trên vẫn chỉ in

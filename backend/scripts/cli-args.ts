@@ -1,4 +1,4 @@
-// Phân tích tham số dòng lệnh cho seed và reset. Hàm thuần: không I/O, không kết nối database,
+// Phân tích tham số dòng lệnh cho seed, reset và reconcile. Hàm thuần: không I/O, không kết nối database,
 // nên tham số sai bị từ chối TRƯỚC khi chạm vào dữ liệu.
 import { parseArgs } from "node:util";
 import { SALE_MODES, type SaleMode } from "../src/models/flash-sale.js";
@@ -89,5 +89,44 @@ export function parseResetArgs(argv: string[]): ResetArgs {
   }
   const rawMode = values["mode"];
   if (rawMode !== undefined) out.mode = parseMode(rawMode);
+  return out;
+}
+
+export const RECONCILE_USAGE =
+  "Cách dùng: npm run reconcile -- [--sale <saleId>] [--fix]  (chỉ chạy khi không có lượt mua nào đang diễn ra)";
+
+export interface ReconcileArgs {
+  saleId?: string;
+  fix: boolean;
+}
+
+/**
+ * Tham số của npm run reconcile (D-26). Gọi parseArgs trực tiếp thay vì parseStrict để seed/reset giữ nguyên
+ * cách phân tích (RESEARCH Pitfall 9). Strict mode từ chối cờ lạ và tham số vị trí.
+ */
+export function parseReconcileArgs(argv: string[]): ReconcileArgs {
+  let rawSale: string | undefined;
+  let fix: boolean;
+  try {
+    const { values } = parseArgs({
+      args: argv,
+      // Cờ boolean: strict mode từ chối --fix=yes
+      options: { sale: { type: "string" }, fix: { type: "boolean" } },
+      strict: true,
+      allowPositionals: false,
+    });
+    rawSale = values.sale;
+    fix = values.fix === true;
+  } catch (err) {
+    throw new CliArgsError(`Tham số không hợp lệ: ${(err as Error).message}`);
+  }
+  const out: ReconcileArgs = { fix };
+  if (rawSale !== undefined) {
+    const saleId = normalizeObjectId(rawSale);
+    if (saleId === null) {
+      throw new CliArgsError(`--sale phải là ObjectId 24 ký tự hex, nhận "${rawSale}"`);
+    }
+    out.saleId = saleId;
+  }
   return out;
 }

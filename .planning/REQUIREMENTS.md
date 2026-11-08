@@ -56,7 +56,7 @@ Nguồn yêu cầu gốc: `docs/SPECS.md`. Chi tiết kỹ thuật (tên trườ
 
 - [ ] **ADMIN-01**: Admin reset đợt sale qua `POST /api/admin/sales/:id/reset`, body tùy chọn `{ mode }` để đổi chế độ đợt sale
 - [ ] **ADMIN-02**: Admin xem `GET /api/admin/sales/:id/stats`: tồn kho MongoDB, tồn kho Redis, số đơn, số user khác nhau, số đơn vượt (`số đơn - totalQty` nếu dương), kèm `totalQty`, `mode`, `status`
-- [ ] **ADMIN-03**: Script đối chiếu kiểm tra `stock:<saleId> = totalQty - số đơn thành công` và tập `buyers:<saleId>` trùng tập `userId` trong `orders`, in chênh lệch, thoát mã khác 0 khi lệch, có tùy chọn `--fix` sửa Redis theo MongoDB
+- [x] **ADMIN-03**: Script đối chiếu kiểm tra `stock:<saleId> = totalQty - số đơn thành công` và tập `buyers:<saleId>` trùng tập `userId` trong `orders`, in chênh lệch, thoát mã khác 0 khi lệch, có tùy chọn `--fix` sửa Redis theo MongoDB
 
 ### Thí nghiệm (EXP)
 
@@ -159,7 +159,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BUY-09 | Phase 2 | Pending |
 | ADMIN-01 | Phase 2 | Pending |
 | ADMIN-02 | Phase 2 | Pending |
-| ADMIN-03 | Phase 2 | Pending |
+| ADMIN-03 | Phase 2 | Complete |
 | EXP-01 | Phase 3 | Pending |
 | EXP-02 | Phase 3 | Pending |
 | EXP-03 | Phase 3 | Pending |

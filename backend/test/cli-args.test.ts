@@ -1,7 +1,7 @@
-// Test đơn vị cho bộ phân tích tham số dòng lệnh của seed và reset (không đụng tới database).
+// Test đơn vị cho bộ phân tích tham số dòng lệnh của seed, reset và reconcile (không đụng tới database).
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { CliArgsError, parseResetArgs, parseSeedArgs } from "../scripts/cli-args.js";
+import { CliArgsError, parseReconcileArgs, parseResetArgs, parseSeedArgs } from "../scripts/cli-args.js";
 
 describe("cli-args.test", () => {
   describe("parseSeedArgs", () => {
@@ -102,6 +102,54 @@ describe("cli-args.test", () => {
 
     it("không có --qty cho reset (reset không đổi totalQty)", () => {
       assert.throws(() => parseResetArgs(["--qty", "5"]), CliArgsError);
+    });
+  });
+
+  describe("parseReconcileArgs", () => {
+    const ID = "64ab64ab64ab64ab64ab64ab";
+
+    it("không có tham số: đối chiếu mọi đợt, không sửa", () => {
+      assert.deepEqual(parseReconcileArgs([]), { fix: false });
+    });
+
+    it("--fix bật chế độ sửa", () => {
+      assert.deepEqual(parseReconcileArgs(["--fix"]), { fix: true });
+    });
+
+    it("--sale viết hoa được chuẩn hóa về chữ thường, fix mặc định false", () => {
+      assert.deepEqual(parseReconcileArgs(["--sale", ID.toUpperCase()]), { saleId: ID, fix: false });
+    });
+
+    it("nhận --sale và --fix cùng lúc", () => {
+      assert.deepEqual(parseReconcileArgs(["--sale", ID, "--fix"]), { saleId: ID, fix: true });
+    });
+
+    it("từ chối --fix=yes (cờ boolean không nhận giá trị)", () => {
+      assert.throws(() => parseReconcileArgs(["--fix=yes"]), CliArgsError);
+    });
+
+    it("từ chối --sale không phải ObjectId", () => {
+      assert.throws(() => parseReconcileArgs(["--sale", "abc"]), (err: unknown) => {
+        assert.ok(err instanceof CliArgsError);
+        assert.match(err.message, /--sale phải là ObjectId 24 ký tự hex/);
+        return true;
+      });
+    });
+
+    it("từ chối --sale thiếu giá trị", () => {
+      assert.throws(() => parseReconcileArgs(["--sale"]), CliArgsError);
+    });
+
+    it("không có --mode cho reconcile", () => {
+      assert.throws(() => parseReconcileArgs(["--mode", "v1"]), CliArgsError);
+    });
+
+    it("từ chối cờ lạ --bogus", () => {
+      assert.throws(() => parseReconcileArgs(["--bogus"]), CliArgsError);
+    });
+
+    it("từ chối tham số vị trí", () => {
+      assert.throws(() => parseReconcileArgs(["x"]), CliArgsError);
     });
   });
 });

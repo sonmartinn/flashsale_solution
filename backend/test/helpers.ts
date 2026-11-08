@@ -306,12 +306,12 @@ export async function spawnServer(opts: SpawnOptions): Promise<SpawnResult> {
 const TSX_LOADER = import.meta.resolve("tsx");
 
 /**
- * Chạy CLI TypeScript scripts/<script>.ts (giống npm run seed / npm run reset) bằng node --import tsx,
+ * Chạy CLI TypeScript scripts/<script>.ts (giống npm run seed / reset / reconcile) bằng node --import tsx,
  * trong một thư mục tạm mới nên dotenv không nạp được backend/.env. args là tham số của CLI.
  * Quá timeoutMs (mặc định 15 giây) thì dừng tiến trình và trả code null.
  */
 export async function spawnCli(
-  script: "seed" | "reset",
+  script: "seed" | "reset" | "reconcile",
   opts: { env: Record<string, string>; args?: string[]; timeoutMs?: number },
 ): Promise<SpawnResult> {
   const entry = path.join(BACKEND_ROOT, "scripts", `${script}.ts`);

@@ -1,5 +1,6 @@
 import type { RequestHandler } from "express";
 import { SALE_MODES } from "../models/index.js";
+import type { CatalogService } from "../services/catalog.service.js";
 import type { BuyResult, PurchaseService } from "../services/purchase.service.js";
 import { HttpError } from "../utils/http-error.js";
 import { normalizeObjectId } from "../utils/object-id.js";
@@ -21,8 +22,29 @@ const FAILURES: Record<Exclude<BuyResult["kind"], "ok">, HttpError> = {
  * -> (service) 404 NOT_FOUND -> 400 SALE_NOT_ACTIVE -> bước trừ kho của mode.
  * Express 5 tự chuyển lỗi async tới middleware lỗi, không cần try/catch.
  */
-export function createSaleController(deps: { purchase: PurchaseService }): { buy: RequestHandler } {
-  const { purchase } = deps;
+export function createSaleController(deps: { purchase: PurchaseService; catalog: CatalogService }): {
+  buy: RequestHandler;
+  getById: RequestHandler;
+  getActive: RequestHandler;
+} {
+  const { purchase, catalog } = deps;
+
+  /** GET /api/sales/active -> { now, sales }: cùng một now dùng để lọc và để trả về (D-22). */
+  const getActive: RequestHandler = async (_req, res) => {
+    const now = new Date();
+    const sales = await catalog.listActiveSales(now);
+    res.json({ now: now.toISOString(), sales });
+  };
+
+  /**
+   * GET /api/sales/:id -> { now, sale } (D-20, D-21, D-22). Trả cả đợt sale đã kết thúc.
+   * now lấy MỘT lần mỗi request để giao diện chỉnh đồng hồ đếm ngược theo giờ server.
+   */
+  const getById: RequestHandler = async (req, res) => {
+    const now = new Date();
+    const sale = await catalog.getSale(req.params["id"]);
+    res.json({ now: now.toISOString(), sale });
+  };
 
   const buy: RequestHandler = async (req, res) => {
     // requireAuth đã chạy trên route; vẫn kiểm tra để không bao giờ mua mà không có danh tính
@@ -52,5 +74,5 @@ export function createSaleController(deps: { purchase: PurchaseService }): { buy
     throw FAILURES[result.kind];
   };
 
-  return { buy };
+  return { buy, getById, getActive };
 }

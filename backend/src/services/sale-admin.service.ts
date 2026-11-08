@@ -2,7 +2,7 @@
 // Hai nơi gọi CÙNG một hàm nên không thể lệch nhau.
 import type { Redis } from "ioredis";
 import { buyersKey, stockKey } from "../config/redis.js";
-import { FlashSale, Order, SALE_MODES, StockMovement, type SaleMode } from "../models/index.js";
+import { FlashSale, Order, SALE_MODES, StockMovement, type SaleMode, type SaleStatus } from "../models/index.js";
 import { HttpError } from "../utils/http-error.js";
 import { normalizeObjectId } from "../utils/object-id.js";
 
@@ -21,9 +21,34 @@ export interface ResetOptions {
   mode?: SaleMode;
 }
 
+/**
+ * Số liệu một đợt sale cho admin (D-25). Script đo tải Phase 3 và trang admin Phase 4 đọc đúng các tên này.
+ */
+export interface SaleStats {
+  saleId: string;
+  mode: SaleMode;
+  status: SaleStatus;
+  totalQty: number;
+  /** flash_sales.remainingQty (âm khi V0 bán quá) */
+  mongoRemaining: number;
+  /** Giá trị của stock:<id>; null khi khóa không tồn tại */
+  redisStock: number | null;
+  /** SCARD buyers:<id> */
+  redisBuyers: number;
+  /** Số đơn status "success" */
+  orders: number;
+  /** Số userId khác nhau trong các đơn thành công */
+  distinctUsers: number;
+  /** max(0, orders - totalQty) */
+  oversold: number;
+  /** Chỉ cho mode v2: Redis khớp số đơn (so nhanh bằng số đếm); v0/v1 là null */
+  redisInSync: boolean | null;
+}
+
 export interface SaleAdminService {
   resetSale(saleId: string, opts?: ResetOptions): Promise<ResetResult>;
   resetAllSales(opts?: ResetOptions): Promise<ResetResult[]>;
+  getStats(saleId: string): Promise<SaleStats>;
 }
 
 export interface SaleAdminDeps {
@@ -94,5 +119,43 @@ export function createSaleAdminService({ redis, onSaleReset = () => {} }: SaleAd
     return results;
   }
 
-  return { resetSale, resetAllSales };
+  /**
+   * Đọc số liệu một đợt sale (D-25, RESEARCH Pattern 7): năm lần đọc chạy song song trong một Promise.all.
+   * redisInSync chỉ so số đếm (stock = totalQty - orders và số người trong buyers = số user có đơn);
+   * so từng phần tử của tập buyers là việc của reconcile (npm run reconcile).
+   */
+  async function getStats(rawSaleId: string): Promise<SaleStats> {
+    const saleId = normalizeObjectId(rawSaleId);
+    if (saleId === null) throw new HttpError(400, "Mã đợt sale không hợp lệ", "INVALID_ID");
+
+    const [sale, rawStock, redisBuyers, orders, users] = await Promise.all([
+      FlashSale.findById(saleId, { mode: 1, status: 1, totalQty: 1, remainingQty: 1 }).lean(),
+      redis.get(stockKey(saleId)),
+      redis.scard(buyersKey(saleId)),
+      Order.countDocuments({ saleId, status: "success" }),
+      Order.distinct("userId", { saleId, status: "success" }),
+    ]);
+    if (sale === null) throw new HttpError(404, "Không tìm thấy đợt sale", "NOT_FOUND");
+
+    const redisStock = rawStock === null ? null : Number(rawStock);
+    const distinctUsers = users.length;
+    const redisInSync =
+      sale.mode === "v2" ? redisStock === sale.totalQty - orders && redisBuyers === distinctUsers : null;
+
+    return {
+      saleId,
+      mode: sale.mode,
+      status: sale.status,
+      totalQty: sale.totalQty,
+      mongoRemaining: sale.remainingQty,
+      redisStock,
+      redisBuyers,
+      orders,
+      distinctUsers,
+      oversold: Math.max(0, orders - sale.totalQty),
+      redisInSync,
+    };
+  }
+
+  return { resetSale, resetAllSales, getStats };
 }

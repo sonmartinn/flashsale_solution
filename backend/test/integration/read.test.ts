@@ -7,8 +7,10 @@ import { Types } from "mongoose";
 import type { Redis } from "ioredis";
 import { stockKey } from "../../src/config/redis.js";
 import { FlashSale, Order, Product, ensureIndexes, type SaleMode, type SaleStatus } from "../../src/models/index.js";
+import { createAuthService } from "../../src/services/auth.service.js";
 import { SEED_PRODUCTS } from "../../src/services/seed.service.js";
 import {
+  TEST_JWT_SECRET,
   connectTestStores,
   dropTestDatabaseAndDisconnect,
   startApp,
@@ -33,6 +35,7 @@ const SALE_KEYS = [
   "totalQty",
 ];
 const PRODUCT_SUMMARY_KEYS = ["category", "id", "images", "name", "price", "slug"];
+const ORDER_KEYS = ["createdAt", "id", "mode", "price", "productId", "qty", "saleId", "status"];
 
 type Json = Record<string, unknown>;
 
@@ -319,6 +322,86 @@ describe("read.test", () => {
       assert.equal(missing.status, 404);
       assert.equal(missing.body["code"], "NOT_FOUND");
       assert.equal(missing.body["message"], "Không tìm thấy sản phẩm");
+    });
+  });
+
+  describe("GET /api/orders/me (READ-04)", () => {
+    const userU = new Types.ObjectId();
+    const userV = new Types.ObjectId();
+    const userW = new Types.ObjectId();
+    const base = Date.UTC(2026, 10, 1, 8, 0, 0);
+    let uOrderIds: string[];
+    let vOrderId: string;
+    let wOrderIds: string[];
+
+    /** Đơn chèn thẳng qua driver để giữ đúng createdAt (timestamps của Mongoose sẽ ghi đè nếu dùng create). */
+    function rawOrder(userId: Types.ObjectId, createdAt: Date): Record<string, unknown> {
+      return {
+        _id: new Types.ObjectId(),
+        userId,
+        saleId: new Types.ObjectId(),
+        productId,
+        qty: 1,
+        price: SALE_PRICE,
+        status: "success",
+        mode: "v1",
+        createdAt,
+      };
+    }
+
+    before(async () => {
+      const uOrders = [1, 2, 3].map((i) => rawOrder(userU, new Date(base + i * 60_000)));
+      const vOrder = rawOrder(userV, new Date(base + 10 * 60_000));
+      const wOrders = Array.from({ length: 105 }, (_, i) => rawOrder(userW, new Date(base + i * 1000)));
+      await Order.collection.insertMany([...uOrders, vOrder, ...wOrders]);
+      uOrderIds = uOrders.map((o) => String(o["_id"]));
+      vOrderId = String(vOrder["_id"]);
+      wOrderIds = wOrders.map((o) => String(o["_id"]));
+    });
+
+    it("x-test-user: chỉ đơn của chính người gọi, mới nhất trước, đúng khóa OrderDto + product", async () => {
+      const { status, body } = await getJson("/api/orders/me", { "x-test-user": String(userU) });
+      assert.equal(status, 200, JSON.stringify(body));
+      assertNoMongoInternals(body);
+      assert.deepEqual(Object.keys(body), ["orders"]);
+      const orders = body["orders"] as Json[];
+      assert.deepEqual(
+        orders.map((o) => o["id"]),
+        [...uOrderIds].reverse(),
+      );
+      assert.ok(!orders.some((o) => o["id"] === vOrderId), "không được thấy đơn của người khác");
+      for (const o of orders) {
+        assert.deepEqual(Object.keys(o).sort(), [...ORDER_KEYS, "product"].sort());
+        assert.deepEqual(Object.keys(o["product"] as Json).sort(), ["id", "images", "name", "slug"]);
+        assert.equal((o["product"] as Json)["id"], String(productId));
+        assert.equal(o["productId"], String(productId));
+        assertIso(o["createdAt"], "createdAt");
+      }
+    });
+
+    it("JWT của cùng người dùng trả đúng 3 đơn đó", async () => {
+      const token = createAuthService({ jwtSecret: TEST_JWT_SECRET }).signToken(String(userU), "user");
+      const { status, body } = await getJson("/api/orders/me", { authorization: `Bearer ${token}` });
+      assert.equal(status, 200, JSON.stringify(body));
+      assert.deepEqual(
+        (body["orders"] as Json[]).map((o) => o["id"]),
+        [...uOrderIds].reverse(),
+      );
+    });
+
+    it("không có x-test-user lẫn token -> 401 UNAUTHORIZED", async () => {
+      const { status, body } = await getJson("/api/orders/me");
+      assert.equal(status, 401);
+      assert.equal(body["code"], "UNAUTHORIZED");
+    });
+
+    it("giới hạn 100 đơn: người có 105 đơn nhận 100 đơn mới nhất", async () => {
+      const { status, body } = await getJson("/api/orders/me", { "x-test-user": String(userW) });
+      assert.equal(status, 200, JSON.stringify(body));
+      const ids = (body["orders"] as Json[]).map((o) => o["id"]);
+      assert.equal(ids.length, 100);
+      assert.equal(ids[0], wOrderIds[104], "đơn đầu tiên phải là đơn mới nhất");
+      assert.equal(ids[99], wOrderIds[5], "đơn cuối phải là đơn cũ thứ 6");
     });
   });
 });

@@ -14,15 +14,14 @@ Dưới tải đồng thời, V1 và V2 **luôn** cho đúng `totalQty` đơn th
 
 ### Validated
 
-(Chưa có. Cần ship để xác nhận)
+- ✓ Hạ tầng: Docker Compose chỉ chạy MongoDB 7 (cổng `127.0.0.1:27018`) và Redis 7 bật AOF `everysec` (cổng `127.0.0.1:6379`) — Phase 1
+- ✓ Backend TypeScript strict (Express 5, Mongoose 9, ioredis 6, ES modules NodeNext). Server thoát với thông báo rõ ràng khi thiếu `JWT_SECRET`, không kết nối được Mongo hoặc Redis, hoặc cổng bị chiếm — Phase 1
+- ✓ 5 collection có index đúng theo SPECS mục 6 (`users`, `products`, `flash_sales`, `orders`, `stock_movements`). Unique `(saleId, userId)`. `remainingQty` không có `min` — Phase 1
+- ✓ Script seed (1.000 user + 1 admin, 6 sản phẩm thời trang có `attributes` khác nhau, 1 đợt sale, kho nhận qua tham số) và script reset đợt sale (MongoDB + Redis `multi()` + xóa cache) — Phase 1
+- ✓ Đăng ký, đăng nhập JWT (hạn 7 ngày, payload `sub` + `role`). `requireAuth` không tra MongoDB, có `requireAdmin`. Chế độ test nhận header `x-test-user` khi `NODE_ENV === "test"` — Phase 1
 
 ### Active
 
-- [ ] Hạ tầng: Docker Compose chỉ chạy MongoDB 7 (cổng `127.0.0.1:27018`) và Redis 7 bật AOF `everysec` (cổng `127.0.0.1:6379`)
-- [ ] Backend TypeScript strict (Express 5, Mongoose 9, ioredis 6, ES modules NodeNext). Server thoát với thông báo rõ ràng khi thiếu `JWT_SECRET`, không kết nối được Mongo hoặc Redis, hoặc cổng bị chiếm
-- [ ] 5 collection có index đúng theo SPECS mục 6 (`users`, `products`, `flash_sales`, `orders`, `stock_movements`). Unique `(saleId, userId)`. `remainingQty` không có `min`
-- [ ] Script seed (1.000 user + 1 admin, 6 sản phẩm thời trang có `attributes` khác nhau, 1 đợt sale, kho nhận qua tham số) và script reset đợt sale (MongoDB + Redis `multi()` + xóa cache)
-- [ ] Đăng ký, đăng nhập JWT (hạn 7 ngày, payload `sub` + `role`). `requireAuth` không tra MongoDB, có `requireAdmin`. Chế độ test nhận header `x-test-user` khi `NODE_ENV === "test"`
 - [ ] API công khai: health, products, sales/active, sales/:id (`remaining` đọc theo `sale.mode`)
 - [ ] API mua `POST /sales/:id/buy?mode=v0|v1|v2`: phần kiểm tra chung, mã trả về thống nhất giữa 3 phiên bản (201/409/409/400/503)
 - [ ] V0 ngây thơ (đọc rồi `$inc`, tồn kho có thể âm), V1 `findOneAndUpdate` nguyên tử có hoàn kho, V2 Lua (`defineCommand`) có hoàn kho bằng `multi()`
@@ -87,6 +86,10 @@ Dưới tải đồng thời, V1 và V2 **luôn** cho đúng `totalQty` đơn th
 | Script tải luôn reset qua API admin; CLI reset in cảnh báo về cache | Cache đợt sale nằm trong tiến trình server, CLI không xóa được | — Pending |
 | Ghim `react-router@^7` | `@latest` là v8, cần Node ≥22.22, phá `engines` của SPECS | — Pending |
 | Đưa cả 4 mục có thể cắt (E4, biểu đồ web, trang admin, polling) vào v1, giữ thứ tự cắt của SPECS | Người dùng để Claude chọn; đúng phạm vi SPECS, cắt khi thiếu thời gian | — Pending |
+| `start:test` dùng `dotenv run -q --override -f .env.test` thay cho `node --env-file` | `--env-file` không ghi đè biến shell đang giữ (cmd `set NODE_ENV=test && …` để lại `"test "`); `-q` giữ boot-failure một dòng | ✓ Good — Phase 1 (UAT G-01-9) |
+| `isTestMode` so sánh thô `NODE_ENV === "test"`; `/api/health` có `testMode`, script tải kiểm tra `testMode === true` | Fail-closed khi NODE_ENV có dấu cách thừa; near-miss chỉ in `[CẢNH BÁO]` | ✓ Good — Phase 1 |
+| Service reset là factory `createSaleAdminService({ redis, onSaleReset })` | CLI truyền hook rỗng, route Phase 2 truyền `saleCache.invalidate` | — Pending (Phase 2 dùng) |
+| `backend/.env` tạo tay bằng lệnh không in khóa trong header `.env.example`; DEV-01 tự động hóa ở Phase 4 | Không commit bí mật, không ghi đè | — Pending |
 
 ## Evolution
 
@@ -106,4 +109,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-03 after initialization*
+*Last updated: 2026-11-08 after Phase 1*

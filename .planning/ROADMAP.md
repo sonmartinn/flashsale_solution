@@ -12,7 +12,7 @@ This is a from-scratch rebuild driven only by `docs/SPECS.md`. First comes a fai
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation (Infra, Data, Auth)** - Docker Mongo/Redis, fail-fast backend, models + indexes, seed/reset, JWT + test mode
+- [x] **Phase 1: Foundation (Infra, Data, Auth)** - Docker Mongo/Redis, fail-fast backend, models + indexes, seed/reset, JWT + test mode (completed 2026-11-08)
 - [ ] **Phase 2: Buy Pipeline & Admin APIs** - Read APIs, V0/V1/V2 with unified codes and compensation, admin reset/stats, reconcile
 - [ ] **Phase 3: Experiments (E1-E4)** - Self-checking load harness proving the Core Value and measuring V1 vs V2, summary CSVs committed
 - [ ] **Phase 4: Web App & Dev Scripts** - React demo (home, sale, login, orders, admin monitor) and one-command start/stop for Windows and macOS
@@ -30,7 +30,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. `npm run seed` (stock quantity and `mode` as parameters) wipes and recreates 1,000 users + 1 admin, 6 fashion products with category-specific `attributes`, and one active 7-day half-price sale with `stock:<saleId>` loaded in Redis. Every SPECS §6 index exists, including unique `(saleId, userId)`
   4. `npm run reset` (one or all sales, optional `--mode`) restores `remainingQty = totalQty`, deletes the sale's orders and stock_movements, resets Redis stock and buyers in one checked `multi()`, reopens the sale for 7 days and warns that it cannot clear a running server's in-process cache
   5. A user can register (role always `user`, duplicate email → 409, any non-string field → 400) and log in to get a 7-day JWT (`sub` + `role`). A missing or bad token gets 401, a non-admin on `/api/admin/*` gets 403, and an `x-test-user` ObjectId is accepted only when `NODE_ENV === "test"`. Errors follow the SPECS §7 table with Vietnamese messages and a machine-readable `code`, and a 500 never leaks internals
-**Plans**: 10/10 plans executed
+**Plans**: 10/10 plans complete
 
 Plans:
 **Wave 1**
@@ -121,7 +121,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 (Phase 4 depends only
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation (Infra, Data, Auth) | 10/10 | In Progress | - |
+| 1. Foundation (Infra, Data, Auth) | 10/10 | Complete    | 2026-11-08 |
 | 2. Buy Pipeline & Admin APIs | 0/TBD | Not started | - |
 | 3. Experiments (E1-E4) | 0/TBD | Not started | - |
 | 4. Web App & Dev Scripts | 0/TBD | Not started | - |

@@ -206,6 +206,11 @@ None. No external service configuration is required.
 - Plan 02-04 should pass `saleCache.invalidate` as `onSaleReset`. Today `saleCache` is a local in `createApiRouter`, so 02-04 needs to wire the admin router there.
 - Plan 02-05 can extend `utils/dto.ts` and add the read routes to `createSaleRouter`. Any `/sales/active` route must be registered before `/:id` routes.
 
+## Self-Check: PASSED
+
+- All 10 created source/test files and this SUMMARY exist on disk.
+- Commits `407f9ba` and `fbaf6d5` are on this branch (`git log`). The working tree was clean after the docs commit.
+
 ---
 *Phase: 02-buy-pipeline-admin-apis*
 *Completed: 2026-11-08*

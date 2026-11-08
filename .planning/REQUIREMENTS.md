@@ -46,10 +46,10 @@ Nguồn yêu cầu gốc: `docs/SPECS.md`. Chi tiết kỹ thuật (tên trườ
 - [ ] **BUY-02**: Thông tin tĩnh của đợt sale (`salePrice`, `productId`, `startAt`, `endAt`, `status`, `totalQty`) đọc qua cache trong bộ nhớ Node dùng chung cho cả ba chế độ, xóa khi reset; không bao giờ cache `remainingQty`
 - [ ] **BUY-03**: Mã trả về thống nhất giữa ba phiên bản: 201 trả đơn, 409 hết hàng, 409 đã mua (thông báo và `code` khác), 400 đợt sale chưa mở/đã kết thúc, 503 khi V2 chưa nạp kho
 - [ ] **BUY-04**: V0 đọc `remainingQty` bằng `findOne`, nếu đủ thì `updateOne` `$inc: -qty`, rồi tạo đơn; dưới tải đồng thời có thể bán quá và tồn kho âm (không ghi đè giá trị đọc được)
-- [ ] **BUY-05**: V1 trừ kho nguyên tử bằng `findOneAndUpdate({ remainingQty: { $gte: qty } }, { $inc })`, `null` là hết hàng; tạo đơn; nếu tạo đơn lỗi thì hoàn kho `$inc +qty` (có `await`), riêng lỗi không phải E11000 thì chỉ hoàn kho khi `Order.exists` xác nhận đơn không tồn tại
+- [x] **BUY-05**: V1 trừ kho nguyên tử bằng `findOneAndUpdate({ remainingQty: { $gte: qty } }, { $inc })`, `null` là hết hàng; tạo đơn; nếu tạo đơn lỗi thì hoàn kho `$inc +qty` (có `await`), riêng lỗi không phải E11000 thì chỉ hoàn kho khi `Order.exists` xác nhận đơn không tồn tại
 - [ ] **BUY-06**: V2 chạy script Lua nguyên tử (nạp một lần bằng `redis.defineCommand`, đọc file bằng `readFileSync(new URL("../lua/buy.lua", import.meta.url))`) trả 1/0/-1/-2; chỉ khi 1 mới tạo đơn MongoDB; `flash_sales.remainingQty` không giảm ở V2
-- [ ] **BUY-07**: V2 tạo đơn lỗi thì hoàn kho Redis trước (`INCRBY` + `SREM` trong một `multi()`, kiểm tra kết quả; với E11000 chỉ `INCRBY`, không `SREM` vì user thật sự có đơn; lỗi khác kiểm tra `Order.exists` trước), sau đó mới ghi `stock_movements` (lỗi khi ghi log không chặn bù trừ)
-- [ ] **BUY-08**: Cả ba chế độ dùng chung một hàm tạo đơn; đường mua không ghi log và không ghi `stock_movements` khi thành công
+- [x] **BUY-07**: V2 tạo đơn lỗi thì hoàn kho Redis trước (`INCRBY` + `SREM` trong một `multi()`, kiểm tra kết quả; với E11000 chỉ `INCRBY`, không `SREM` vì user thật sự có đơn; lỗi khác kiểm tra `Order.exists` trước), sau đó mới ghi `stock_movements` (lỗi khi ghi log không chặn bù trừ)
+- [x] **BUY-08**: Cả ba chế độ dùng chung một hàm tạo đơn; đường mua không ghi log và không ghi `stock_movements` khi thành công
 - [ ] **BUY-09**: Có smoke test cho script Lua với ioredis 6 (RESP3) xác nhận đủ 4 mã trả về 1/0/-1/-2 và 1.000 lệnh song song trên kho 100 cho đúng 100 thành công
 
 ### Quản trị & đối chiếu (ADMIN)
@@ -152,10 +152,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | BUY-02 | Phase 2 | Pending |
 | BUY-03 | Phase 2 | Pending |
 | BUY-04 | Phase 2 | Pending |
-| BUY-05 | Phase 2 | Pending |
+| BUY-05 | Phase 2 | Complete |
 | BUY-06 | Phase 2 | Pending |
-| BUY-07 | Phase 2 | Pending |
-| BUY-08 | Phase 2 | Pending |
+| BUY-07 | Phase 2 | Complete |
+| BUY-08 | Phase 2 | Complete |
 | BUY-09 | Phase 2 | Pending |
 | ADMIN-01 | Phase 2 | Pending |
 | ADMIN-02 | Phase 2 | Pending |

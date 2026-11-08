@@ -2,13 +2,16 @@
 // Luôn đọc MongoDB mới (D-19): KHÔNG dùng cache tĩnh của đường mua, và không ghi gì cả.
 import type { Redis } from "ioredis";
 import { FlashSale, Product } from "../models/index.js";
-import { toSaleDto, type SaleDto } from "../utils/dto.js";
+import { toProductDto, toSaleDto, type ProductDto, type SaleDto } from "../utils/dto.js";
 import { HttpError } from "../utils/http-error.js";
 import { normalizeObjectId } from "../utils/object-id.js";
 import { remainingFor } from "./stock.service.js";
 
 export interface CatalogService {
+  listProducts(): Promise<ProductDto[]>;
+  getProduct(rawId: unknown): Promise<ProductDto>;
   getSale(rawId: unknown): Promise<SaleDto>;
+  listActiveSales(now: Date): Promise<SaleDto[]>;
 }
 
 /** Phần của một đợt sale (kết quả lean) mà toSaleDtos cần: các trường của SaleDto cộng remainingQty. */
@@ -48,5 +51,30 @@ export function createCatalogService({ redis }: { redis: Redis }): CatalogServic
     return dto;
   }
 
-  return { getSale };
+  /**
+   * Đợt sale đang mở tại `now` (D-22): status "active" và startAt <= now <= endAt, sắp theo startAt tăng dần.
+   * now do controller lấy MỘT lần mỗi request, nên danh sách và trường now của phản hồi luôn khớp nhau.
+   */
+  async function listActiveSales(now: Date): Promise<SaleDto[]> {
+    const sales = await FlashSale.find({ status: "active", startAt: { $lte: now }, endAt: { $gte: now } })
+      .sort({ startAt: 1 })
+      .lean();
+    return toSaleDtos(sales);
+  }
+
+  /** Toàn bộ sản phẩm theo _id tăng dần, không phân trang (bộ seed cố định 6 sản phẩm, D-20). */
+  async function listProducts(): Promise<ProductDto[]> {
+    const products = await Product.find().sort({ _id: 1 }).lean();
+    return products.map(toProductDto);
+  }
+
+  async function getProduct(rawId: unknown): Promise<ProductDto> {
+    const id = normalizeObjectId(rawId);
+    if (id === null) throw new HttpError(400, "Mã sản phẩm không hợp lệ", "INVALID_ID");
+    const product = await Product.findById(id).lean();
+    if (product === null) throw new HttpError(404, "Không tìm thấy sản phẩm", "NOT_FOUND");
+    return toProductDto(product);
+  }
+
+  return { getSale, listActiveSales, listProducts, getProduct };
 }

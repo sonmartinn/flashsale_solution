@@ -25,8 +25,16 @@ const FAILURES: Record<Exclude<BuyResult["kind"], "ok">, HttpError> = {
 export function createSaleController(deps: { purchase: PurchaseService; catalog: CatalogService }): {
   buy: RequestHandler;
   getById: RequestHandler;
+  getActive: RequestHandler;
 } {
   const { purchase, catalog } = deps;
+
+  /** GET /api/sales/active -> { now, sales }: cùng một now dùng để lọc và để trả về (D-22). */
+  const getActive: RequestHandler = async (_req, res) => {
+    const now = new Date();
+    const sales = await catalog.listActiveSales(now);
+    res.json({ now: now.toISOString(), sales });
+  };
 
   /**
    * GET /api/sales/:id -> { now, sale } (D-20, D-21, D-22). Trả cả đợt sale đã kết thúc.
@@ -66,5 +74,5 @@ export function createSaleController(deps: { purchase: PurchaseService; catalog:
     throw FAILURES[result.kind];
   };
 
-  return { buy, getById };
+  return { buy, getById, getActive };
 }

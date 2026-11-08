@@ -53,7 +53,7 @@ The user asked Claude to decide every gray area using its recommendations ("Oke 
 
   (REQUIREMENTS says `Order.exists`. A `findOne(...).lean()` that returns the order satisfies the same check and lets us answer 201.)
 - **D-11:** Refund operations: V1 `FlashSale.updateOne({ _id }, { $inc: { remainingQty: +qty } })`, awaited. V2 E11000 → `INCRBY` only. V2 other error with no order → `INCRBY` + `SREM` in one `multi()`, checking every `[err, res]` pair and treating `null` as aborted. The refund must finish before the `stock_movements` write.
-- **D-12:** After a successful refund, write one `stock_movements` row: `reason` `"compensate_v1"` or `"compensate_v2"`, `delta: +qty`, `orderId: null`. A failure to write this row is caught and printed with one `console.error` line; it never blocks the refund or changes the response. When the refund itself fails, print one `console.error` line with `saleId`, `userId` and `mode` and rethrow the original error. These logs are on the failure path only. The success path writes no log and no `stock_movements` row (BUY-08).
+- **D-12:** After a successful refund, write one `stock_movements` row: `reason` `"compensate_v1"` or `"compensate_v2"`, `delta: +qty`, `orderId: null`. A failure to write this row is caught and printed with one `console.error` line; it never blocks the refund or changes the response. When the refund itself fails, print one `console.error` line with `saleId`, `userId` and `mode` and rethrow the original error. These logs are on the failure path only. The success path writes no log and no `stock_movements` row (BUY-08). **Amended 2026-11-08 (user-approved, see CONTEXT.md):** a failed refund, in every refund branch, prints that one line and throws a **new** `Error` with the original error as `cause` (500), because a rethrown E11000 would surface as 409 `DUPLICATE`.
 - **D-13:** The Lua script is registered once at boot with `redis.defineCommand("flashBuy", { numberOfKeys: 2, lua })`, read with `readFileSync(new URL("../lua/buy.lua", import.meta.url), "utf8")`. Put this in a small module (for example `services/lua.ts` with `registerBuyScript(redis)`) that `server.ts` calls right after `connectRedis` and the test helpers call too. If the file cannot be read, boot fails with one `[LỖI]` line (Phase 1 convention). The command's result is checked to be one of `1, 0, -1, -2`; anything else throws (500). Use the module augmentation of `RedisCommander` (or a typed wrapper) so the custom command passes `tsc` strict.
 - **D-14:** The purchase service is a factory, the same as Phase 1's `createSaleAdminService`: `createPurchaseService({ redis, saleCache, createOrder? })`. It returns a discriminated result, and the controller maps it to HTTP. The `createOrder` seam has the real shared implementation as its default. It exists so integration tests can force an E11000, a generic error, or an "error but the order was written" case to exercise D-10/D-11 without mocks in production code.
 - **D-15:** The shared `createOrder({ saleId, userId, productId, price, qty, mode })` writes `{ userId, saleId, productId, qty, price: salePrice, status: "success", mode }`. `productId` and `price` come from the sale cache. `mode` is the requested `?mode`.
@@ -382,7 +382,7 @@ catch (e):
   refund(onlyStock = false)           // V1: $inc +qty ; V2: multi INCRBY + SREM, check pairs
   logMovement best-effort
   throw e
-refund failure → console.error(`[Bù trừ] thất bại saleId=… userId=… mode=…`) then throw e (original)
+refund failure (any branch) → console.error(`[Bù trừ] thất bại saleId=… userId=… mode=…`) then throw new Error(…, { cause: e }) → 500 (D-12 as amended 2026-11-08)
 ```
 Verified facts: a duplicate `create` throws `MongoServerError` with `code 11000` and `instanceof mongoose.mongo.MongoServerError === true` [VERIFIED: live probe]. The existing error middleware already uses that exact test [VERIFIED: backend/src/middlewares/error.ts:37 `if (err instanceof mongoose.mongo.MongoServerError && err.code === 11000) {`]. `findOneAndUpdate(..., { projection: { _id: 1 }, lean: true })` returns `{"_id":"…"}` on a hit and `null` on a miss, and emits no process warning [VERIFIED: live probe + node_modules/mongoose/lib/query.js:4026-4049 — warnings only when `'new' in options` or `'returnOriginal' in options`].
 
@@ -493,7 +493,7 @@ Run five independent reads with `Promise.all`: `FlashSale.findById(id).lean()` (
 
 ### Pitfall 6: Compensation masks the original error
 **What goes wrong:** the refund or the `stock_movements` write throws inside `catch`, and that new error is what reaches the client and the log, or the refund is skipped.
-**How to avoid:** order is refund (awaited) → movement (`.catch` + one `console.error`) → `throw e` with the **original** `e`. If the refund throws, log one line with `saleId`, `userId`, `mode` and rethrow the original `e`.
+**How to avoid:** order is refund (awaited) → movement (`.catch` + one `console.error`) → `throw e` with the **original** `e`. If the refund throws, log one line with `saleId`, `userId`, `mode` and throw `new Error(..., { cause: e })` so the original stays attached and the client gets 500, never 409 `DUPLICATE` (D-12 as amended 2026-11-08; applies to every refund branch).
 
 ### Pitfall 7: Stale `mode` or wrong-store `remaining` during mixed-mode runs
 **What goes wrong:** buying with `?mode=v0` on a `mode=v2` sale is allowed (D-03), but `GET /sales/:id` shows Redis stock that never moves.
@@ -592,13 +592,13 @@ Current [VERIFIED: backend/src/utils/http-error.ts:5-15]: `"VALIDATION_ERROR" | 
 | A3 | `GET /sales/:id` for a v2 sale while Redis is down returns 500 (no fallback) | Pattern 5 | Low: read path only; Phase 4 shows a generic error |
 | A4 | Proposed Redis db numbers 6–11 per test file are free (Phase 1 uses 1–5) | Structure | Low: verified Phase 1 uses 1, 2, 3, 4 (real) and 5 (a fake-server URL); no file uses 6+ [VERIFIED by grep, but allocation is a proposal] |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Should the reconcile CLI print the cache warning like `reset.ts`?**
+1. **Should the reconcile CLI print the cache warning like `reset.ts`?** — RESOLVED: no.
    - What we know: `--fix` changes only Redis plus `stock_movements`. The sale cache holds static fields only, so reconcile never makes it stale.
-   - Recommendation: don't print the cache warning. Print the "run only while no buys are in flight" note from D-30 instead.
-2. **Where do stats live?**
-   - D-25 allows the sale-admin service or a sibling. Recommendation: add `getStats` to `createSaleAdminService` so the admin router depends on one service.
+   - Recommendation: don't print the cache warning. Print the "run only while no buys are in flight" note from D-30 instead. **RESOLVED (plan 02-02):** `scripts/reconcile.ts` prints no cache warning; its first statement prints the D-30 note `[LƯU Ý] Chỉ chạy đối chiếu khi không có lượt mua nào đang diễn ra (--fix ghi đè Redis theo MongoDB).` on every run, and `RECONCILE_USAGE` repeats it.
+2. **Where do stats live?** — RESOLVED: in the existing sale-admin service.
+   - D-25 allows the sale-admin service or a sibling. Recommendation: add `getStats` to `createSaleAdminService` so the admin router depends on one service. **RESOLVED (plan 02-04):** `getStats(saleId)` and the `SaleStats` type are added to `createSaleAdminService` in `backend/src/services/sale-admin.service.ts`; the admin controller calls `saleAdmin.getStats(id)` and no sibling stats service is created.
 
 ## Environment Availability
 

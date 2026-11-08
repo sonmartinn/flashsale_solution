@@ -69,7 +69,19 @@ Plans:
   3. A quick parallel burst can push V0's `remainingQty` below zero, while V1 never sells past `totalQty`. The Lua smoke test (ioredis 6, RESP3) observes all four return codes 1/0/-1/-2 and exactly 100 successes from 1,000 parallel calls on stock 100. V2 purchases leave `flash_sales.remainingQty` unchanged
   4. When order creation fails after stock was taken, the stock comes back: V1 restores `remainingQty` (after a non-E11000 error, only if the order really does not exist), and V2 restores Redis stock and buyer membership (stock only on E11000) before logging a stock_movement. Successful buys write no logs and no stock_movements, and all modes share one order-creation path and one static sale cache that reset clears
   5. An admin can reset a sale over HTTP (optionally switching `mode`) and read stats: Mongo stock, Redis stock, orders, distinct users, oversold count, `totalQty`, `mode` and `status`. The reconcile script exits 0 when Redis matches MongoDB, prints the diff and exits non-zero otherwise, and `--fix` repairs Redis from MongoDB
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+**Wave 1**
+- [ ] 02-01-PLAN.md — Buy pipeline: POST /api/sales/:id/buy?mode=v0|v1|v2 with D-01 checks, single-flight static sale cache, shared createOrder, V0/V1/V2 stock steps, buy.lua registered at boot, D-06 code table, bursts (V0 oversells, V1/V2 exact) and the BUY-09 Lua smoke test (wave 1)
+- [ ] 02-02-PLAN.md — `npm run reconcile -- [--sale] [--fix]`: reconcile service + CLI, exit codes 0/2/1, --fix via one checked multi() and a reconcile_fix movement (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 02-03-PLAN.md — V1/V2 compensation on order-insert failure (E11000 refund, D-10 lookup before refund, V2 INCRBY/SREM multi, compensate_v1/v2 movements, one-line failure logs, silent success path) (wave 2)
+- [ ] 02-04-PLAN.md — Admin HTTP reset with optional { mode } that clears the sale cache, GET stats (D-25 fields, redisInSync), guard tests and E1-style reset/burst/stats/reconcile checks (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 02-05-PLAN.md — Read APIs: GET /api/sales/:id and /api/sales/active (remaining by sale.mode, server now, one MGET), GET /api/products(/:id), GET /api/orders/me (wave 3)
 
 ### Phase 3: Experiments (E1-E4)
 **Goal**: Repeatable, self-checking experiments show with numbers that V0 oversells, V1 and V2 never do, each user gets at most one order, and how V1 and V2 compare on throughput and latency

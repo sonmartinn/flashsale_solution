@@ -40,24 +40,29 @@ created: "2026-11-08"
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 2-xx-xx | TBD | TBD | BUY-09 | — | Lua returns only 1/0/-1/-2; 1,000 parallel → exactly 100 | integration | `node --import tsx --test test/integration/lua.test.ts` | ❌ W0 | ⬜ pending |
-| 2-xx-xx | TBD | TBD | BUY-01, BUY-03 | — | Same response codes in v0/v1/v2; non-string/array input rejected | integration | `node --import tsx --test test/integration/buy.test.ts` | ❌ W0 | ⬜ pending |
-| 2-xx-xx | TBD | TBD | BUY-04, BUY-05, BUY-06 | — | V0 oversells; V1/V2 never exceed `totalQty` | integration | `node --import tsx --test test/integration/buy.test.ts` | ❌ W0 | ⬜ pending |
-| 2-xx-xx | TBD | TBD | BUY-02 | — | 404 not cached; reset clears sale cache | integration | `node --import tsx --test test/integration/admin.test.ts` | ❌ W0 | ⬜ pending |
-| 2-xx-xx | TBD | TBD | BUY-07, BUY-08 | — | Stock restored on order failure; `qty:-5` never increases stock | integration | `node --import tsx --test test/integration/compensation.test.ts` | ❌ W0 | ⬜ pending |
-| 2-xx-xx | TBD | TBD | READ-01..04 | — | Bad id → 400, unknown → 404; own orders only | integration | `node --import tsx --test test/integration/read.test.ts` | ❌ W0 | ⬜ pending |
-| 2-xx-xx | TBD | TBD | ADMIN-01, ADMIN-02 | — | 401/403 for non-admin; `INVALID_MODE` | integration | `node --import tsx --test test/integration/admin.test.ts` | ❌ W0 | ⬜ pending |
-| 2-xx-xx | TBD | TBD | ADMIN-03 | — | Reconcile exit codes 0/2/1; `--fix` repairs Redis | integration + unit | `node --import tsx --test test/integration/reconcile.test.ts` | ❌ W0 | ⬜ pending |
+| 02-01-01 | 02-01 | 1 | BUY-01, BUY-02, BUY-06, BUY-08 | T-02-01, T-02-05 | One buy per mode → 201 `{ order }` (in-process and compiled server); success path prints nothing, no `emitWarning`, no stock_movements | integration | `npm --prefix backend run typecheck && npm --prefix backend run build && test -f backend/dist/lua/buy.lua` then `npm --prefix backend run test:int` (buy.test) | ❌ created by task | ⬜ pending |
+| 02-01-02 | 02-01 | 1 | BUY-01, BUY-02, BUY-03, BUY-04, BUY-05, BUY-06, BUY-09 | T-02-01, T-02-02 | D-06 codes identical per mode (except D-07); arrays/operators/qty -5 rejected with stock unchanged; 404 not cached; V0 oversells, V1/V2 exact; Lua 1/0/-1/-2 and 100 of 1,000 | integration | `npm --prefix backend run test:int` (buy.test, lua.test) | ❌ created by task | ⬜ pending |
+| 02-02-01 | 02-02 | 1 | ADMIN-03 | T-02-06 | Reconcile check: exit 0 in sync, 2 on drift (incl. missing key, missing/extra buyers), 1 on bad/unknown --sale; v0/v1 skipped; no JWT_SECRET needed | integration | `npm --prefix backend run test:int` (reconcile.test) | ❌ created by task | ⬜ pending |
+| 02-02-02 | 02-02 | 1 | ADMIN-03 | T-02-07, T-02-08 | `--fix` repairs Redis in one checked multi(), reconcile_fix movement delta, MongoDB untouched; parseReconcileArgs strict | unit + integration | `npm --prefix backend test` (cli-args.test) and `npm --prefix backend run test:int` (reconcile.test) | ❌ created by task | ⬜ pending |
+| 02-03-01 | 02-03 | 2 | BUY-05, BUY-07 | T-02-13 | E11000 after the stock step → 409 ALREADY_BOUGHT, V1 `$inc` back, V2 INCRBY only (buyer kept), one compensate row | integration | `npm --prefix backend run test:int` (compensation.test) | ❌ created by task | ⬜ pending |
+| 02-03-02 | 02-03 | 2 | BUY-05, BUY-07, BUY-08 | T-02-10, T-02-11, T-02-12 | D-10 branches (order exists → 201 no refund; no order → refund + 500; lookup fails → no refund); one log line per failure; success silent; 10 same-user requests → 1 order | integration | `npm --prefix backend run test:int` (compensation.test) | ❌ created by task | ⬜ pending |
+| 02-04-01 | 02-04 | 2 | ADMIN-01, BUY-02 | T-02-15 | HTTP reset with `{ mode }` → 200 `{ sale }`; reset clears the running server's sale cache | integration | `npm --prefix backend run test:int` (admin.test) | ❌ created by task | ⬜ pending |
+| 02-04-02 | 02-04 | 2 | ADMIN-01, ADMIN-02 | T-02-14, T-02-15 | 401/403 for non-admin (incl. x-test-user); INVALID_MODE / VALIDATION_ERROR; D-25 stats keys; V2 burst stats + reconcile in sync; V0 burst oversold > 0 | integration | `npm --prefix backend run test:int` (admin.test) | ❌ created by task | ⬜ pending |
+| 02-05-01 | 02-05 | 3 | READ-03 | T-02-19, T-02-20 | `GET /sales/:id` → `{ now, sale }`, remaining by sale.mode (negative V0/V1, V2 Redis, V2 missing → count + stockLoaded false); 400/404 | integration | `npm --prefix backend run test:int` (read.test) | ❌ created by task | ⬜ pending |
+| 02-05-02 | 02-05 | 3 | READ-01, READ-02 | T-02-19, T-02-20 | Active filter + startAt order + one MGET (none for zero v2); products list/detail, 400/404 | integration | `npm --prefix backend run test:int` (read.test) | ❌ created by task | ⬜ pending |
+| 02-05-03 | 02-05 | 3 | READ-04 | T-02-18, T-02-21 | Own orders only, newest first, cap 100, product summary; 401 without credentials | integration | `npm --prefix backend run test:int` (read.test) | ❌ created by task | ⬜ pending |
 
-*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky* — Task IDs are filled in once plans exist.
+*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky* — single-file runs during development: from `backend/`, `npm run build && node --import tsx --test test/integration/<file>.test.ts`.
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `backend/test/integration/lua.test.ts` — BUY-09 (can land with `lua.ts` itself)
-- [ ] `backend/test/helpers.ts` — `spawnCli` union += `"reconcile"`; optional `registerBuyScript` convenience
-- [ ] `backend/test/cli-args.test.ts` — `parseReconcileArgs` cases
+- [ ] `backend/test/integration/lua.test.ts` — BUY-09 (lands with `lua.ts` in 02-01 Task 2)
+- [ ] `backend/test/helpers.ts` — `spawnCli` union += `"reconcile"` (02-02 Task 1); no `registerBuyScript` helper: tests call it directly so 02-01 and 02-02 share no file in wave 1
+- [ ] `backend/test/cli-args.test.ts` — `parseReconcileArgs` cases (02-02 Task 2)
+
+No separate Wave 0 plan: every test file is created by the task that needs it (tracer-first), and each task's `<verify>` runs it.
 
 *Framework install: none — existing `node:test` infrastructure.*
 

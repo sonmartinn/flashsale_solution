@@ -3,9 +3,9 @@
 // Đường thành công không ghi log, không ghi stock_movements, không đọc thêm gì ngoài các lần đọc liệt kê
 // dưới đây (BUY-08). Log và stock_movements chỉ xuất hiện ở nhánh bù trừ của V1/V2 khi ghi đơn thất bại.
 import type { Redis } from "ioredis";
-import { stockKey } from "../config/redis.js";
-import { FlashSale, StockMovement, type SaleMode } from "../models/index.js";
-import type { OrderDto } from "../utils/dto.js";
+import { buyersKey, stockKey } from "../config/redis.js";
+import { FlashSale, Order, StockMovement, type SaleMode } from "../models/index.js";
+import { toOrderDto, type OrderDto } from "../utils/dto.js";
 import { HttpError } from "../utils/http-error.js";
 import { runBuyScript } from "./lua.js";
 import {
@@ -39,7 +39,17 @@ export interface PurchaseDeps {
   saleCache: SaleCache;
   /** Mặc định là createOrder dùng chung; test truyền hàm khác để giả lập lỗi ghi đơn. */
   createOrder?: CreateOrderFn;
+  /**
+   * Tra đơn theo (saleId, userId) khi ghi đơn lỗi không phải E11000 (D-10). Mặc định là Order.findOne().lean();
+   * test truyền hàm ném lỗi để đi vào nhánh "tra cứu cũng lỗi" mà không cần làm hỏng database.
+   */
+  findOrder?: FindOrderFn;
 }
+
+/** Đơn tìm được (dạng lean) hoặc null. */
+export type FindOrderFn = (saleId: string, userId: string) => Promise<Parameters<typeof toOrderDto>[0] | null>;
+
+const defaultFindOrder: FindOrderFn = async (saleId, userId) => Order.findOne({ saleId, userId }).lean();
 
 type BuyHandler = (input: CreateOrderInput) => Promise<BuyResult>;
 
@@ -60,6 +70,7 @@ export function createPurchaseService({
   redis,
   saleCache,
   createOrder = defaultCreateOrder,
+  findOrder = defaultFindOrder,
 }: PurchaseDeps): PurchaseService {
   /** Ghi đơn cho V0; trùng khóa unique (saleId, userId) thì là ALREADY_BOUGHT (D-08), lỗi khác ném tiếp. */
   async function insertOrder(input: CreateOrderInput): Promise<BuyResult> {
@@ -80,12 +91,30 @@ export function createPurchaseService({
     }
   }
 
-  /** Trả lại phần kho đã trừ. V1: $inc trên flash_sales. V2: chỉ INCRBY, người mua vẫn ở trong buyers (D-11). */
-  async function refundStock(mode: CompensatedMode, { saleId, qty }: CreateOrderInput): Promise<void> {
+  /**
+   * Trả lại phần kho đã trừ (D-11). V1: $inc trên flash_sales, chờ xong.
+   * V2: releaseBuyer false (sau E11000, người này thật sự có đơn) thì chỉ INCRBY;
+   * true (không có đơn) thì INCRBY + SREM trong một multi().
+   */
+  async function refundStock(
+    mode: CompensatedMode,
+    { saleId, userId, qty }: CreateOrderInput,
+    releaseBuyer: boolean,
+  ): Promise<void> {
     if (mode === "v1") {
       await FlashSale.updateOne({ _id: saleId }, { $inc: { remainingQty: qty } });
-    } else {
+      return;
+    }
+    if (!releaseBuyer) {
       await redis.incrby(stockKey(saleId), qty);
+      return;
+    }
+    // exec() trả lỗi theo từng lệnh chứ không ném, và Redis không rollback lệnh đã chạy,
+    // nên phải kiểm tra từng cặp [err, res]; null nghĩa là transaction bị hủy.
+    const results = await redis.multi().incrby(stockKey(saleId), qty).srem(buyersKey(saleId), userId).exec();
+    if (results === null) throw new Error("Redis multi() bị hủy");
+    for (const [err] of results) {
+      if (err) throw err;
     }
   }
 
@@ -119,19 +148,40 @@ export function createPurchaseService({
   }
 
   /**
-   * Bù trừ khi ghi đơn lỗi SAU khi đã trừ kho (V1/V2).
-   * E11000: người này thật sự đã có đơn, nên chỉ trả kho rồi báo ALREADY_BOUGHT (D-08, D-11).
+   * Bù trừ khi ghi đơn lỗi SAU khi đã trừ kho (V1/V2). Khi không chắc chắn thì chọn bán thiếu, không bao giờ bán quá.
+   * - E11000: người này thật sự đã có đơn, nên chỉ trả kho rồi báo ALREADY_BOUGHT (D-08, D-11).
+   * - Lỗi khác (D-10): tra đơn theo (saleId, userId).
+   *   Có đơn: lần ghi thật ra đã thành công, trả ok với đơn đó, không hoàn kho.
+   *   Không có đơn: hoàn kho, ghi nhật ký, ném lại lỗi gốc (500).
+   *   Tra cứu cũng lỗi: không hoàn kho, ném lại lỗi gốc.
+   * Hoàn kho thất bại ở bất kỳ nhánh nào: một dòng log và Error mới có cause là lỗi gốc (D-12 sửa đổi).
    */
   async function compensate(mode: CompensatedMode, err: unknown, input: CreateOrderInput): Promise<BuyResult> {
     if (isDuplicateKeyError(err)) {
       try {
-        await refundStock(mode, input);
+        await refundStock(mode, input, false);
       } catch (refundErr) {
         throw refundFailure(mode, input, err, refundErr, "Hoàn kho thất bại sau lỗi trùng đơn");
       }
       await recordCompensation(mode, input);
       return { kind: "already_bought" };
     }
+
+    let existing: Awaited<ReturnType<FindOrderFn>>;
+    try {
+      existing = await findOrder(input.saleId, input.userId);
+    } catch {
+      // Không biết đơn có được ghi hay không: không hoàn kho (bán thiếu), báo lỗi ghi đơn gốc
+      throw err;
+    }
+    if (existing !== null) return { kind: "ok", order: toOrderDto(existing) };
+
+    try {
+      await refundStock(mode, input, true);
+    } catch (refundErr) {
+      throw refundFailure(mode, input, err, refundErr, "Hoàn kho thất bại sau lỗi ghi đơn");
+    }
+    await recordCompensation(mode, input);
     throw err;
   }
 

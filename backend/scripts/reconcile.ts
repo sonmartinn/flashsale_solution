@@ -1,6 +1,7 @@
 // npm run reconcile -- [--sale <saleId>] [--fix]
 // Đối chiếu Redis với MongoDB cho các đợt sale mode v2 (D-26 tới D-30). MongoDB là nguồn sự thật.
-// Mã thoát: 0 = mọi đợt đã khớp (hoặc không có gì để đối chiếu), 2 = còn lệch, 1 = tham số sai, không tìm thấy
+// --fix ghi đè stock/buyers trong Redis theo MongoDB cho các đợt lệch rồi kiểm tra lại (D-29).
+// Mã thoát: 0 = mọi đợt đã khớp (hoặc không có gì để đối chiếu, hoặc --fix đã sửa xong), 2 = còn lệch, 1 = tham số sai, không tìm thấy
 // đợt sale, lỗi cấu hình hoặc kết nối. Chỉ dùng loadBaseConfig(): chạy được khi chưa có JWT_SECRET.
 
 import mongoose from "mongoose";
@@ -92,7 +93,19 @@ try {
       checked++;
       const check = await service.checkSale(s.saleId);
       console.log(describeCheck(check));
-      if (!check.inSync) drift = true;
+      if (check.inSync) continue; // đợt đã khớp thì không bao giờ "sửa"
+      if (!args.fix) {
+        drift = true;
+        continue;
+      }
+      const fixed = await service.fixSale(s.saleId);
+      const old = fixed.before.actualStock === null ? "thiếu khóa" : String(fixed.oldStock);
+      console.log(
+        `Đã sửa đợt sale ${s.saleId}: stock ${old} -> ${fixed.newStock}, buyers ${fixed.after.successOrders}; ` +
+          `kiểm tra lại: ${fixed.after.inSync ? "KHỚP" : "VẪN LỆCH"}`,
+      );
+      // Chỉ tính là còn lệch khi kiểm tra lại sau khi sửa vẫn lệch (D-30)
+      if (!fixed.after.inSync) drift = true;
     }
     if (checked === 0) console.log("Không có đợt sale mode v2 nào để đối chiếu.");
     process.exitCode = drift ? 2 : 0;

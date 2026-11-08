@@ -106,18 +106,21 @@ export interface ReconcileArgs {
  */
 export function parseReconcileArgs(argv: string[]): ReconcileArgs {
   let rawSale: string | undefined;
+  let fix: boolean;
   try {
     const { values } = parseArgs({
       args: argv,
-      options: { sale: { type: "string" } },
+      // Cờ boolean: strict mode từ chối --fix=yes
+      options: { sale: { type: "string" }, fix: { type: "boolean" } },
       strict: true,
       allowPositionals: false,
     });
     rawSale = values.sale;
+    fix = values.fix === true;
   } catch (err) {
     throw new CliArgsError(`Tham số không hợp lệ: ${(err as Error).message}`);
   }
-  const out: ReconcileArgs = { fix: false };
+  const out: ReconcileArgs = { fix };
   if (rawSale !== undefined) {
     const saleId = normalizeObjectId(rawSale);
     if (saleId === null) {

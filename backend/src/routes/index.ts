@@ -8,6 +8,7 @@ import { createSaleAdminService } from "../services/sale-admin.service.js";
 import { createSaleCache } from "../services/sale-cache.js";
 import { createAdminRouter } from "./admin.routes.js";
 import { createAuthRouter } from "./auth.routes.js";
+import { createOrderRouter } from "./order.routes.js";
 import { createProductRouter } from "./product.routes.js";
 import { createSaleRouter } from "./sale.routes.js";
 
@@ -27,6 +28,7 @@ export function createApiRouter(deps: AppDeps): Router {
   router.use("/auth", createAuthRouter(deps));
   router.use("/products", createProductRouter({ catalog }));
   router.use("/sales", createSaleRouter({ auth, purchase, catalog }));
+  router.use("/orders", createOrderRouter({ auth, catalog }));
   router.use("/admin", createAdminRouter(auth, { saleAdmin }));
   return router;
 }

@@ -1,17 +1,28 @@
 // Service đọc cho client: sản phẩm, đợt sale (kèm số còn lại theo mode) và đơn của chính người dùng.
 // Luôn đọc MongoDB mới (D-19): KHÔNG dùng cache tĩnh của đường mua, và không ghi gì cả.
 import type { Redis } from "ioredis";
-import { FlashSale, Product } from "../models/index.js";
-import { toProductDto, toSaleDto, type ProductDto, type SaleDto } from "../utils/dto.js";
+import { FlashSale, Order, Product } from "../models/index.js";
+import {
+  toMyOrderDto,
+  toProductDto,
+  toSaleDto,
+  type MyOrderDto,
+  type ProductDto,
+  type SaleDto,
+} from "../utils/dto.js";
 import { HttpError } from "../utils/http-error.js";
 import { normalizeObjectId } from "../utils/object-id.js";
 import { remainingFor } from "./stock.service.js";
+
+/** Số đơn tối đa trả về cho /orders/me (chặn danh sách dài vô hạn). */
+const MY_ORDERS_LIMIT = 100;
 
 export interface CatalogService {
   listProducts(): Promise<ProductDto[]>;
   getProduct(rawId: unknown): Promise<ProductDto>;
   getSale(rawId: unknown): Promise<SaleDto>;
   listActiveSales(now: Date): Promise<SaleDto[]>;
+  listMyOrders(userId: string): Promise<MyOrderDto[]>;
 }
 
 /** Phần của một đợt sale (kết quả lean) mà toSaleDtos cần: các trường của SaleDto cộng remainingQty. */
@@ -76,5 +87,23 @@ export function createCatalogService({ redis }: { redis: Redis }): CatalogServic
     return toProductDto(product);
   }
 
-  return { getSale, listActiveSales, listProducts, getProduct };
+  /**
+   * Đơn của một người dùng, mới nhất trước, tối đa MY_ORDERS_LIMIT (D-23, index (userId, createdAt -1)).
+   * userId CHỈ đến từ requireAuth, không có tham số nào để xem đơn của người khác (READ-04).
+   * Tóm tắt sản phẩm lấy bằng MỘT truy vấn $in, không dùng populate (populate thay productId bằng object).
+   */
+  async function listMyOrders(userId: string): Promise<MyOrderDto[]> {
+    const orders = await Order.find({ userId }).sort({ createdAt: -1 }).limit(MY_ORDERS_LIMIT).lean();
+    if (orders.length === 0) return [];
+    const productIds = [...new Set(orders.map((o) => String(o.productId)))];
+    const products = await Product.find({ _id: { $in: productIds } }).lean();
+    const byId = new Map(products.map((p) => [String(p._id), p]));
+    return orders.map((o) => {
+      const product = byId.get(String(o.productId));
+      if (product === undefined) throw new Error(`Đơn ${String(o._id)} trỏ tới sản phẩm không tồn tại`);
+      return toMyOrderDto(o, product);
+    });
+  }
+
+  return { getSale, listActiveSales, listProducts, getProduct, listMyOrders };
 }

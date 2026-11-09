@@ -137,8 +137,128 @@ export function combineRuns(statuses: RunStatus[]): RunStatus {
   return statuses.reduce<RunStatus>(worstStatus, "PASS");
 }
 
+// ---------------------------------------------------------------------------------------------------------
+// E2 (hiệu năng): chỉ xét TÍNH ĐÚNG của lượt đo, không bao giờ xét tốc độ (D-25, sửa đổi 2026-11-09).
+// Không có đầu vào nào về độ trễ hay thông lượng: E2 không gắn nhãn V1/V2 nhanh hơn, chậm hơn hay đạt/trượt.
+// Lỗi thật (5xx, lỗi kết nối, timeout) không làm lượt INVALID: chúng là một phần số liệu đo và được đếm.
+
+/** VALID: lượt đo dùng được; FAIL: bất biến tồn kho bị phá; INVALID: phép đo không đáng tin. */
+export type E2Status = "VALID" | "FAIL" | "INVALID";
+
+export interface E2PhaseInput {
+  /** Số request dự kiến của pha (S hoặc M) */
+  requests: number;
+  /** Số lần setupRequest được gọi */
+  setupCalls: number;
+  /** Số id khác nhau đã thật sự gửi */
+  distinctIds: number;
+  counts: ResponseCounts;
+  /** Stats đọc ngay sau pha */
+  stats: StatsSnapshot;
+}
+
+export interface E2RunInput {
+  mode: "v1" | "v2";
+  /** Tồn kho của lượt (totalQty) */
+  S: number;
+  inStock: E2PhaseInput;
+  soldOut: E2PhaseInput;
+  /** Đối soát sau pha sold_out (v2); v1 là "n/a" */
+  reconcile: ReconcileOutcome;
+}
+
+export interface E2RowJudgement {
+  status: E2Status;
+  reasons: string[];
+}
+
+export interface E2Judgement {
+  inStock: E2RowJudgement;
+  soldOut: E2RowJudgement;
+  /** Trạng thái nặng hơn của hai dòng */
+  run: E2Status;
+}
+
+const E2_SEVERITY: Record<E2Status, number> = { VALID: 0, FAIL: 1, INVALID: 2 };
+
+function worstE2(a: E2Status, b: E2Status): E2Status {
+  return E2_SEVERITY[b] > E2_SEVERITY[a] ? b : a;
+}
+
+/** Lý do INVALID của một pha: 401, số lần setupRequest hay số id khác số request, distinctUsers ≠ orders, sai mode. */
+function e2InvalidReasons(mode: "v1" | "v2", p: E2PhaseInput): string[] {
+  const reasons: string[] = [];
+  if (p.counts.s401 > 0) reasons.push(`có 401 (${p.counts.s401})`);
+  if (p.setupCalls !== p.requests) reasons.push(`setupRequest gọi ${p.setupCalls} lần ≠ ${p.requests} request`);
+  if (p.distinctIds !== p.requests) reasons.push(`số id khác nhau (${p.distinctIds}) ≠ ${p.requests} request`);
+  if (p.stats.distinctUsers !== p.stats.orders) {
+    reasons.push(`distinctUsers (${p.stats.distinctUsers}) ≠ orders (${p.stats.orders})`);
+  }
+  if (p.stats.mode !== mode) reasons.push(`stats.mode ${p.stats.mode} khác mode yêu cầu ${mode}`);
+  return reasons;
+}
+
+/**
+ * Bất biến tồn kho sau một pha (D-25 sửa đổi). Không có lỗi thật: phải đúng S đơn và không bán quá.
+ * Có lỗi thật: kho có thể chưa hết một cách hợp lệ, nên chỉ đòi không bán quá và orders <= S, kèm ghi chú.
+ */
+function e2StockCheck(S: number, stats: StatsSnapshot, errors: number): { fail: string[]; notes: string[] } {
+  const fail: string[] = [];
+  const notes: string[] = [];
+  if (stats.oversold > 0) fail.push(`bán quá ${stats.oversold} đơn`);
+  if (errors === 0) {
+    if (stats.orders !== S) fail.push(`orders ≠ totalQty (${stats.orders}/${S})`);
+  } else if (stats.orders > S) {
+    fail.push(`orders > totalQty (${stats.orders}/${S})`);
+  } else if (stats.orders < S) {
+    notes.push(`kho chưa hết (${stats.orders}/${S}, có ${errors} lỗi thật)`);
+  }
+  return { fail, notes };
+}
+
+/** Phán quyết một lượt E2: một dòng cho pha in_stock, một dòng cho pha sold_out (D-25 sửa đổi 2026-11-09). */
+export function judgeE2Run(i: E2RunInput): E2Judgement {
+  const { mode, S, inStock, soldOut, reconcile } = i;
+
+  let inRow: E2RowJudgement;
+  const inInvalid = e2InvalidReasons(mode, inStock);
+  if (inInvalid.length > 0) {
+    inRow = { status: "INVALID", reasons: inInvalid };
+  } else {
+    const { fail, notes } = e2StockCheck(S, inStock.stats, realErrors(inStock.counts));
+    inRow = fail.length > 0 ? { status: "FAIL", reasons: fail } : { status: "VALID", reasons: notes };
+  }
+
+  let outRow: E2RowJudgement;
+  const outInvalid = e2InvalidReasons(mode, soldOut);
+  // V2 bắt buộc có kết quả đối soát dùng được (chỉ clean hoặc drift), xét trên dòng sold_out
+  if (mode === "v2" && reconcile !== "clean" && reconcile !== "drift") {
+    outInvalid.push(`reconcile không dùng được (${reconcile})`);
+  }
+  if (outInvalid.length > 0) {
+    outRow = { status: "INVALID", reasons: outInvalid };
+  } else {
+    // Lỗi thật của cả hai pha: một request in_stock bị timeout vẫn có thể đã tạo đơn phía server
+    const errors = realErrors(inStock.counts) + realErrors(soldOut.counts);
+    const { fail, notes } = e2StockCheck(S, soldOut.stats, errors);
+    if (mode === "v2") {
+      if (reconcile === "drift") fail.push("reconcile báo lệch");
+      if (soldOut.stats.redisInSync === false) fail.push("Redis lệch MongoDB");
+    }
+    outRow = fail.length > 0 ? { status: "FAIL", reasons: fail } : { status: "VALID", reasons: notes };
+  }
+
+  return { inStock: inRow, soldOut: outRow, run: worstE2(inRow.status, outRow.status) };
+}
+
+/** Gộp các lượt E2: không có lượt nào hoặc có INVALID -> INVALID, có FAIL -> FAIL, còn lại VALID. */
+export function combineE2(statuses: E2Status[]): E2Status {
+  if (statuses.length === 0) return "INVALID";
+  return statuses.reduce<E2Status>(worstE2, "VALID");
+}
+
 /** Mã thoát của mọi thí nghiệm: 0 PASS/VALID, 1 FAIL, 2 INVALID (D-16). */
-export function exitCodeFor(v: RunStatus | "VALID"): 0 | 1 | 2 {
+export function exitCodeFor(v: RunStatus | E2Status): 0 | 1 | 2 {
   if (v === "PASS" || v === "VALID") return 0;
   return v === "FAIL" ? 1 : 2;
 }

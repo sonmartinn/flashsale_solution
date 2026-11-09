@@ -13,7 +13,7 @@ export class CliArgsError extends Error {
 }
 
 export const SEED_USAGE = "Cách dùng: npm run seed -- [--qty <n>] [--mode v0|v1|v2]";
-export const RESET_USAGE = "Cách dùng: npm run reset -- [--sale <saleId>] [--mode v0|v1|v2]";
+export const RESET_USAGE = "Cách dùng: npm run reset -- [--sale <saleId>] [--mode v0|v1|v2] [--qty <n>]";
 
 /** Giới hạn trên của --qty: số nguyên an toàn, dư sức cho E2 (cần ít nhất 1000). */
 const MAX_QTY = 1_000_000;
@@ -26,6 +26,8 @@ export interface SeedArgs {
 export interface ResetArgs {
   saleId?: string;
   mode?: SaleMode;
+  /** Cỡ kho mới (totalQty); không có thì giữ totalQty hiện tại (D-01) */
+  qty?: number;
 }
 
 type OptionSpec = Record<string, { type: "string"; default?: string }>;
@@ -72,11 +74,12 @@ export function parseSeedArgs(argv: string[]): SeedArgs {
   return { qty: parseQty(values["qty"] ?? "100"), mode: parseMode(values["mode"] ?? "v2") };
 }
 
-/** Tham số của npm run reset: chỉ trả về những khóa đã được truyền (D-07). */
+/** Tham số của npm run reset: chỉ trả về những khóa đã được truyền (D-07, D-01). */
 export function parseResetArgs(argv: string[]): ResetArgs {
   const values = parseStrict(argv, {
     sale: { type: "string" },
     mode: { type: "string" },
+    qty: { type: "string" },
   });
   const out: ResetArgs = {};
   const rawSale = values["sale"];
@@ -89,6 +92,9 @@ export function parseResetArgs(argv: string[]): ResetArgs {
   }
   const rawMode = values["mode"];
   if (rawMode !== undefined) out.mode = parseMode(rawMode);
+  // Dùng lại đúng bộ kiểm tra --qty của seed (1..MAX_QTY), cùng giới hạn với MAX_TOTAL_QTY của service
+  const rawQty = values["qty"];
+  if (rawQty !== undefined) out.qty = parseQty(rawQty);
   return out;
 }
 

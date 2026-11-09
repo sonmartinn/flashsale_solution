@@ -1,5 +1,5 @@
-// npm run reset -- [--sale <saleId>] [--mode v0|v1|v2]
-// Reset một hoặc mọi đợt sale qua service dùng chung với route admin (D-07, D-09).
+// npm run reset -- [--sale <saleId>] [--mode v0|v1|v2] [--qty <n>]
+// Reset một hoặc mọi đợt sale qua service dùng chung với route admin (D-07, D-09). --qty đặt lại cỡ kho (D-01).
 // Chỉ dùng loadBaseConfig(): reset chạy được khi chưa có JWT_SECRET.
 
 import mongoose from "mongoose";
@@ -51,7 +51,10 @@ try {
 
 try {
   const service = createSaleAdminService({ redis });
-  const opts = args.mode !== undefined ? { mode: args.mode } : {};
+  const opts = {
+    ...(args.mode !== undefined ? { mode: args.mode } : {}),
+    ...(args.qty !== undefined ? { totalQty: args.qty } : {}),
+  };
   const results: ResetResult[] =
     args.saleId !== undefined ? [await service.resetSale(args.saleId, opts)] : await service.resetAllSales(opts);
   if (results.length === 0) {

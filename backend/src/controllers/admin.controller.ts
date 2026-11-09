@@ -78,7 +78,10 @@ export function createAdminController(deps: { saleAdmin: SaleAdminService }): {
     res.json({ sale: toResetDto(result) });
   };
 
-  /** GET /api/admin/sales/:id/stats -> 200 { stats } với mười một trường của D-25 (400 INVALID_ID, 404 NOT_FOUND). */
+  /**
+   * GET /api/admin/sales/:id/stats -> 200 { stats } với mười hai trường: mười một trường của D-25 cộng uniqueOrderIndex
+   * (Phase 3 D-07). 400 INVALID_ID, 404 NOT_FOUND.
+   */
   const getStats: RequestHandler = async (req, res) => {
     res.json({ stats: await saleAdmin.getStats(paramId(req.params["id"])) });
   };

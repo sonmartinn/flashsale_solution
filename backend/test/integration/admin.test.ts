@@ -292,7 +292,7 @@ describe("admin.test", () => {
   });
 
   describe("stats (D-25)", () => {
-    it("ngay sau reset một đợt v2 kho 10: đúng mười một trường và giá trị ban đầu", async () => {
+    it("ngay sau reset một đợt v2 kho 10: đúng mười hai trường và giá trị ban đầu", async () => {
       const saleId = await createSale({ qty: 10, mode: "v2" });
       await resetOk(saleId, "v2");
       const s = await stats(saleId);
@@ -309,6 +309,7 @@ describe("admin.test", () => {
         distinctUsers: 0,
         oversold: 0,
         redisInSync: true,
+        uniqueOrderIndex: true,
       });
     });
 

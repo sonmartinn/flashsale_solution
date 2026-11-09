@@ -6,8 +6,10 @@ import assert from "node:assert/strict";
 import { Types } from "mongoose";
 import type { Redis } from "ioredis";
 import { buyersKey, stockKey } from "../../src/config/redis.js";
-import { FlashSale, Product, StockMovement, ensureIndexes, type SaleMode } from "../../src/models/index.js";
+import { FlashSale, Order, Product, StockMovement, ensureIndexes, type SaleMode } from "../../src/models/index.js";
 import { createAuthService } from "../../src/services/auth.service.js";
+import { createSaleAdminService } from "../../src/services/sale-admin.service.js";
+import { HttpError } from "../../src/utils/http-error.js";
 import {
   TEST_JWT_SECRET,
   connectTestStores,
@@ -18,9 +20,38 @@ import {
 } from "../helpers.js";
 
 const SALE_PRICE = 449_500;
+/** Mười hai trường của stats (mười một trường D-25 cộng uniqueOrderIndex), đã sắp xếp; giống admin.test. */
+const STATS_KEYS = [
+  "distinctUsers",
+  "mode",
+  "mongoRemaining",
+  "orders",
+  "oversold",
+  "redisBuyers",
+  "redisInSync",
+  "redisStock",
+  "saleId",
+  "status",
+  "totalQty",
+  "uniqueOrderIndex",
+];
+/**
+ * totalQty sai, viết đúng như chữ trong body JSON (gửi thô để 9007199254740993 không bị JS làm tròn trước khi gửi).
+ * Server parse 9007199254740993 thành 9007199254740992, lớn hơn Number.MAX_SAFE_INTEGER nên vẫn phải bị từ chối.
+ */
+const BAD_TOTAL_QTY = ['"100"', "0", "-1", "1.5", "1000001", "true", "null", '{"$gt":0}', "[100]", "9007199254740993"];
 
 function newUserId(): string {
   return String(new Types.ObjectId());
+}
+
+function isHttpError(status: number, code: string) {
+  return (err: unknown): boolean => {
+    assert.ok(err instanceof HttpError, `phải là HttpError, nhận ${String(err)}`);
+    assert.equal(err.status, status);
+    assert.equal(err.code, code);
+    return true;
+  };
 }
 
 describe("harness-support.test", () => {
@@ -50,11 +81,23 @@ describe("harness-support.test", () => {
 
   /** POST reset bằng token admin với body JSON cho trước. */
   function reset(saleId: string, body: unknown): Promise<Response> {
+    return resetRaw(saleId, JSON.stringify(body));
+  }
+
+  /** POST reset bằng token admin với chuỗi body JSON thô (không qua JSON.stringify). */
+  function resetRaw(saleId: string, rawBody: string): Promise<Response> {
     return fetch(`${app.baseUrl}/api/admin/sales/${saleId}/reset`, {
       method: "POST",
       headers: { authorization: `Bearer ${adminToken}`, "content-type": "application/json" },
-      body: JSON.stringify(body),
+      body: rawBody,
     });
+  }
+
+  /** Kiểm tra status + code của một phản hồi lỗi. */
+  async function expectError(res: Response, status: number, code: string): Promise<void> {
+    const body = (await res.json()) as { code?: unknown };
+    assert.equal(res.status, status, JSON.stringify(body));
+    assert.equal(body.code, code);
   }
 
   /** GET stats bằng token admin, kiểm tra 200 và trả object stats. */
@@ -151,6 +194,100 @@ describe("harness-support.test", () => {
       assert.equal(sale["totalQty"], 100);
       assert.equal(sale["mode"], "v1");
       assert.deepEqual(await snapshot(saleId), { totalQty: 100, remainingQty: 100, mode: "v1", stock: "100" });
+    });
+  });
+
+  describe("totalQty sai bị từ chối, đợt sale giữ nguyên (D-01)", () => {
+    let saleId: string;
+
+    before(async () => {
+      saleId = await createSale({ qty: 100, mode: "v1" });
+    });
+
+    for (const raw of BAD_TOTAL_QTY) {
+      it(`HTTP totalQty = ${raw} -> 400 VALIDATION_ERROR, MongoDB và Redis không đổi`, async () => {
+        const prev = await snapshot(saleId);
+        assert.deepEqual(prev, { totalQty: 100, remainingQty: 100, mode: "v1", stock: "100" });
+        await expectError(await resetRaw(saleId, `{"totalQty":${raw}}`), 400, "VALIDATION_ERROR");
+        assert.deepEqual(await snapshot(saleId), prev);
+      });
+    }
+
+    it("mode kiểm tra trước: { mode: \"v3\", totalQty: 0 } -> 400 INVALID_MODE", async () => {
+      await expectError(await reset(saleId, { mode: "v3", totalQty: 0 }), 400, "INVALID_MODE");
+      assert.deepEqual(await snapshot(saleId), { totalQty: 100, remainingQty: 100, mode: "v1", stock: "100" });
+    });
+
+    it("service (đường của CLI): resetSale(id, { totalQty: 0 }) ném HttpError 400 VALIDATION_ERROR", async () => {
+      const service = createSaleAdminService({ redis });
+      await assert.rejects(service.resetSale(saleId, { totalQty: 0 }), isHttpError(400, "VALIDATION_ERROR"));
+      assert.deepEqual(await snapshot(saleId), { totalQty: 100, remainingQty: 100, mode: "v1", stock: "100" });
+    });
+
+    it("service: resetSale(id, { totalQty: 1.5 }) ném HttpError 400 VALIDATION_ERROR", async () => {
+      const service = createSaleAdminService({ redis });
+      await assert.rejects(service.resetSale(saleId, { totalQty: 1.5 }), isHttpError(400, "VALIDATION_ERROR"));
+      assert.deepEqual(await snapshot(saleId), { totalQty: 100, remainingQty: 100, mode: "v1", stock: "100" });
+    });
+
+    it("service: resetSale(id, { totalQty: 1000000 }) thành công (cận trên được nhận)", async () => {
+      const service = createSaleAdminService({ redis });
+      const result = await service.resetSale(saleId, { totalQty: 1_000_000 });
+      assert.equal(result.totalQty, 1_000_000);
+      assert.deepEqual(await snapshot(saleId), {
+        totalQty: 1_000_000,
+        remainingQty: 1_000_000,
+        mode: "v1",
+        stock: "1000000",
+      });
+    });
+  });
+
+  // Các case dưới đây chạy THEO THỨ TỰ: case sau thấy trạng thái index mà case trước để lại.
+  describe("stats.uniqueOrderIndex chỉ true khi có đúng index unique { saleId: 1, userId: 1 } (D-07)", () => {
+    let saleId: string;
+
+    before(async () => {
+      saleId = await createSale({ qty: 10, mode: "v1" });
+    });
+
+    it("sau ensureIndexes: uniqueOrderIndex true và stats có đúng mười hai trường", async () => {
+      const s = await stats(saleId);
+      assert.deepEqual(Object.keys(s).sort(), STATS_KEYS);
+      assert.equal(s["uniqueOrderIndex"], true);
+    });
+
+    it("xóa index saleId_1_userId_1 -> false", async () => {
+      await Order.collection.dropIndex("saleId_1_userId_1");
+      assert.equal((await stats(saleId))["uniqueOrderIndex"], false);
+    });
+
+    it("index { saleId: 1, userId: 1 } KHÔNG unique -> false", async () => {
+      await Order.collection.createIndex({ saleId: 1, userId: 1 });
+      try {
+        assert.equal((await stats(saleId))["uniqueOrderIndex"], false);
+      } finally {
+        await Order.collection.dropIndex("saleId_1_userId_1");
+      }
+    });
+
+    it("index unique nhưng khóa đảo thứ tự { userId: 1, saleId: 1 } -> false", async () => {
+      await Order.collection.createIndex({ userId: 1, saleId: 1 }, { unique: true });
+      try {
+        assert.equal((await stats(saleId))["uniqueOrderIndex"], false);
+      } finally {
+        await Order.collection.dropIndex("userId_1_saleId_1");
+      }
+    });
+
+    it("collection orders không tồn tại -> stats vẫn 200 với uniqueOrderIndex false", async () => {
+      await Order.collection.drop();
+      assert.equal((await stats(saleId))["uniqueOrderIndex"], false);
+    });
+
+    it("Order.createIndexes() tạo lại index unique -> true", async () => {
+      await Order.createIndexes();
+      assert.equal((await stats(saleId))["uniqueOrderIndex"], true);
     });
   });
 });

@@ -47,8 +47,8 @@ export function countTimeWait(output: string, port: number): number {
 }
 
 /**
- * Chạy `netstat -an -p tcp` (không qua shell). maxBuffer 64 MiB vì mặc định 1 MiB làm tiến trình chết
- * với ENOBUFS khi có khoảng 15000 dòng. Trả null khi không chạy được hoặc thoát mã khác 0.
+ * Chạy `netstat -an -p tcp` (không qua shell). Bộ đệm stdout đặt 64 MiB vì mặc định 1 MiB làm tiến trình
+ * chết với ENOBUFS khi có khoảng 15000 dòng. Trả null khi không chạy được hoặc thoát mã khác 0.
  */
 export function readNetstat(): string | null {
   const result = spawnSync("netstat", ["-an", "-p", "tcp"], {
@@ -109,5 +109,6 @@ export async function waitForPortBudget(
     if (output === null) return { waitedMs: now() - startedAt, timeWait, skipped: true };
     timeWait = countTimeWait(output, o.port);
   }
-  return { waitedMs: now() - startedAt, timeWait, skipped: false };
+  // Chỉ tính là đã chờ khi thật sự có ngủ; thời gian chạy netstat lần đầu không phải là chờ cổng
+  return { waitedMs: announced ? now() - startedAt : 0, timeWait, skipped: false };
 }

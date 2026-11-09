@@ -106,6 +106,24 @@ describe("ports.test", () => {
       assert.equal(result.skipped, false);
     });
 
+    it("không chờ thì waitedMs = 0, kể cả khi bản thân netstat chạy mất thời gian", async () => {
+      const clock = fakeClock();
+      const result = await waitForPortBudget({
+        port: 5000,
+        planned: 1_000,
+        read: () => {
+          // netstat mất ~50 ms: thời gian đó không phải là chờ cổng
+          void clock.sleep(50);
+          return fakeNetstat(10);
+        },
+        sleep: async () => {},
+        now: clock.now,
+        log: silent,
+      });
+      assert.equal(result.waitedMs, 0);
+      assert.equal(result.skipped, false);
+    });
+
     it("netstat không chạy được -> skipped, không ném lỗi, không chờ", async () => {
       const clock = fakeClock();
       const result = await waitForPortBudget({

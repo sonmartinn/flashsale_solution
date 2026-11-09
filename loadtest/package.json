@@ -8,7 +8,9 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "node --import tsx --test \"test/*.test.ts\""
+    "test": "node --import tsx --test \"test/*.test.ts\"",
+    "e1": "tsx scenarios/e1-correctness.ts",
+    "e3": "tsx scenarios/e3-duplicate.ts"
   },
   "dependencies": {
     "autocannon": "^8.0.0"

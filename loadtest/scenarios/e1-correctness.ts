@@ -9,6 +9,7 @@ import { E1_COLUMNS, type CsvValue } from "../lib/csv.js";
 import { envColumns } from "../lib/env-info.js";
 import { burst } from "../lib/http.js";
 import { countDistinct } from "../lib/ids.js";
+import { waitForPortBudget } from "../lib/ports.js";
 import { classifyReconcile, runReconcile } from "../lib/reconcile.js";
 import { closeSession, openSession, runExperiment, type Session } from "../lib/session.js";
 import {
@@ -33,10 +34,17 @@ interface RunRecord {
 
 /** Những gì đo được trong một lượt; null khi lượt dừng trước bước đó. */
 interface Measured {
+  /** Thời gian chờ cổng TIME_WAIT trước lượt (ms) */
+  waitedMs: number;
+  /** Số socket TIME_WAIT tới cổng server lúc bắt đầu bắn; null khi bỏ qua bộ canh */
+  timeWait: number | null;
+  statsBefore: StatsSnapshot | null;
   counts: ResponseCounts | null;
+  codes: Record<string, number> | null;
   stats: StatsSnapshot | null;
   reconcile: ReconcileOutcome;
   reconcileCode: number | null;
+  reconcileOut: string;
   durationMs: number | null;
 }
 
@@ -54,6 +62,7 @@ function e1Row(
   const st = m.stats;
   const notes: string[] = [];
   if (cfg.nonDefault) notes.push("cấu hình không mặc định");
+  if (m.waitedMs > 0) notes.push(`chờ cổng ${Math.round(m.waitedMs / 1000)} s`);
   notes.push(...reasons);
   // D-18 chỉ có ba giá trị clean | drift | n/a; mã thoát lạ của reconcile được ghi vào note
   if (m.reconcile === "invalid") notes.push(`reconcile mã ${m.reconcileCode ?? "null"}`);
@@ -82,23 +91,41 @@ function e1Row(
 }
 
 /**
- * Một lượt của một mode: reset có kiểm tra, bắn tải, đọc stats, đối soát (v2), phán quyết, ghi dòng CSV.
- * Lỗi INVALID ở bất kỳ bước nào vẫn ghi dòng của lượt trước khi trả về, để phiên dừng lại (D-15).
+ * Một lượt của một mode: canh cổng, reset có kiểm tra, bắn tải, đọc stats, đối soát (v2), phán quyết, ghi dòng
+ * CSV và JSON thô. Lỗi INVALID ở bất kỳ bước nào (bộ canh cổng, reset, stats) vẫn ghi dòng của lượt trước khi
+ * trả về, để phiên dừng lại mà bằng chứng còn nguyên (D-12, D-15).
  */
 async function runOnce(s: Session, cfg: E1Config, run: number, mode: SaleMode): Promise<RunRecord> {
-  const m: Measured = { counts: null, stats: null, reconcile: "n/a", reconcileCode: null, durationMs: null };
+  const m: Measured = {
+    waitedMs: 0,
+    timeWait: null,
+    statsBefore: null,
+    counts: null,
+    codes: null,
+    stats: null,
+    reconcile: "n/a",
+    reconcileCode: null,
+    reconcileOut: "",
+    durationMs: null,
+  };
   let status: RunStatus;
   let reasons: string[];
   try {
-    await s.resetAndCheck(mode, cfg.stock);
+    // Tính trường hợp xấu nhất: mỗi user một socket mới (RESEARCH Pattern 4)
+    const guard = await waitForPortBudget({ port: s.port, planned: cfg.users });
+    m.waitedMs = guard.waitedMs;
+    m.timeWait = guard.skipped ? null : guard.timeWait;
+    m.statsBefore = await s.resetAndCheck(mode, cfg.stock);
     const ids = s.ids.nextBlock(cfg.users);
     const b = await burst({ baseUrl: s.cfg.baseUrl, saleId: s.saleId, mode, userIds: ids });
     m.counts = b.counts;
+    m.codes = b.codes;
     m.durationMs = b.durationMs;
     m.stats = await s.admin.stats(s.saleId);
     if (mode === "v2") {
       const rec = await runReconcile(s.saleId);
       m.reconcileCode = rec.code;
+      m.reconcileOut = rec.out;
       m.reconcile = classifyReconcile(rec.code, rec.out);
     }
     const judgement = judgeE1Run({
@@ -118,6 +145,22 @@ async function runOnce(s: Session, cfg: E1Config, run: number, mode: SaleMode): 
   }
 
   s.csv.append(e1Row(s, cfg, run, mode, m, status, reasons));
+  // JSON thô của lượt (D-12): không có token hay mật khẩu, chỉ số liệu đo được
+  s.raw(`run${run}-${mode}`, {
+    run,
+    mode,
+    users: cfg.users,
+    totalQty: cfg.stock,
+    waitedMs: Math.round(m.waitedMs),
+    timeWait: m.timeWait,
+    statsBefore: m.statsBefore,
+    statsAfter: m.stats,
+    counts: m.counts,
+    codes: m.codes,
+    durationMs: m.durationMs,
+    reconcile: { outcome: m.reconcile, code: m.reconcileCode, out: m.reconcileOut },
+    judgement: { status, reasons },
+  });
 
   const c = m.counts;
   const parts =

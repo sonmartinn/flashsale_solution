@@ -100,9 +100,23 @@ describe("cli-args.test", () => {
       assert.throws(() => parseResetArgs(["--bogus"]), CliArgsError);
     });
 
-    it("không có --qty cho reset (reset không đổi totalQty)", () => {
-      assert.throws(() => parseResetArgs(["--qty", "5"]), CliArgsError);
+    it("nhận --qty cho reset (đặt lại cỡ kho, D-01)", () => {
+      assert.deepEqual(parseResetArgs(["--qty", "5"]), { qty: 5 });
     });
+
+    it("nhận --sale, --mode và --qty lớn nhất 1000000 cùng lúc", () => {
+      assert.deepEqual(parseResetArgs(["--sale", "64ab64ab64ab64ab64ab64ab", "--mode", "v1", "--qty", "1000000"]), {
+        saleId: "64ab64ab64ab64ab64ab64ab",
+        mode: "v1",
+        qty: 1_000_000,
+      });
+    });
+
+    for (const bad of ["0", "-1", "1.5", "abc", "1000001", "", "007"]) {
+      it(`reset từ chối --qty "${bad}"`, () => {
+        assert.throws(() => parseResetArgs([`--qty=${bad}`]), CliArgsError);
+      });
+    }
   });
 
   describe("parseReconcileArgs", () => {

@@ -14,8 +14,12 @@ import {
   TEST_JWT_SECRET,
   connectTestStores,
   dropTestDatabaseAndDisconnect,
+  spawnCli,
   startApp,
   testConfig,
+  testMongoUri,
+  testRedisUrl,
+  type SpawnResult,
   type StartedApp,
 } from "../helpers.js";
 
@@ -240,6 +244,38 @@ describe("harness-support.test", () => {
         mode: "v1",
         stock: "1000000",
       });
+    });
+  });
+
+  describe("npm run reset -- --qty đặt lại cỡ kho từ CLI (D-01)", () => {
+    let saleId: string;
+
+    /** Chạy npm run reset thật trên database và Redis db của file này (không có JWT_SECRET). */
+    function runReset(args: string[]): Promise<SpawnResult> {
+      return spawnCli("reset", {
+        env: { MONGODB_URI: testMongoUri("harness"), REDIS_URL: testRedisUrl(12) },
+        args,
+      });
+    }
+
+    before(async () => {
+      saleId = await createSale({ qty: 100, mode: "v1" });
+    });
+
+    it("--sale <id> --qty 250 thoát 0, in totalQty=250, MongoDB và Redis giữ 250", async () => {
+      const r = await runReset(["--sale", saleId, "--qty", "250"]);
+      assert.equal(r.code, 0, `${r.stdout}\n${r.stderr}`);
+      assert.ok(r.stdout.includes("totalQty=250"), r.stdout);
+      assert.deepEqual(await snapshot(saleId), { totalQty: 250, remainingQty: 250, mode: "v1", stock: "250" });
+    });
+
+    it("--qty 0 thoát 1 với lỗi --qty và dòng cách dùng có --qty <n>, đợt sale không đổi", async () => {
+      const r = await runReset(["--sale", saleId, "--qty", "0"]);
+      const output = r.stdout + r.stderr;
+      assert.equal(r.code, 1, output);
+      assert.ok(output.includes("--qty phải là số nguyên dương từ 1 đến 1000000"), output);
+      assert.ok(output.includes("--qty <n>"), output);
+      assert.deepEqual(await snapshot(saleId), { totalQty: 250, remainingQty: 250, mode: "v1", stock: "250" });
     });
   });
 

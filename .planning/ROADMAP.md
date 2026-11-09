@@ -93,7 +93,24 @@ Plans:
   3. `npm run e3` fires 10 concurrent requests from one user on V1 and on V2, confirms that user has exactly 1 order with no stock leak, and writes a committed CSV
   4. `npm run e2` runs autocannon at 100/300/500 connections, at least 5 runs each for V1 and V2 with identical connection settings, one distinct user per request and stock ≥ 1,000. Its committed summary CSV has req/s, self-computed p50/p95, and counts of 201, 409 and real errors (5xx and connection only), split into in-stock and sold-out phases. Raw output stays out of git, and the measurement procedure is documented
   5. *(Optional, cut first)* `npm run e4` stops MongoDB mid-sale on V2, and after compensation the reconcile script shows Redis and `orders` agree; the result is written to a committed CSV
-**Plans**: TBD
+**Plans**: 6 plans
+
+Plans:
+**Wave 1**
+- [ ] 03-01-PLAN.md — Backend support: admin reset `{ mode?, totalQty? }` (HTTP + `npm run reset -- --qty`), stats `uniqueOrderIndex`, results git policy (`*.csv` committed with LF, `raw/` ignored) (wave 1)
+- [ ] 03-02-PLAN.md — `loadtest/` package (package-legitimacy checkpoint), ids, CSV writer with env columns, config, response classifier, E1/E3 verdict rules with unit tests (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 03-03-PLAN.md — E1 and E3 over HTTP: admin client, preflight, reset-before-run, fetch bursts, shell-less reconcile, TIME_WAIT guard, restore, `npm run e1` / `npm run e3` smoke-proven (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 03-04-PLAN.md — E2: autocannon phase runner with shared-counter `setupRequest`, self-computed p50/p95/rps, in_stock/sold_out rows, warm-up, alternation, medians, amended D-25 validity (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 03-05-PLAN.md — Measurement procedure `loadtest/README.md` proven by its own smoke commands, then official E1/E3/E2 sessions by the user and committed CSVs (wave 4; human action)
+
+**Wave 5** *(optional, cut first; blocked on Wave 4 completion)*
+- [ ] 03-06-PLAN.md — E4: stop `flashsale-mongo` mid-sale on V2, restart, reconcile, `--fix` runbook, amended D-29 verdict, README section, official e4.csv (wave 5; human action)
 
 ### Phase 4: Web App & Dev Scripts
 **Goal**: The team and the grader can demo the flash sale in a browser (browse, log in, countdown, buy, my orders, admin monitor) and start or stop the whole dev environment with one command on Windows, with macOS scripts that behave the same
@@ -135,6 +152,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 (Phase 4 depends only
 |-------|----------------|--------|-----------|
 | 1. Foundation (Infra, Data, Auth) | 10/10 | Complete    | 2026-11-08 |
 | 2. Buy Pipeline & Admin APIs | 5/5 | Complete    | 2026-11-09 |
-| 3. Experiments (E1-E4) | 0/TBD | Not started | - |
+| 3. Experiments (E1-E4) | 0/6 | Not started | - |
 | 4. Web App & Dev Scripts | 0/TBD | Not started | - |
 | 5. Results Chart, README & Analysis | 0/TBD | Not started | - |

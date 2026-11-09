@@ -174,6 +174,8 @@ The user handed every gray area to Claude ("Bạn cứ tự quyết theo khuyế
   Real errors (5xx, connection errors, timeouts) do **not** invalidate an E2 run. They are part of the measurement and are counted.
 
   A broken correctness check (orders ≠ S, oversold > 0, drift) is FAIL (exit 1). Otherwise the verdict is VALID or INVALID; E2 never judges performance.
+
+  **Amended 2026-11-09 (user decision after research, Open Question 2):** when the in_stock phase of a run has `realErrors > 0`, the stock may legitimately not sell out, so the in_stock check becomes `oversold === 0 && orders <= S && distinctUsers === orders`, and the row note records `kho chưa hết`. When `realErrors === 0`, `orders === S` is still required and `orders !== S` is FAIL. Oversell and V2 reconcile drift are FAIL in both cases.
 - **D-26:** E2 CSV has one row per (run × phase), with columns:
   `connections, mode, run, phase, requests, totalQty, durationMs, rps, p50Ms, p95Ms, p99Ms, meanMs, maxMs, s201, s409SoldOut, s409AlreadyBought, s5xx, connErrors, timeouts, realErrors, status, note`
 
@@ -187,8 +189,9 @@ The user handed every gray area to Claude ("Bạn cứ tự quyết theo khuyế
   - When the harness has counted 201s ≥ 30% of stock, it runs `docker stop flashsale-mongo`, keeps the load going for about 5 s, then stops the load.
   - It then runs `docker start flashsale-mongo` and waits until `/api/health` is 200 again (bounded wait, INVALID on timeout). It reads stats and runs reconcile **without** `--fix`.
   - Only the Mongo container is stopped, never Redis. It never runs `docker compose down -v` and never kills any other process.
-- **D-29:** The E4 verdict is **PASS** when reconcile exits 0 after recovery.
-  - If reconcile shows drift, the verdict is FAIL. The harness records the diff, then runs reconcile `--fix` and a re-check, records whether the repair worked, and prints that this is the SPECS §8 runbook in action. This is a finding for the Phase 5 risk docs, not a crash.
+- **D-29 (amended 2026-11-09, user decision after research, Open Question 1):** The E4 verdict is **PASS** when there is no oversell (`ordersAfter <= totalQty`, no order without a Redis buyer, any drift is undersell-only: Redis stock low, extra Redis buyers) **and** reconcile `--fix` followed by a re-check exits 0. Drift before `--fix` is the expected finding, not a failure: when the order insert and the compensation lookup both fail, the backend deliberately does not refund (undersell, never oversell). The harness records the drift units next to the `s5xx` count. The backend is **not** changed: refunding on an unknown write would reopen the WR-01 oversell risk. FAIL means oversell, or `--fix` not restoring sync.
+  - *Original wording, superseded:* The E4 verdict is **PASS** when reconcile exits 0 after recovery.
+  - If reconcile shows drift, the harness records the diff (this no longer makes the verdict FAIL by itself, see the amendment above), then runs reconcile `--fix` and a re-check, records whether the repair worked, and prints that this is the SPECS §8 runbook in action. This is a finding for the Phase 5 risk docs, not a crash.
   - CSV columns: `stopAfter201, s201, s409, s5xx, connErrors, ordersAfter, redisStockAfter, redisBuyersAfter, reconcile, fixApplied, reconcileAfterFix, status, note`
 - **D-30:** Backend behavior during the outage is a **research item**. Each failed buy must return 500 within a bounded time, about the 5 s `serverSelectionTimeoutMS`, rather than hanging on Mongoose buffering. Research decides whether `bufferCommands: false` or a short `bufferTimeoutMS` is needed on Mongoose 9. Any change must leave the healthy buy path untouched, and it is verified by re-running the Phase 2 tests.
   - The 500 handler's `console.error(err)` flood during E4 is **accepted**, not rate-limited. E4 measures consistency, not speed. The procedure doc warns about it.

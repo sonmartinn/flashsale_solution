@@ -1,6 +1,6 @@
 import type { RequestHandler } from "express";
 import { SALE_MODES, type SaleMode } from "../models/index.js";
-import type { ResetResult, SaleAdminService } from "../services/sale-admin.service.js";
+import { MAX_TOTAL_QTY, type ResetResult, type SaleAdminService } from "../services/sale-admin.service.js";
 import { HttpError } from "../utils/http-error.js";
 
 /** DTO của kết quả reset: liệt kê tường minh từng trường, ngày giờ dạng chuỗi ISO (D-24). */
@@ -39,8 +39,9 @@ export function createAdminController(deps: { saleAdmin: SaleAdminService }): {
   const { saleAdmin } = deps;
 
   /**
-   * POST /api/admin/sales/:id/reset, body tùy chọn { "mode": "v0" | "v1" | "v2" } (D-24).
-   * Không có body hoặc không có mode thì giữ mode hiện tại của đợt sale (Phase 1 D-07), không bao giờ xóa mode.
+   * POST /api/admin/sales/:id/reset, body tùy chọn { "mode"?: "v0" | "v1" | "v2", "totalQty"?: số nguyên 1..1000000 }
+   * (D-24, D-01). Không có mode thì giữ mode hiện tại của đợt sale (Phase 1 D-07), không bao giờ xóa mode;
+   * không có totalQty thì giữ totalQty hiện tại.
    */
   const resetSale: RequestHandler = async (req, res) => {
     // Express 5: request không có body thì req.body là undefined, coi như object rỗng
@@ -58,8 +59,22 @@ export function createAdminController(deps: { saleAdmin: SaleAdminService }): {
       if (mode === undefined) throw new HttpError(400, "Chế độ phải là v0, v1 hoặc v2", "INVALID_MODE");
     }
 
+    // totalQty kiểm tra SAU mode (mode sai vẫn ra INVALID_MODE). Chỉ nhận đúng kiểu number, không ép kiểu:
+    // "100", true, null, mảng, object toán tử kiểu {"$gt":0} và số không an toàn đều bị từ chối (D-01).
+    const rawQty: unknown = (body as { totalQty?: unknown }).totalQty;
+    let totalQty: number | undefined;
+    if (rawQty !== undefined) {
+      if (typeof rawQty !== "number" || !Number.isSafeInteger(rawQty) || rawQty < 1 || rawQty > MAX_TOTAL_QTY) {
+        throw new HttpError(400, "totalQty phải là số nguyên từ 1 đến 1000000", "VALIDATION_ERROR");
+      }
+      totalQty = rawQty;
+    }
+
     // Service tự chuẩn hóa id: 400 INVALID_ID, 404 NOT_FOUND; reset xong thì gọi onSaleReset (xóa cache).
-    const result = await saleAdmin.resetSale(paramId(req.params["id"]), mode !== undefined ? { mode } : {});
+    const result = await saleAdmin.resetSale(paramId(req.params["id"]), {
+      ...(mode !== undefined ? { mode } : {}),
+      ...(totalQty !== undefined ? { totalQty } : {}),
+    });
     res.json({ sale: toResetDto(result) });
   };
 

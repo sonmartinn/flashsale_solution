@@ -8,6 +8,9 @@ import { normalizeObjectId } from "../utils/object-id.js";
 
 const SALE_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
+/** Giới hạn trên của totalQty khi reset (D-01), cùng mức với --qty của seed. */
+export const MAX_TOTAL_QTY = 1_000_000;
+
 export interface ResetResult {
   saleId: string;
   mode: SaleMode;
@@ -19,6 +22,11 @@ export interface ResetResult {
 export interface ResetOptions {
   /** Có thì ghi đè mode của đợt sale; không có thì giữ mode hiện tại (D-07). */
   mode?: SaleMode;
+  /**
+   * Có thì đặt totalQty = remainingQty = giá trị mới (số nguyên 1..MAX_TOTAL_QTY);
+   * không có thì giữ totalQty hiện tại (D-01).
+   */
+  totalQty?: number;
 }
 
 /**
@@ -68,16 +76,24 @@ export function createSaleAdminService({ redis, onSaleReset = () => {} }: SaleAd
     if (opts.mode !== undefined && !SALE_MODES.includes(opts.mode)) {
       throw new HttpError(400, "mode phải là v0, v1 hoặc v2", "VALIDATION_ERROR");
     }
+    // Kiểm tra lại ở service vì CLI (npm run reset -- --qty) gọi thẳng vào đây, không qua controller.
+    if (
+      opts.totalQty !== undefined &&
+      !(Number.isSafeInteger(opts.totalQty) && opts.totalQty >= 1 && opts.totalQty <= MAX_TOTAL_QTY)
+    ) {
+      throw new HttpError(400, "totalQty phải là số nguyên từ 1 đến 1000000", "VALIDATION_ERROR");
+    }
 
     const sale = await FlashSale.findById(saleId, { totalQty: 1, mode: 1 }).lean();
     if (sale === null) throw new HttpError(404, "Không tìm thấy đợt sale", "NOT_FOUND");
-    const totalQty = sale.totalQty;
+    const totalQty = opts.totalQty ?? sale.totalQty;
     const mode = opts.mode ?? sale.mode;
 
     const now = new Date();
     const endAt = new Date(now.getTime() + SALE_DURATION_MS);
 
-    // Đọc totalQty trước rồi $set thường (không dùng update pipeline). totalQty không bao giờ bị đổi (D-07).
+    // Đọc totalQty trước rồi $set thường (không dùng update pipeline). totalQty chỉ đổi khi
+    // người gọi truyền opts.totalQty (D-01); không truyền thì giữ nguyên giá trị đang có.
     await FlashSale.updateOne(
       { _id: saleId },
       {
@@ -87,6 +103,7 @@ export function createSaleAdminService({ redis, onSaleReset = () => {} }: SaleAd
           startAt: now,
           endAt,
           ...(opts.mode !== undefined ? { mode: opts.mode } : {}),
+          ...(opts.totalQty !== undefined ? { totalQty: opts.totalQty } : {}),
         },
       },
     );

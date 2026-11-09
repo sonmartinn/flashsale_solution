@@ -13,7 +13,7 @@ This is a from-scratch rebuild driven only by `docs/SPECS.md`. First comes a fai
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation (Infra, Data, Auth)** - Docker Mongo/Redis, fail-fast backend, models + indexes, seed/reset, JWT + test mode (completed 2026-11-08)
-- [ ] **Phase 2: Buy Pipeline & Admin APIs** - Read APIs, V0/V1/V2 with unified codes and compensation, admin reset/stats, reconcile
+- [x] **Phase 2: Buy Pipeline & Admin APIs** - Read APIs, V0/V1/V2 with unified codes and compensation, admin reset/stats, reconcile (completed 2026-11-09)
 - [ ] **Phase 3: Experiments (E1-E4)** - Self-checking load harness proving the Core Value and measuring V1 vs V2, summary CSVs committed
 - [ ] **Phase 4: Web App & Dev Scripts** - React demo (home, sale, login, orders, admin monitor) and one-command start/stop for Windows and macOS
 - [ ] **Phase 5: Results Chart, README & Analysis** - V1-vs-V2 chart, README from a clean clone, results analysis and risk docs for the report
@@ -69,7 +69,7 @@ Plans:
   3. A quick parallel burst can push V0's `remainingQty` below zero, while V1 never sells past `totalQty`. The Lua smoke test (ioredis 6, RESP3) observes all four return codes 1/0/-1/-2 and exactly 100 successes from 1,000 parallel calls on stock 100. V2 purchases leave `flash_sales.remainingQty` unchanged
   4. When order creation fails after stock was taken, the stock comes back: V1 restores `remainingQty` (after a non-E11000 error, only if the order really does not exist), and V2 restores Redis stock and buyer membership (stock only on E11000) before logging a stock_movement. Successful buys write no logs and no stock_movements, and all modes share one order-creation path and one static sale cache that reset clears
   5. An admin can reset a sale over HTTP (optionally switching `mode`) and read stats: Mongo stock, Redis stock, orders, distinct users, oversold count, `totalQty`, `mode` and `status`. The reconcile script exits 0 when Redis matches MongoDB, prints the diff and exits non-zero otherwise, and `--fix` repairs Redis from MongoDB
-**Plans**: 5/5 plans executed
+**Plans**: 5/5 plans complete
 
 Plans:
 **Wave 1**
@@ -134,7 +134,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 (Phase 4 depends only
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation (Infra, Data, Auth) | 10/10 | Complete    | 2026-11-08 |
-| 2. Buy Pipeline & Admin APIs | 5/5 | In Progress | - |
+| 2. Buy Pipeline & Admin APIs | 5/5 | Complete    | 2026-11-09 |
 | 3. Experiments (E1-E4) | 0/TBD | Not started | - |
 | 4. Web App & Dev Scripts | 0/TBD | Not started | - |
 | 5. Results Chart, README & Analysis | 0/TBD | Not started | - |

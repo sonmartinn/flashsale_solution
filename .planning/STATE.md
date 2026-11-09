@@ -1,43 +1,43 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 02
-current_phase_name: Buy Pipeline & Admin APIs
-status: executing
-stopped_at: Phase 2 context gathered
-last_updated: "2026-11-08T12:20:25.266Z"
-last_activity: 2026-11-08
-last_activity_desc: Phase 02 execution resumed (wave continue)
-state_head: 9b18ba0a9e63ab9a70045a223b9a24baefe08f9f
+current_phase: 3
+current_phase_name: Experiments (E1-E4)
+status: planning
+stopped_at: Phase 02 complete, ready to plan Phase 3
+last_updated: "2026-11-09T07:12:32.050Z"
+last_activity: 2026-11-09
+last_activity_desc: Phase 02 complete, transitioned to Phase 3
+state_head: b15e689d67b596b65748ad337ed6580787e131b2
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 15
-  completed_plans: 12
-  percent: 20
+  completed_plans: 15
+  percent: 40
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-08)
+See: .planning/PROJECT.md (updated 2026-11-09)
 
 **Core value:** Dưới tải đồng thời, V1 và V2 luôn cho đúng `totalQty` đơn thành công, mỗi người tối đa 1 đơn, còn V0 bán quá. Chứng minh lặp lại bằng thí nghiệm E1 có số liệu.
-**Current focus:** Phase 02 — Buy Pipeline & Admin APIs
+**Current focus:** Phase 3 — Experiments (E1-E4)
 
 ## Current Position
 
-Phase: 02 (Buy Pipeline & Admin APIs) — EXECUTING
-Plan: 1 of 5
-Status: Executing Phase 02
-Last activity: 2026-11-08 — Phase 02 execution resumed (wave continue)
+Phase: 3 — Experiments (E1-E4)
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-09 — Phase 02 complete, transitioned to Phase 3
 
-Progress: [██░░░░░░░░] 20%
+Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
+- Total plans completed: 15
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -46,6 +46,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01 | 10 | - | - |
+| 02 | 5 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -68,6 +69,9 @@ Recent decisions affecting current work:
 - [Phase 1]: `start:test` = `dotenv run -q --override -f .env.test` (shell NODE_ENV never leaks in); health exposes `testMode`, load-script preflight must check `testMode === true`
 - [Phase 1]: Reset service is the factory `createSaleAdminService({ redis, onSaleReset })`; the Phase 2 admin route passes `saleCache.invalidate`
 - [Phase 1]: Body-less POSTs (buy, reset without mode) must omit Content-Type; zero-byte declared-JSON bodies are rejected with 400
+- [Phase 2]: V1/V2 dùng chung `insertOrderOrCompensate`; V0 không hoàn kho (D-09). Lỗi không phải E11000 tra `findOne` trước khi hoàn kho
+- [Phase 2]: Một `saleAdmin` cho mỗi app, reset qua HTTP xóa đúng cache mà đường mua đọc; stats nằm trong `createSaleAdminService`
+- [Phase 2]: Reconcile CLI thoát 0/2/1, `--fix` sửa Redis theo MongoDB bằng một `multi()` có kiểm tra kết quả
 
 ### Pending Todos
 
@@ -75,9 +79,10 @@ None yet.
 
 ### Blockers/Concerns
 
-- Code freeze 2026-12-06 (today 2026-11-08, Phase 1 done): Phases 2–3 (never-cut core + E1/E2 proof) must land first
+- Code freeze 2026-12-06 (today 2026-11-09, Phases 1–2 done): Phase 3 (E1/E2 proof, never cut) must land next
 - Phase 3 and Phase 4 dev scripts are flagged for `--research-phase` before planning
 - Port 27017 is the Windows MongoDB service; always use `127.0.0.1:27018`
+- [Phase 2] Rủi ro đã chấp nhận ở UAT, phải ghi vào tài liệu rủi ro Phase 5: WR-01 (hoàn kho sau lỗi ghi đơn mơ hồ không phải E11000 có thể ra `totalQty+1`), WR-02 (ioredis `autoResendUnfulfilledCommands` mặc định bật, xem lại trước E4), WR-04 (`?mode=` khác `sale.mode` vượt `totalQty` qua hai kho; báo cáo nêu điều kiện "mọi lượt mua dùng đúng mode của đợt sale")
 - V1–V2 gap on one machine via Docker Desktop may be small (still a valid result); no Mac available for `.sh` testing
 
 ## Deferred Items
@@ -90,6 +95,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-08T07:08:46.878Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-buy-pipeline-admin-apis/02-CONTEXT.md
+Last session: 2026-11-09T07:13:22.169Z
+Stopped at: Phase 2 complete, ready to plan Phase 3
+Resume file: None

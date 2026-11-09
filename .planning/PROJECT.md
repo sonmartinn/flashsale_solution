@@ -19,14 +19,14 @@ Dưới tải đồng thời, V1 và V2 **luôn** cho đúng `totalQty` đơn th
 - ✓ 5 collection có index đúng theo SPECS mục 6 (`users`, `products`, `flash_sales`, `orders`, `stock_movements`). Unique `(saleId, userId)`. `remainingQty` không có `min` — Phase 1
 - ✓ Script seed (1.000 user + 1 admin, 6 sản phẩm thời trang có `attributes` khác nhau, 1 đợt sale, kho nhận qua tham số) và script reset đợt sale (MongoDB + Redis `multi()` + xóa cache) — Phase 1
 - ✓ Đăng ký, đăng nhập JWT (hạn 7 ngày, payload `sub` + `role`). `requireAuth` không tra MongoDB, có `requireAdmin`. Chế độ test nhận header `x-test-user` khi `NODE_ENV === "test"` — Phase 1
+- ✓ API công khai: health, products, sales/active, sales/:id (`remaining` đọc theo `sale.mode`) — Phase 2
+- ✓ API mua `POST /sales/:id/buy?mode=v0|v1|v2`: phần kiểm tra chung, mã trả về thống nhất giữa 3 phiên bản (201/409/409/400/503) — Phase 2
+- ✓ V0 ngây thơ (đọc rồi `$inc`, tồn kho có thể âm), V1 `findOneAndUpdate` nguyên tử có hoàn kho, V2 Lua (`defineCommand`) có hoàn kho bằng `multi()` — Phase 2
+- ✓ API `/orders/me`, admin reset, admin stats (tồn kho Mongo, tồn kho Redis, số đơn, số user khác nhau, số đơn vượt) — Phase 2
+- ✓ Script đối chiếu Redis–MongoDB, có tùy chọn sửa Redis theo MongoDB — Phase 2
 
 ### Active
 
-- [ ] API công khai: health, products, sales/active, sales/:id (`remaining` đọc theo `sale.mode`)
-- [ ] API mua `POST /sales/:id/buy?mode=v0|v1|v2`: phần kiểm tra chung, mã trả về thống nhất giữa 3 phiên bản (201/409/409/400/503)
-- [ ] V0 ngây thơ (đọc rồi `$inc`, tồn kho có thể âm), V1 `findOneAndUpdate` nguyên tử có hoàn kho, V2 Lua (`defineCommand`) có hoàn kho bằng `multi()`
-- [ ] API `/orders/me`, admin reset, admin stats (tồn kho Mongo, tồn kho Redis, số đơn, số user khác nhau, số đơn vượt)
-- [ ] Script đối chiếu Redis–MongoDB, có tùy chọn sửa Redis theo MongoDB
 - [ ] Frontend: trang chủ, trang đợt sale (đếm ngược, polling 1–2 giây, nút mua, thông báo theo mã), đăng nhập/đăng ký, đơn của tôi, trang theo dõi admin cập nhật liên tục
 - [ ] Thí nghiệm E1 (tính đúng, script Node riêng, tự kiểm tra số user khác nhau), E2 (hiệu năng V1 với V2 bằng autocannon, 100/300/500 kết nối), E3 (mua trùng), E4 tùy chọn (ngắt MongoDB giữa chừng). Mỗi thí nghiệm có CSV tổng hợp được đưa lên git
 - [ ] Biểu đồ so sánh V1 với V2 từ kết quả E2
@@ -73,23 +73,26 @@ Dưới tải đồng thời, V1 và V2 **luôn** cho đúng `totalQty` đơn th
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | Làm lại từ đầu theo `docs/SPECS.md`, GSD dẫn dắt | SPECS là nguồn yêu cầu duy nhất. Mã cũ bỏ đi | — Pending |
-| Giữ `flash_sales.mode` làm chế độ của đợt sale; `GET /sales/:id` trả `remaining` từ Redis hoặc MongoDB theo `sale.mode`; UI mua theo `sale.mode`; script tải vẫn dùng `?mode=` | V2 không giảm `remainingQty`, nên hiển thị phải biết đọc ở đâu | — Pending |
-| Cache phần tĩnh của đợt sale (`salePrice`, `productId`, `startAt`, `endAt`, `status`) trong bộ nhớ Node, dùng chung cho V0/V1/V2, xóa khi reset; không cache `remainingQty` | Nếu chỉ V2 được cache thì so sánh hiệu năng không công bằng | — Pending |
-| `stock_movements` chỉ ghi khi bù trừ và khi reset, không ghi trong đường mua | Tránh thêm một lần ghi Mongo làm lệch số đo. Đơn thành công đã có trong `orders` | — Pending |
+| Giữ `flash_sales.mode` làm chế độ của đợt sale; `GET /sales/:id` trả `remaining` từ Redis hoặc MongoDB theo `sale.mode`; UI mua theo `sale.mode`; script tải vẫn dùng `?mode=` | V2 không giảm `remainingQty`, nên hiển thị phải biết đọc ở đâu | ✓ Good — Phase 2 (READ-03) |
+| Cache phần tĩnh của đợt sale (`salePrice`, `productId`, `startAt`, `endAt`, `status`) trong bộ nhớ Node, dùng chung cho V0/V1/V2, xóa khi reset; không cache `remainingQty` | Nếu chỉ V2 được cache thì so sánh hiệu năng không công bằng | ✓ Good — Phase 2 (một cache dùng chung, reset qua API xóa cache) |
+| `stock_movements` chỉ ghi khi bù trừ và khi reset, không ghi trong đường mua | Tránh thêm một lần ghi Mongo làm lệch số đo. Đơn thành công đã có trong `orders` | ✓ Good — Phase 2 |
 | E1 dùng script Node riêng (`fetch` + `Promise.all`); E2 dùng autocannon | autocannon `requests` phân phối user sai, unique index che mất lỗi của V0 | — Pending |
-| Không dùng MongoDB transaction ở V1 | MongoDB chạy standalone. Hoàn kho bằng `$inc` khi tạo đơn lỗi | — Pending |
+| Không dùng MongoDB transaction ở V1 | MongoDB chạy standalone. Hoàn kho bằng `$inc` khi tạo đơn lỗi | ✓ Good — Phase 2 |
 | GSD lập kế hoạch cả phần tài liệu phân tích kết quả cho báo cáo | Người dùng muốn GSD lo cả README và tài liệu kết quả E1–E4 | — Pending |
 | E2 tự tính p95 từ `responseTime` của từng request | autocannon chỉ có p50/p90/p97.5/p99, không có p95; giữ đúng SPECS | — Pending |
 | Đổi `sale.mode` qua reset: `POST /admin/sales/:id/reset` nhận `{ mode }`, seed/CLI reset nhận `--mode` | SPECS không có cách đổi mode; cần cho demo UI và để `remaining` khớp với lần bắn tải | — Pending |
-| JSON lỗi có thêm trường `code` máy đọc được (`SOLD_OUT`, `ALREADY_BOUGHT`…), HTTP status giữ theo SPECS | Hai trường hợp 409 chỉ khác nhau ở thông báo tiếng Việt | — Pending |
-| Lỗi tạo đơn không phải E11000 thì kiểm tra `Order.exists` trước khi hoàn kho (V1, V2); V2 gặp E11000 chỉ `INCRBY`, không `SREM` | Tránh hoàn kho dư khi ghi đơn mơ hồ (timeout nhưng đã ghi) | — Pending |
+| JSON lỗi có thêm trường `code` máy đọc được (`SOLD_OUT`, `ALREADY_BOUGHT`…), HTTP status giữ theo SPECS | Hai trường hợp 409 chỉ khác nhau ở thông báo tiếng Việt | ✓ Good — Phase 2 |
+| Lỗi tạo đơn không phải E11000 thì kiểm tra `Order.exists` trước khi hoàn kho (V1, V2); V2 gặp E11000 chỉ `INCRBY`, không `SREM` | Tránh hoàn kho dư khi ghi đơn mơ hồ (timeout nhưng đã ghi) | ⚠️ Revisit — Phase 2: chấp nhận là rủi ro còn lại (UAT WR-01), ghi vào tài liệu rủi ro Phase 5 |
 | Script tải luôn reset qua API admin; CLI reset in cảnh báo về cache | Cache đợt sale nằm trong tiến trình server, CLI không xóa được | — Pending |
 | Ghim `react-router@^7` | `@latest` là v8, cần Node ≥22.22, phá `engines` của SPECS | — Pending |
 | Đưa cả 4 mục có thể cắt (E4, biểu đồ web, trang admin, polling) vào v1, giữ thứ tự cắt của SPECS | Người dùng để Claude chọn; đúng phạm vi SPECS, cắt khi thiếu thời gian | — Pending |
 | `start:test` dùng `dotenv run -q --override -f .env.test` thay cho `node --env-file` | `--env-file` không ghi đè biến shell đang giữ (cmd `set NODE_ENV=test && …` để lại `"test "`); `-q` giữ boot-failure một dòng | ✓ Good — Phase 1 (UAT G-01-9) |
 | `isTestMode` so sánh thô `NODE_ENV === "test"`; `/api/health` có `testMode`, script tải kiểm tra `testMode === true` | Fail-closed khi NODE_ENV có dấu cách thừa; near-miss chỉ in `[CẢNH BÁO]` | ✓ Good — Phase 1 |
-| Service reset là factory `createSaleAdminService({ redis, onSaleReset })` | CLI truyền hook rỗng, route Phase 2 truyền `saleCache.invalidate` | — Pending (Phase 2 dùng) |
+| Service reset là factory `createSaleAdminService({ redis, onSaleReset })` | CLI truyền hook rỗng, route Phase 2 truyền `saleCache.invalidate` | ✓ Good — Phase 2 (route admin truyền `saleCache.invalidate`) |
 | `backend/.env` tạo tay bằng lệnh không in khóa trong header `.env.example`; DEV-01 tự động hóa ở Phase 4 | Không commit bí mật, không ghi đè | — Pending |
+| `?mode=` lấy từ query, không chặn khi khác `sale.mode` (D-03) | Script tải cần chọn mode độc lập. Bảo đảm V1/V2 chỉ đúng khi mọi lượt mua dùng đúng mode của đợt sale | ⚠️ Revisit — chấp nhận ở UAT Phase 2 (WR-04); báo cáo phải nêu điều kiện này |
+| Giữ mặc định ioredis `autoResendUnfulfilledCommands: true` | Chấp nhận ở UAT Phase 2 (WR-02); sau khi kết nối lại có thể gửi lại `INCRBY` hoàn kho hoặc `EVALSHA` | ⚠️ Revisit — cân nhắc trước E4, ghi vào tài liệu rủi ro Phase 5 |
+| Lỗi nghiệp vụ 409/503 trong đường mua dùng `HttpError` dựng sẵn | Không chụp stack trace dưới tải | ✓ Good — Phase 2 |
 
 ## Evolution
 
@@ -109,4 +112,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-08 after Phase 1*
+*Last updated: 2026-11-09 after Phase 2*

@@ -223,7 +223,7 @@ The user handed every gray area to Claude ("Bạn cứ tự quyết theo khuyế
 | EXP-05 | E2 autocannon with `setupRequest` + shared counter (no `workers`), one distinct user per request, stock ≥ 1,000 via a parameter, 100/300/500 connections, ≥ 5 runs, identical connection settings | autocannon 8.0.0 `amount` semantics verified from source and probe: exactly `amount` `setupRequest` calls and requests, 10,000 distinct ids at 500 connections. `amount < connections` throws synchronously |
 | EXP-06 | E2 self-collected `responseTime` for p50/p95, counts 201/409/real errors, in-stock vs sold-out split, committed summary CSV, raw out of git | `onResponse(status, body)` gives the body for the `code` split. Callback fires ~0.45–0.5 s after the last response, so wall-clock around the call inflates duration (Pitfall 2). `errors` already includes `timeouts` (Pitfall 3) |
 | EXP-07 | One npm command per experiment + documented procedure | npm 11 `npm.ps1` keeps `--` on PowerShell, so `npm run e1 -- --runs 1` works. README content fixed by D-31 |
-| EXP-08 | (Optional) E4 Mongo outage on V2, reconcile, CSV | D-30 answered: **no `bufferCommands` change needed** on Mongoose 9.11.4. Predicted outcome is **drift (undersell)**, so the D-29 verdict will most likely be FAIL → `--fix` repairs. This conflicts with ROADMAP criterion 5 (Open Question 1) |
+| EXP-08 | (Optional) E4 Mongo outage on V2, reconcile, CSV | D-30 answered: **no `bufferCommands` change needed** on Mongoose 9.11.4. Predicted outcome is **drift (undersell)**, so the D-29 verdict will most likely be FAIL → `--fix` repairs. This conflicts with ROADMAP criterion 5 (Open Question 1). RESOLVED 2026-11-09 by the D-29 amendment: undersell drift repaired by `--fix` is PASS, and the post-`--fix` re-check meets criterion 5 |
 </phase_requirements>
 
 ## Project Constraints (from CLAUDE.md)
@@ -520,7 +520,7 @@ Not a rename/refactor phase. Omitted except for one relevant item: the official 
 autocannon throws synchronously. Smoke runs with small `--stock` at 500 connections hit this. Validate up front, or let smoke mode use a `--connections` override.
 
 ### Pitfall 5: E2 correctness check vs real errors (D-25 edge)
-If any in_stock request hits a connection error or timeout, stock may not be exhausted (`orders < S`). D-25 would then call it FAIL (exit 1), which blames an environment fault on correctness. A client timeout can also leave an order the harness never saw as 201. See Open Question 2. The pacing guard makes this unlikely, but the rule needs a defined outcome.
+If any in_stock request hits a connection error or timeout, stock may not be exhausted (`orders < S`). D-25 would then call it FAIL (exit 1), which blames an environment fault on correctness. A client timeout can also leave an order the harness never saw as 201. See Open Question 2 (RESOLVED by the D-25 amendment 2026-11-09). The pacing guard makes this unlikely, but the rule needs a defined outcome.
 
 ### Pitfall 6: Reconcile exit 0 when the sale is not v2
 `reconcile.ts` skips non-v2 sales (`bỏ qua (mode …)`) and still exits 0 [VERIFIED: reconcile.ts:89-92,110-111]. Only spawn after stats confirmed `mode === "v2"`. For robustness, also require stdout to contain `(v2): KHỚP` for "clean" [VERIFIED: reconcile.ts:65 text `Đợt sale ${c.saleId} (v2): KHỚP`].
@@ -590,18 +590,18 @@ Redis db indices already used by integration tests: 1 (health), 2 (seed, models)
 | A4 | Windows TIME_WAIT default ≈120 s on the operator's machine (observed ~110–120 s here) | Pitfall 1 | The guard waits too short or too long. Guard measures live counts, so impact is low |
 | A5 | 1,000-concurrent E1 bursts behave the same against the real Express server as against the probe `http` server (same Node `net` accept path) | Pattern 2 | Rare connection resets → E1 INVALID. Executor smoke run with `--users 1000 --runs 1` confirms |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **E4 success criterion vs designed behaviour (needs user confirmation)**
+1. **E4 success criterion vs designed behaviour — RESOLVED 2026-11-09:** user accepted the recommendation; see 03-CONTEXT.md D-29 (amended): PASS = no oversell + reconcile `--fix` and re-check exit 0, drift before `--fix` is the expected undersell finding (`driftUnits` recorded next to `s5xx`), backend unchanged. Implemented by 03-06-PLAN (`judgeE4Run`, `driftUnits` column).
    - What we know: with Mongo stopped, V2 runs Lua (stock −1, buyer added), then `Order.create` fails, then compensate's `findOrder` also fails → *no refund*, 500 [VERIFIED: purchase.service.ts compensate, lines 170-176 "Không biết đơn có được ghi hay không: không hoàn kho (bán thiếu)"]. Reconcile will report drift ≈ number of such 500s (stock low by k, k extra buyers, no missing buyers, no oversell).
    - What's unclear: ROADMAP criterion 5 says "after compensation the reconcile script shows Redis and orders agree". D-29 would mark this FAIL (exit 1), then `--fix` repairs it.
    - Recommendation: keep D-29's mechanics and add a `driftUnits` vs `s5xx` comparison in raw/note. Ask the user, at the E4 plan's checkpoint, to accept "drift (undersell only) → `--fix` restores sync" as the expected E4 finding. If not, change the verdict wording to PASS = "no oversell and `--fix` restores sync". Do not change the backend: refunding on an unknown write would reintroduce the WR-01 oversell risk.
 
-2. **D-25 when an in_stock phase has real errors**
+2. **D-25 when an in_stock phase has real errors — RESOLVED 2026-11-09:** user accepted the recommendation; see 03-CONTEXT.md D-25 (amended): with `realErrors > 0` the in_stock check is `oversold === 0 && orders <= S && distinctUsers === orders` plus note `kho chưa hết`; with `realErrors === 0`, `orders !== S` stays FAIL. Implemented by 03-04-PLAN (`judgeE2Run`).
    - What we know: real errors are counted, not invalidating. But with errors, `orders === S` may legitimately fail.
    - Recommendation: if `realErrors > 0` in in_stock, judge correctness as `oversold === 0 && orders <= S && distinctUsers === orders`, and note `kho chưa hết`. Only `orders !== S` with `realErrors === 0` is FAIL. Planner should confirm with the user, since it refines a locked rule.
 
-3. **Smoke at 500 connections**
+3. **Smoke at 500 connections — RESOLVED (planner's discretion, as recommended):** 03-04-PLAN `parseE2Args` accepts `--connections <list>` only with `--smoke` (smoke rows marked "smoke"), and rejects any amount below the largest connections value; no silent clamping.
    - `amount ≥ connections` is required. Recommend `--connections <list>` for smoke only (rows marked smoke), rather than silently clamping.
 
 ## Environment Availability

@@ -8,6 +8,9 @@ import { normalizeObjectId } from "../utils/object-id.js";
 
 const SALE_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
+/** Giới hạn trên của totalQty khi reset (D-01), cùng mức với --qty của seed. */
+export const MAX_TOTAL_QTY = 1_000_000;
+
 export interface ResetResult {
   saleId: string;
   mode: SaleMode;
@@ -19,6 +22,11 @@ export interface ResetResult {
 export interface ResetOptions {
   /** Có thì ghi đè mode của đợt sale; không có thì giữ mode hiện tại (D-07). */
   mode?: SaleMode;
+  /**
+   * Có thì đặt totalQty = remainingQty = giá trị mới (số nguyên 1..MAX_TOTAL_QTY);
+   * không có thì giữ totalQty hiện tại (D-01).
+   */
+  totalQty?: number;
 }
 
 /**
@@ -43,6 +51,11 @@ export interface SaleStats {
   oversold: number;
   /** Chỉ cho mode v2: Redis khớp số đơn (so nhanh bằng số đếm); v0/v1 là null */
   redisInSync: boolean | null;
+  /**
+   * true khi collection orders có index unique đúng khóa { saleId: 1, userId: 1 } (Phase 3 D-07).
+   * Bộ đo kiểm tra trường này trước khi đo: thiếu index thì V1/V2 mất lớp chặn mua trùng cuối cùng.
+   */
+  uniqueOrderIndex: boolean;
 }
 
 export interface SaleAdminService {
@@ -68,16 +81,24 @@ export function createSaleAdminService({ redis, onSaleReset = () => {} }: SaleAd
     if (opts.mode !== undefined && !SALE_MODES.includes(opts.mode)) {
       throw new HttpError(400, "mode phải là v0, v1 hoặc v2", "VALIDATION_ERROR");
     }
+    // Kiểm tra lại ở service vì CLI (npm run reset -- --qty) gọi thẳng vào đây, không qua controller.
+    if (
+      opts.totalQty !== undefined &&
+      !(Number.isSafeInteger(opts.totalQty) && opts.totalQty >= 1 && opts.totalQty <= MAX_TOTAL_QTY)
+    ) {
+      throw new HttpError(400, "totalQty phải là số nguyên từ 1 đến 1000000", "VALIDATION_ERROR");
+    }
 
     const sale = await FlashSale.findById(saleId, { totalQty: 1, mode: 1 }).lean();
     if (sale === null) throw new HttpError(404, "Không tìm thấy đợt sale", "NOT_FOUND");
-    const totalQty = sale.totalQty;
+    const totalQty = opts.totalQty ?? sale.totalQty;
     const mode = opts.mode ?? sale.mode;
 
     const now = new Date();
     const endAt = new Date(now.getTime() + SALE_DURATION_MS);
 
-    // Đọc totalQty trước rồi $set thường (không dùng update pipeline). totalQty không bao giờ bị đổi (D-07).
+    // Đọc totalQty trước rồi $set thường (không dùng update pipeline). totalQty chỉ đổi khi
+    // người gọi truyền opts.totalQty (D-01); không truyền thì giữ nguyên giá trị đang có.
     await FlashSale.updateOne(
       { _id: saleId },
       {
@@ -87,6 +108,7 @@ export function createSaleAdminService({ redis, onSaleReset = () => {} }: SaleAd
           startAt: now,
           endAt,
           ...(opts.mode !== undefined ? { mode: opts.mode } : {}),
+          ...(opts.totalQty !== undefined ? { totalQty: opts.totalQty } : {}),
         },
       },
     );
@@ -120,7 +142,30 @@ export function createSaleAdminService({ redis, onSaleReset = () => {} }: SaleAd
   }
 
   /**
-   * Đọc số liệu một đợt sale (D-25, RESEARCH Pattern 7): năm lần đọc chạy song song trong một Promise.all.
+   * true khi orders có một index unique với khóa đúng { saleId: 1, userId: 1 } (đúng thứ tự, cả hai giá trị 1).
+   * Collection orders chưa tồn tại thì MongoDB trả lỗi NamespaceNotFound (code 26): coi như không có index.
+   */
+  async function hasUniqueOrderIndex(): Promise<boolean> {
+    let indexes: unknown[];
+    try {
+      indexes = await Order.listIndexes();
+    } catch (err) {
+      if (typeof err === "object" && err !== null && (err as { code?: unknown }).code === 26) return false;
+      throw err;
+    }
+    return indexes.some((idx) => {
+      if (typeof idx !== "object" || idx === null) return false;
+      const { unique, key } = idx as { unique?: unknown; key?: unknown };
+      if (unique !== true || typeof key !== "object" || key === null) return false;
+      const k = key as Record<string, unknown>;
+      const names = Object.keys(k);
+      return names.length === 2 && names[0] === "saleId" && names[1] === "userId" && k["saleId"] === 1 && k["userId"] === 1;
+    });
+  }
+
+  /**
+   * Đọc số liệu một đợt sale (D-25, RESEARCH Pattern 7): sáu lần đọc chạy song song trong một Promise.all
+   * (lần thứ sáu là danh sách index của orders cho uniqueOrderIndex, D-07).
    * redisInSync chỉ so số đếm (stock = totalQty - orders và số người trong buyers = số user có đơn);
    * so từng phần tử của tập buyers là việc của reconcile (npm run reconcile).
    */
@@ -128,12 +173,13 @@ export function createSaleAdminService({ redis, onSaleReset = () => {} }: SaleAd
     const saleId = normalizeObjectId(rawSaleId);
     if (saleId === null) throw new HttpError(400, "Mã đợt sale không hợp lệ", "INVALID_ID");
 
-    const [sale, rawStock, redisBuyers, orders, users] = await Promise.all([
+    const [sale, rawStock, redisBuyers, orders, users, uniqueOrderIndex] = await Promise.all([
       FlashSale.findById(saleId, { mode: 1, status: 1, totalQty: 1, remainingQty: 1 }).lean(),
       redis.get(stockKey(saleId)),
       redis.scard(buyersKey(saleId)),
       Order.countDocuments({ saleId, status: "success" }),
       Order.distinct("userId", { saleId, status: "success" }),
+      hasUniqueOrderIndex(),
     ]);
     if (sale === null) throw new HttpError(404, "Không tìm thấy đợt sale", "NOT_FOUND");
 
@@ -154,6 +200,7 @@ export function createSaleAdminService({ redis, onSaleReset = () => {} }: SaleAd
       distinctUsers,
       oversold: Math.max(0, orders - sale.totalQty),
       redisInSync,
+      uniqueOrderIndex,
     };
   }
 

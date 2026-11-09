@@ -1,0 +1,2 @@
+# CSV kết quả đo luôn dùng LF (D-11)
+loadtest/results/*.csv text eol=lf

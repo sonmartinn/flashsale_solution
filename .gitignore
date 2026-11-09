@@ -4,9 +4,11 @@ dist/
 *.log
 .DS_Store
 
-# Kết quả thô khi chạy test tải, chỉ giữ thư mục
+# Kết quả đo tải: commit các CSV tổng hợp (loadtest/results/*.csv) và .gitkeep;
+# mọi thứ khác, kể cả raw/ (JSON thô của từng lần chạy), không đưa lên git (D-12)
 loadtest/results/*
 !loadtest/results/.gitkeep
+!loadtest/results/*.csv
 
 # Bộ cài GSD: mỗi thành viên tự cài bằng lệnh trong .claude/CLAUDE.md
 # (bộ cài ghi cứng đường dẫn tuyệt đối của từng máy). Chỉ chia sẻ CLAUDE.md.

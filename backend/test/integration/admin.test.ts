@@ -23,7 +23,10 @@ import {
 const SALE_PRICE = 449_500;
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const RESET_KEYS = ["endAt", "mode", "saleId", "startAt", "totalQty"];
-/** Mười một trường của stats (D-25), đã sắp xếp. Phase 3 và trang admin Phase 4 đọc đúng các tên này. */
+/**
+ * Mười hai trường của stats (mười một trường D-25 cộng uniqueOrderIndex của Phase 3 D-07), đã sắp xếp.
+ * Phase 3 và trang admin Phase 4 đọc đúng các tên này.
+ */
 const STATS_KEYS = [
   "distinctUsers",
   "mode",
@@ -36,6 +39,7 @@ const STATS_KEYS = [
   "saleId",
   "status",
   "totalQty",
+  "uniqueOrderIndex",
 ];
 /** Đánh dấu "POST không body, không content-type" cho reset(). */
 const NO_BODY = Symbol("no-body");
@@ -288,7 +292,7 @@ describe("admin.test", () => {
   });
 
   describe("stats (D-25)", () => {
-    it("ngay sau reset một đợt v2 kho 10: đúng mười một trường và giá trị ban đầu", async () => {
+    it("ngay sau reset một đợt v2 kho 10: đúng mười hai trường và giá trị ban đầu", async () => {
       const saleId = await createSale({ qty: 10, mode: "v2" });
       await resetOk(saleId, "v2");
       const s = await stats(saleId);
@@ -305,6 +309,7 @@ describe("admin.test", () => {
         distinctUsers: 0,
         oversold: 0,
         redisInSync: true,
+        uniqueOrderIndex: true,
       });
     });
 

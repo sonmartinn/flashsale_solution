@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test \"test/*.test.ts\"",
     "e1": "tsx scenarios/e1-correctness.ts",
+    "e2": "tsx scenarios/e2-performance.ts",
     "e3": "tsx scenarios/e3-duplicate.ts"
   },
   "dependencies": {

@@ -4,7 +4,16 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { emptyCounts, type ResponseCounts } from "../lib/classify.js";
 import type { ReconcileOutcome, SaleMode, StatsSnapshot } from "../lib/types.js";
-import { combineRuns, exitCodeFor, judgeE1Run, judgeE3Run, worstStatus } from "../lib/verdict.js";
+import {
+  combineE2,
+  combineRuns,
+  exitCodeFor,
+  judgeE1Run,
+  judgeE2Run,
+  judgeE3Run,
+  worstStatus,
+  type E2PhaseInput,
+} from "../lib/verdict.js";
 
 const SALE_ID = "65a1b2c3d4e5f60718293a4b";
 
@@ -73,7 +82,161 @@ function e3(
   });
 }
 
+/** E2: S = 1000 tồn kho, M = 1000 request sold_out. */
+const E2_S = 1000;
+const E2_M = 1000;
+
+type PhaseOver = { stats?: Partial<StatsSnapshot>; counts?: Partial<ResponseCounts>; setupCalls?: number; distinctIds?: number };
+
+/** Một pha E2 đúng: in_stock S lần 201 rồi S đơn; sold_out M lần 409 SOLD_OUT, vẫn S đơn. */
+function e2Phase(mode: "v1" | "v2", phase: "in" | "out", over: PhaseOver = {}): E2PhaseInput {
+  const requests = phase === "in" ? E2_S : E2_M;
+  const base: Partial<StatsSnapshot> =
+    mode === "v2"
+      ? { mode, totalQty: E2_S, orders: E2_S, distinctUsers: E2_S, redisStock: 0, redisBuyers: E2_S, redisInSync: true }
+      : { mode, totalQty: E2_S, orders: E2_S, distinctUsers: E2_S };
+  const baseCounts: Partial<ResponseCounts> = phase === "in" ? { s201: E2_S } : { s409SoldOut: E2_M };
+  return {
+    requests,
+    setupCalls: over.setupCalls ?? requests,
+    distinctIds: over.distinctIds ?? requests,
+    counts: counts({ ...baseCounts, ...over.counts }),
+    stats: stats({ ...base, ...over.stats }),
+  };
+}
+
+function e2(
+  mode: "v1" | "v2",
+  over: { inStock?: PhaseOver; soldOut?: PhaseOver; reconcile?: ReconcileOutcome } = {},
+) {
+  return judgeE2Run({
+    mode,
+    S: E2_S,
+    inStock: e2Phase(mode, "in", over.inStock),
+    soldOut: e2Phase(mode, "out", over.soldOut),
+    reconcile: over.reconcile ?? (mode === "v2" ? "clean" : "n/a"),
+  });
+}
+
 describe("verdict.test", () => {
+  describe("judgeE2Run: VALID", () => {
+    for (const mode of ["v1", "v2"] as const) {
+      it(`${mode} sạch: S lần 201 rồi M lần 409 SOLD_OUT, S đơn -> hai dòng VALID`, () => {
+        const j = e2(mode);
+        assert.deepEqual(j.inStock, { status: "VALID", reasons: [] });
+        assert.deepEqual(j.soldOut, { status: "VALID", reasons: [] });
+        assert.equal(j.run, "VALID");
+      });
+    }
+
+    it("in_stock có 3 timeout và S-3 đơn -> VALID kèm ghi chú kho chưa hết", () => {
+      const j = e2("v1", {
+        inStock: { counts: { s201: E2_S - 3, timeouts: 3 }, stats: { orders: E2_S - 3, distinctUsers: E2_S - 3 } },
+      });
+      assert.equal(j.inStock.status, "VALID");
+      assert.ok(j.inStock.reasons.some((r) => r.includes("kho chưa hết")), j.inStock.reasons.join("; "));
+      assert.equal(j.run, "VALID");
+    });
+
+    it("5xx chỉ ở pha sold_out, vẫn S đơn -> VALID (lỗi thật được đếm, không phán quyết)", () => {
+      const j = e2("v1", { soldOut: { counts: { s409SoldOut: E2_M - 5, s5xx: 5 } } });
+      assert.equal(j.inStock.status, "VALID");
+      assert.equal(j.soldOut.status, "VALID");
+      assert.equal(j.run, "VALID");
+    });
+
+    it("lỗi kết nối ở pha in_stock nới luật cho cả dòng sold_out", () => {
+      const j = e2("v2", {
+        inStock: { counts: { s201: E2_S - 2, connErrors: 2 }, stats: { orders: E2_S - 2, distinctUsers: E2_S - 2 } },
+        soldOut: { stats: { orders: E2_S - 2, distinctUsers: E2_S - 2 } },
+      });
+      assert.equal(j.soldOut.status, "VALID");
+      assert.ok(j.soldOut.reasons.some((r) => r.includes("kho chưa hết")));
+    });
+  });
+
+  describe("judgeE2Run: FAIL", () => {
+    it("in_stock không có lỗi thật mà chỉ S-1 đơn -> FAIL", () => {
+      const j = e2("v1", { inStock: { stats: { orders: E2_S - 1, distinctUsers: E2_S - 1 } } });
+      assert.equal(j.inStock.status, "FAIL");
+      assert.equal(j.run, "FAIL");
+    });
+
+    it("in_stock có 3 timeout nhưng bán quá 1 đơn -> FAIL", () => {
+      const j = e2("v1", {
+        inStock: {
+          counts: { s201: E2_S - 2, timeouts: 3 },
+          stats: { orders: E2_S + 1, distinctUsers: E2_S + 1, oversold: 1 },
+        },
+      });
+      assert.equal(j.inStock.status, "FAIL");
+      assert.equal(j.run, "FAIL");
+    });
+
+    it("sold_out không có lỗi thật mà số đơn tăng thêm -> FAIL", () => {
+      const j = e2("v1", { soldOut: { stats: { orders: E2_S + 1, distinctUsers: E2_S + 1, oversold: 1 } } });
+      assert.equal(j.soldOut.status, "FAIL");
+    });
+
+    it("v2 đối soát sau sold_out báo lệch -> FAIL", () => {
+      const j = e2("v2", { reconcile: "drift" });
+      assert.equal(j.soldOut.status, "FAIL");
+      assert.ok(j.soldOut.reasons.includes("reconcile báo lệch"));
+      assert.equal(j.run, "FAIL");
+    });
+
+    it("v2 redisInSync false sau sold_out -> FAIL", () => {
+      const j = e2("v2", { soldOut: { stats: { redisInSync: false } } });
+      assert.equal(j.soldOut.status, "FAIL");
+    });
+  });
+
+  describe("judgeE2Run: INVALID", () => {
+    it("một 401 -> INVALID", () => {
+      const j = e2("v1", { inStock: { counts: { s201: E2_S - 1, s401: 1 } } });
+      assert.equal(j.inStock.status, "INVALID");
+      assert.equal(j.run, "INVALID");
+    });
+
+    it("setupRequest chỉ gọi S-1 lần -> INVALID", () => {
+      const j = e2("v1", { inStock: { setupCalls: E2_S - 1 } });
+      assert.equal(j.inStock.status, "INVALID");
+      assert.equal(j.run, "INVALID");
+    });
+
+    it("số id khác nhau ít hơn số request -> INVALID", () => {
+      const j = e2("v2", { soldOut: { distinctIds: E2_M - 1 } });
+      assert.equal(j.soldOut.status, "INVALID");
+    });
+
+    it("distinctUsers ≠ orders -> INVALID", () => {
+      const j = e2("v1", { inStock: { stats: { distinctUsers: E2_S - 1 } } });
+      assert.equal(j.inStock.status, "INVALID");
+    });
+
+    it("v2 reconcile n/a -> INVALID trên dòng sold_out", () => {
+      const j = e2("v2", { reconcile: "n/a" });
+      assert.equal(j.inStock.status, "VALID");
+      assert.equal(j.soldOut.status, "INVALID");
+      assert.equal(j.run, "INVALID");
+    });
+
+    it("INVALID được xét trước FAIL", () => {
+      const j = e2("v1", {
+        inStock: { counts: { s201: E2_S - 1, s401: 1 }, stats: { orders: E2_S + 1, distinctUsers: E2_S + 1, oversold: 1 } },
+      });
+      assert.equal(j.inStock.status, "INVALID");
+    });
+  });
+
+  describe("combineE2", () => {
+    it("rỗng -> INVALID", () => assert.equal(combineE2([]), "INVALID"));
+    it("[VALID, FAIL] -> FAIL", () => assert.equal(combineE2(["VALID", "FAIL"]), "FAIL"));
+    it("[VALID, INVALID] -> INVALID", () => assert.equal(combineE2(["VALID", "INVALID"]), "INVALID"));
+    it("[FAIL, INVALID] -> INVALID", () => assert.equal(combineE2(["FAIL", "INVALID"]), "INVALID"));
+    it("[VALID] -> VALID", () => assert.equal(combineE2(["VALID"]), "VALID"));
+  });
+
   describe("judgeE1Run: biên PASS/FAIL", () => {
     for (const mode of ["v1", "v2"] as const) {
       it(`${mode}: orders đúng totalQty, không bán quá -> PASS`, () => {

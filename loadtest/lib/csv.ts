@@ -73,6 +73,36 @@ export const E3_COLUMNS = [
   "note",
 ] as const;
 
+/**
+ * Cột của e2.csv, đã đóng băng (D-26): một dòng cho mỗi (lượt x pha), phase là in_stock hoặc sold_out.
+ * Biểu đồ WEB-08 và phân tích DOC-02 ở Phase 5 đọc đúng các cột này.
+ */
+export const E2_COLUMNS = [
+  ...ENV_COLUMNS,
+  "connections",
+  "mode",
+  "run",
+  "phase",
+  "requests",
+  "totalQty",
+  "durationMs",
+  "rps",
+  "p50Ms",
+  "p95Ms",
+  "p99Ms",
+  "meanMs",
+  "maxMs",
+  "s201",
+  "s409SoldOut",
+  "s409AlreadyBought",
+  "s5xx",
+  "connErrors",
+  "timeouts",
+  "realErrors",
+  "status",
+  "note",
+] as const;
+
 /** Ký tự đầu khiến bảng tính hiểu ô là công thức (chặn CSV formula injection). */
 const FORMULA_START = new Set(["=", "+", "-", "@"]);
 const NEEDS_QUOTES = /[",\r\n]/;

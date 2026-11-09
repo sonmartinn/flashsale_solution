@@ -5,10 +5,14 @@ import {
   ConfigError,
   E1_DEFAULTS,
   E1_USAGE,
+  E2_DEFAULTS,
+  E2_USAGE,
+  E2_WARMUP,
   E3_REQUESTS,
   E3_STOCK,
   E3_USAGE,
   parseE1Args,
+  parseE2Args,
   parseE3Args,
 } from "../lib/config.js";
 
@@ -193,6 +197,97 @@ describe("config.test", () => {
 
     it("dòng cách dùng E3 nhắc đúng lệnh", () => {
       assert.match(E3_USAGE, /^Cách dùng: npm run e3 -- /);
+    });
+  });
+
+  describe("parseE2Args", () => {
+    it("không có tham số: 5 lượt, S = M = 5000, connection 100,300,500, không smoke", () => {
+      assert.deepEqual(parseE2Args([], {}), {
+        baseUrl: "http://127.0.0.1:5000",
+        saleId: null,
+        runs: 5,
+        adminEmail: "admin@flashsale.local",
+        adminPassword: "matkhau123",
+        stock: 5000,
+        soldoutRequests: 5000,
+        connections: [100, 300, 500],
+        smoke: false,
+      });
+    });
+
+    it("hằng số mặc định và cỡ khởi động", () => {
+      assert.deepEqual(E2_DEFAULTS, { runs: 5, stock: 5000, soldoutRequests: 5000, connections: [100, 300, 500] });
+      assert.equal(E2_WARMUP, 1000);
+    });
+
+    it("--stock 999 bị từ chối khi không có --smoke", () => {
+      assert.throws(() => parseE2Args(["--stock", "999"], {}), ConfigError);
+    });
+
+    it("--stock 999 được nhận khi có --smoke", () => {
+      const cfg = parseE2Args(["--smoke", "--stock", "999"], {});
+      assert.equal(cfg.stock, 999);
+      assert.equal(cfg.smoke, true);
+    });
+
+    it("--connections 100 bị từ chối khi không có --smoke", () => {
+      assert.throws(() => parseE2Args(["--connections", "100"], {}), ConfigError);
+    });
+
+    it("--connections bằng đúng danh sách mặc định được nhận khi không có --smoke", () => {
+      assert.deepEqual(parseE2Args(["--connections", "100,300,500"], {}).connections, [100, 300, 500]);
+    });
+
+    it("--runs 1 bị từ chối khi không có --smoke", () => {
+      assert.throws(() => parseE2Args(["--runs", "1"], {}), ConfigError);
+    });
+
+    it("--runs 7 và --stock 6000 được nhận khi không có --smoke", () => {
+      const cfg = parseE2Args(["--runs", "7", "--stock", "6000"], {});
+      assert.equal(cfg.runs, 7);
+      assert.equal(cfg.stock, 6000);
+    });
+
+    it("--smoke --stock 50 --connections 100 bị từ chối (số request nhỏ hơn số connection)", () => {
+      assert.throws(() => parseE2Args(["--smoke", "--stock", "50", "--connections", "100"], {}), ConfigError);
+    });
+
+    it("--smoke --soldout-requests 50 --connections 100 bị từ chối", () => {
+      assert.throws(
+        () => parseE2Args(["--smoke", "--soldout-requests", "50", "--connections", "100"], {}),
+        ConfigError,
+      );
+    });
+
+    it("--stock 400 với mức 500 connection mặc định bị từ chối kể cả khi smoke", () => {
+      assert.throws(() => parseE2Args(["--smoke", "--stock", "400"], {}), ConfigError);
+    });
+
+    for (const bad of ["100,abc", "0", "", "100,", "1001", "100,100"]) {
+      it(`--connections "${bad}" bị từ chối`, () => {
+        assert.throws(() => parseE2Args(["--smoke", "--connections", bad], {}), ConfigError);
+      });
+    }
+
+    it("--smoke --runs 2 --stock 1000 --soldout-requests 1000 --connections 100,500 được nhận", () => {
+      const cfg = parseE2Args(
+        ["--smoke", "--runs", "2", "--stock", "1000", "--soldout-requests", "1000", "--connections", "100,500"],
+        {},
+      );
+      assert.equal(cfg.runs, 2);
+      assert.equal(cfg.stock, 1000);
+      assert.equal(cfg.soldoutRequests, 1000);
+      assert.deepEqual(cfg.connections, [100, 500]);
+      assert.equal(cfg.smoke, true);
+    });
+
+    it("từ chối --smoke=giatri và cờ lạ", () => {
+      assert.throws(() => parseE2Args(["--smoke=yes"], {}), ConfigError);
+      assert.throws(() => parseE2Args(["--users", "10"], {}), ConfigError);
+    });
+
+    it("dòng cách dùng E2 nhắc đúng lệnh", () => {
+      assert.match(E2_USAGE, /^Cách dùng: npm run e2 -- /);
     });
   });
 });

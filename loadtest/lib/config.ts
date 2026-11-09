@@ -1,4 +1,4 @@
-// Cấu hình dòng lệnh của E1 và E3 (D-03, D-17, D-19).
+// Cấu hình dòng lệnh của E1, E2 và E3 (D-03, D-17, D-19, D-21, D-24).
 //
 // Hàm thuần: nhận argv và env làm tham số, không tự đọc biến môi trường toàn cục, nên test không phụ
 // thuộc máy chạy. Kịch bản truyền env của tiến trình vào. Tham số sai bị từ chối trước khi bắn tải.
@@ -31,6 +31,17 @@ export interface E1Config extends CommonConfig {
 
 export type E3Config = CommonConfig;
 
+export interface E2Config extends CommonConfig {
+  /** S: tồn kho mỗi lượt = số request của pha in_stock (D-21) */
+  stock: number;
+  /** M: số request của pha sold_out (D-21) */
+  soldoutRequests: number;
+  /** Các mức connection, đo theo đúng thứ tự này (D-24) */
+  connections: number[];
+  /** Chạy thử: cho phép cấu hình nhỏ, mọi dòng CSV ghi "smoke" (D-33) */
+  smoke: boolean;
+}
+
 /** Nguồn biến môi trường: env của tiến trình do kịch bản truyền vào, hoặc object giả trong test. */
 export type EnvSource = Readonly<Record<string, string | undefined>>;
 
@@ -40,6 +51,23 @@ export const E1_DEFAULTS = { runs: 5, users: 1000, stock: 100 } as const;
 export const E3_STOCK = 100;
 export const E3_REQUESTS = 10;
 const E3_DEFAULT_RUNS = 5;
+
+/** Mặc định của E2: 5 lượt đo mỗi mode mỗi mức, S = M = 5000, connection 100 -> 300 -> 500 (D-21, D-22, D-24). */
+export const E2_DEFAULTS = {
+  runs: 5,
+  stock: 5000,
+  soldoutRequests: 5000,
+  connections: [100, 300, 500],
+} as const;
+/** Cỡ lượt khởi động không ghi CSV trước mỗi khối (mức connection x mode): S = M = 1000 (D-24). */
+export const E2_WARMUP = 1000;
+/** S tối thiểu khi không có --smoke (SPECS §10: tồn kho >= 1000). */
+const E2_MIN_STOCK = 1000;
+const E2_MAX_CONNECTIONS = 1000;
+
+export const E2_USAGE =
+  "Cách dùng: npm run e2 -- [--runs n] [--stock n] [--soldout-requests n] [--sale id] [--base-url url] " +
+  "[--smoke [--connections 100,500]]";
 
 export const E1_USAGE =
   "Cách dùng: npm run e1 -- [--runs n] [--users n] [--stock n] [--sale id] [--base-url url]";
@@ -55,7 +83,7 @@ const USERS_MIN = 2;
 const USERS_MAX = 100_000;
 const STOCK_MAX = 1_000_000;
 
-type OptionSpec = Record<string, { type: "string" }>;
+type OptionSpec = Record<string, { type: "string" } | { type: "boolean" }>;
 
 /**
  * parseArgs ở chế độ strict (từ chối cờ lạ và tham số vị trí), bọc lỗi tiếng Anh thành ConfigError
@@ -66,7 +94,9 @@ function parseStrict(argv: string[], options: OptionSpec): Record<string, string
     const { values } = parseArgs({ args: argv, options, strict: true, allowPositionals: false });
     const out: Record<string, string | undefined> = {};
     for (const [key, value] of Object.entries(values)) {
-      out[key] = typeof value === "string" ? value : undefined;
+      // Cờ boolean (ví dụ --smoke) có mặt thì thành "true"; cờ chuỗi giữ nguyên giá trị
+      if (typeof value === "string") out[key] = value;
+      else if (value === true) out[key] = "true";
     }
     return out;
   } catch (err) {
@@ -168,4 +198,69 @@ export function parseE3Args(argv: string[], env: EnvSource): E3Config {
     runs: { type: "string" },
   });
   return parseCommon(values, env, E3_DEFAULT_RUNS);
+}
+
+/** Danh sách connection "100,300,500": mỗi phần tử là số nguyên 1..1000, không trùng. */
+function parseConnections(raw: string): number[] {
+  const parts = raw.split(",");
+  const out: number[] = [];
+  for (const part of parts) {
+    const value = parseBoundedInt("connections", part.trim(), 1, E2_MAX_CONNECTIONS);
+    if (out.includes(value)) throw new ConfigError(`--connections có giá trị trùng: ${value}`);
+    out.push(value);
+  }
+  return out;
+}
+
+/**
+ * Cấu hình E2: --base-url, --sale, --runs, --stock, --soldout-requests, --connections, --smoke (D-21, D-24).
+ * Cấu hình nhỏ hơn chuẩn (stock < 1000, runs < 5, danh sách connection khác mặc định) chỉ được phép khi có
+ * --smoke. Mỗi pha cần ít nhất bằng số connection lớn nhất, vì autocannon ném lỗi khi amount < connections.
+ */
+export function parseE2Args(argv: string[], env: EnvSource): E2Config {
+  const values = parseStrict(argv, {
+    "base-url": { type: "string" },
+    sale: { type: "string" },
+    runs: { type: "string" },
+    stock: { type: "string" },
+    "soldout-requests": { type: "string" },
+    connections: { type: "string" },
+    smoke: { type: "boolean" },
+  });
+  const common = parseCommon(values, env, E2_DEFAULTS.runs);
+  const smoke = values["smoke"] === "true";
+  const rawStock = values["stock"];
+  const rawSoldout = values["soldout-requests"];
+  const rawConnections = values["connections"];
+  const stock = rawStock === undefined ? E2_DEFAULTS.stock : parseBoundedInt("stock", rawStock, 1, STOCK_MAX);
+  const soldoutRequests =
+    rawSoldout === undefined
+      ? E2_DEFAULTS.soldoutRequests
+      : parseBoundedInt("soldout-requests", rawSoldout, 1, STOCK_MAX);
+  const connections = rawConnections === undefined ? [...E2_DEFAULTS.connections] : parseConnections(rawConnections);
+
+  const isDefaultList =
+    connections.length === E2_DEFAULTS.connections.length &&
+    connections.every((c, i) => c === E2_DEFAULTS.connections[i]);
+  if (!smoke) {
+    if (stock < E2_MIN_STOCK) {
+      throw new ConfigError(`--stock (${stock}) nhỏ hơn ${E2_MIN_STOCK} chỉ được phép khi chạy thử với --smoke`);
+    }
+    if (common.runs < E2_DEFAULTS.runs) {
+      throw new ConfigError(`--runs (${common.runs}) nhỏ hơn ${E2_DEFAULTS.runs} chỉ được phép khi chạy thử với --smoke`);
+    }
+    if (!isDefaultList) {
+      throw new ConfigError(
+        `--connections khác ${E2_DEFAULTS.connections.join(",")} chỉ được phép khi chạy thử với --smoke`,
+      );
+    }
+  }
+  const maxConnections = Math.max(...connections);
+  if (stock < maxConnections) {
+    throw new ConfigError(`--stock (${stock}) phải >= số connection lớn nhất (${maxConnections})`);
+  }
+  if (soldoutRequests < maxConnections) {
+    throw new ConfigError(`--soldout-requests (${soldoutRequests}) phải >= số connection lớn nhất (${maxConnections})`);
+  }
+  return { ...common, stock, soldoutRequests, connections, smoke };
 }

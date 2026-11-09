@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import {
   E1_COLUMNS,
+  E2_COLUMNS,
   E3_COLUMNS,
   ENV_COLUMNS,
   createCsvWriter,
@@ -26,6 +27,12 @@ const E3_HEADER =
   "session,date,gitCommit,nodeVersion,os,cpuModel,cpuCount,totalMemGB,maxPoolSize," +
   "run,mode,requests,totalQty,s201,s409SoldOut,s409AlreadyBought,sOther,realErrors,userOrders," +
   "finalStock,expectedStock,stockLeak,reconcile,status,note";
+
+/** Tiêu đề e2.csv đã đóng băng (D-26), viết tay: biểu đồ WEB-08 và phân tích DOC-02 đọc đúng các cột này. */
+const E2_HEADER =
+  "session,date,gitCommit,nodeVersion,os,cpuModel,cpuCount,totalMemGB,maxPoolSize," +
+  "connections,mode,run,phase,requests,totalQty,durationMs,rps,p50Ms,p95Ms,p99Ms,meanMs,maxMs," +
+  "s201,s409SoldOut,s409AlreadyBought,s5xx,connErrors,timeouts,realErrors,status,note";
 
 describe("csv.test", () => {
   const cases: Array<[CsvValue, string]> = [
@@ -68,6 +75,11 @@ describe("csv.test", () => {
 
   it("formatRow ném lỗi khi thiếu cột", () => {
     assert.throws(() => formatRow(["a", "b"], { a: 1 }), /thiếu cột "b"/);
+  });
+
+  it("tiêu đề E2 khớp đúng chuỗi đã đóng băng (D-26)", () => {
+    assert.equal(E2_COLUMNS.join(","), E2_HEADER);
+    assert.deepEqual(E2_COLUMNS.slice(0, ENV_COLUMNS.length), [...ENV_COLUMNS]);
   });
 
   it("tiêu đề E1 và E3 khớp đúng chuỗi đã đóng băng", () => {

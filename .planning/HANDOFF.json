@@ -1,0 +1,47 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-11-11T08:52:11.510Z",
+  "handoff_to": "Codex CLI on the same machine (GSD 1.20.0, --codex --local install)",
+  "phase": "03",
+  "phase_name": "Experiments (E1-E4)",
+  "phase_dir": ".planning/phases/03-experiments-e1-e4",
+  "plan": 5,
+  "task": 2,
+  "total_tasks": 2,
+  "status": "paused",
+  "completed_tasks": [
+    {"id": 1, "name": "03-05 Task 1: Tracer — measurement procedure in loadtest/README.md, every smoke command runs and exits 0", "status": "done", "commit": "8b008d2"},
+    {"id": 2, "name": "03-05 Task 2 (checkpoint:human-action): official E1, E3, E2 sessions, commit the three summary CSVs", "status": "done_by_user_unverified", "commit": "e07e0db", "progress": "User committed loadtest/results/e1.csv (16 lines), e2.csv (61 lines), e3.csv (11 lines) on 2026-11-09, session 20261109T145341Z-5c35, gitCommit 030d691. Step 8 of the task only allows the commit when verdicts are PASS, PASS, VALID. The checkpoint's <verification>/<acceptance_criteria> have NOT been run by an agent and 03-05-SUMMARY.md does not exist."}
+  ],
+  "remaining_tasks": [
+    {"id": "03-05/verify", "name": "Run 03-05 Task 2 verification + acceptance criteria against the committed CSVs, then write and commit 03-05-SUMMARY.md", "status": "not_started"},
+    {"id": "03-06/1", "name": "03-06 Task 1: Tracer — npm run e4 stops MongoDB mid-sale on V2, restarts it, reconciles, applies the --fix runbook and writes the verdict row", "status": "not_started"},
+    {"id": "03-06/2", "name": "03-06 Task 2: E4 rules, flags, drift parsing and header unit-tested; README documents E4 and its runbook", "status": "not_started"},
+    {"id": "03-06/3", "name": "03-06 Task 3 (checkpoint:human-action): official E4 run on the user's machine, commit e4.csv", "status": "not_started"},
+    {"id": "03-verify", "name": "Phase 03 verification (code review, verifier, VERIFICATION.md)", "status": "not_started"},
+    {"id": "01-verify", "name": "Phase 01 re-verification: VERIFICATION.md is stale (backend/package.json, backend/scripts/reset.ts, backend/src/server.ts, backend/test/helpers.ts changed)", "status": "not_started"},
+    {"id": "02-verify", "name": "Phase 02 re-verification: VERIFICATION.md is stale", "status": "not_started"}
+  ],
+  "blockers": [
+    {"description": "Docker containers flashsale-mongo and flashsale-redis are not running", "type": "technical", "workaround": "From the repo root: docker compose up -d --wait (binds 127.0.0.1 only). Never docker compose down -v."}
+  ],
+  "async_jobs": [],
+  "human_actions_pending": [
+    {"action": "Install GSD 1.20.0 for Codex: npx -y @opengsd/gsd-core@1.20.0 --codex --local --profile=full (run it yourself; agents must not install software)", "context": "The Claude install under .claude/ is gitignored and Claude-specific; Codex needs its own copy. After installing, check that AGENTS.md and .gitignore were not overwritten.", "blocking": true},
+    {"action": "Update .claude/CLAUDE.md (user-owned): start:test is now 'npm run build && dotenv run -q --override -f .env.test -- node dist/server.js', not 'node --env-file=.env.test'", "context": "Flagged by 01-09-SUMMARY; agents must not edit this file", "blocking": false},
+    {"action": "Official E4 run (03-06 Task 3) on the operator machine once 03-06 Tasks 1-2 are done", "context": "D-33: official measurements happen only on the user's machine", "blocking": true},
+    {"action": "Decide what to do with 5 leftover agent worktrees under .claude/worktrees/ (one, agent-a0eddd2f1d095e170, holds an uncommitted edit to backend/src/services/purchase.service.ts)", "context": "User chose to keep them for now", "blocking": false}
+  ],
+  "decisions": [
+    {"decision": "Hand off to Codex CLI on this machine; develop is not pushed (193 commits ahead of origin/develop)", "rationale": "User choice 2026-11-11; no push needed for a local tool", "phase": "03"},
+    {"decision": "Keep using the GSD workflow (.planning/) under Codex", "rationale": "User choice 2026-11-11", "phase": "03"},
+    {"decision": "Keep leftover agent worktrees untouched and document them", "rationale": "User choice 2026-11-11", "phase": "03"},
+    {"decision": "Cut order if time runs short: E4 -> web live chart -> admin page -> polling", "rationale": "PROJECT constraints; code freeze 2026-12-06", "phase": "03"}
+  ],
+  "uncommitted_files": [
+    " M .planning/config.json",
+    "?? .planning/state.json"
+  ],
+  "next_action": "Install GSD for Codex, start Docker, then run the GSD execute-phase workflow for phase 03. Its safe-resume gate will stop on 03-05 (commits present, SUMMARY missing): choose 'close out manually' — verify the committed CSVs against 03-05 Task 2 acceptance criteria and write 03-05-SUMMARY.md — then continue with 03-06.",
+  "context_notes": "Phases 01 and 02 are fully executed (all SUMMARYs present) but their VERIFICATION.md reports are stale; re-running execute-phase on each resumes at the verification gates. jq is not installed on this machine (use node for JSON). Port 27017 is a Windows MongoDB service: always use 127.0.0.1:27018. Measurements run on npm run start:test (compiled JS), never on dev."
+}

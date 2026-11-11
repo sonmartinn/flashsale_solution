@@ -14,3 +14,6 @@ loadtest/results/*
 # (bộ cài ghi cứng đường dẫn tuyệt đối của từng máy). Chỉ chia sẻ CLAUDE.md.
 .claude/*
 !.claude/CLAUDE.md
+
+# Bộ cài GSD cho Codex (npx ... --codex --local): cũng ghi cứng đường dẫn máy, không đưa lên git.
+.codex/

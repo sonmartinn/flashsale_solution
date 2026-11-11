@@ -15,6 +15,26 @@ findings:
     severity: warning
     disposition: open
     title: "Test mode (identity taken from `x-test-user`, no auth) is served on every network interface"
+  - id: WR-05
+    severity: warning
+    disposition: open
+    title: "Reset lỗi ở bước cuối để cache giữ trạng thái cũ dù dữ liệu đợt sale đã đổi"
+  - id: WR-06
+    severity: warning
+    disposition: open
+    title: "E1 nhận số user lớn hơn ngân sách cổng nên luôn chờ rồi INVALID trước khi bắn"
+  - id: IN-05
+    severity: info
+    disposition: open
+    title: "Boot catch blocks drop the underlying error, so non-\"not running\" failures are misreported"
+  - id: IN-06
+    severity: info
+    disposition: open
+    title: "Helper does not clear `DOTENV_*` variables, so a developer shell can break test isolation"
+  - id: IN-08
+    severity: info
+    disposition: open
+    title: "`startTestArgv` accepts spellings it cannot replay and rejects others with a wrong reason, because the allowlist and the exact-token mapping do not match dotenv's argument grammar"
   - id: IN-01
     severity: info
     disposition: open
@@ -31,22 +51,10 @@ findings:
     severity: info
     disposition: open
     title: "Generality without instantiation: `args` option of the spawn helpers has no caller"
-  - id: IN-05
-    severity: info
-    disposition: open
-    title: "Boot catch blocks drop the underlying error, so non-\"not running\" failures are misreported"
-  - id: IN-06
-    severity: info
-    disposition: open
-    title: "Helper does not clear `DOTENV_*` variables, so a developer shell can break test isolation"
   - id: IN-07
     severity: info
     disposition: open
     title: "`DOTENV_CLI` is resolved eagerly at import, so the dedicated `build.test` assertion is unreachable on failure"
-  - id: IN-08
-    severity: info
-    disposition: open
-    title: "`startTestArgv` accepts spellings it cannot replay and rejects others with a wrong reason, because the allowlist and the exact-token mapping do not match dotenv's argument grammar"
   - id: IN-09
     severity: info
     disposition: open
@@ -59,9 +67,9 @@ findings:
     severity: critical
     disposition: fixed
     title: "`nodeEnv` (banner + `/api/health`) reports \"test\" while `isTestMode` is false, which defeats the load-test preflight"
-open: 12
-total: 14
-recorded: 2026-11-07T10:36:41.116Z
+open: 14
+total: 16
+recorded: 2026-11-11T09:47:53.315Z
 ---
 
 # Phase 01: Code Review Disposition
@@ -71,15 +79,17 @@ recorded: 2026-11-07T10:36:41.116Z
 | WR-01 | warning | open | - |
 | WR-03 | warning | open | - |
 | WR-04 | warning | open | - |
-| IN-01 | info | open | - |
-| IN-02 | info | open | - |
-| IN-03 | info | open | - |
-| IN-04 | info | open | - |
+| WR-05 | warning | open | - |
+| WR-06 | warning | open | - |
 | IN-05 | info | open | - |
 | IN-06 | info | open | - |
-| IN-07 | info | open | - |
 | IN-08 | info | open | - |
-| IN-09 | info | open | - |
+| IN-01 | info | open | - (not in the current review) |
+| IN-02 | info | open | - (not in the current review) |
+| IN-03 | info | open | - (not in the current review) |
+| IN-04 | info | open | - (not in the current review) |
+| IN-07 | info | open | - (not in the current review) |
+| IN-09 | info | open | - (not in the current review) |
 | WR-02 | warning | fixed | 01-10 (VERIFICATION gap G-01-V1) (not in the current review) |
 | CR-01 | critical | fixed | 01-06 (UAT G-01-1) (not in the current review) |
 

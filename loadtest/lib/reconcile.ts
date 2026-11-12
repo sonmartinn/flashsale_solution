@@ -67,3 +67,10 @@ export function classifyReconcile(code: number | null, out: string): ReconcileOu
   if (code === 2) return "drift";
   return "invalid";
 }
+
+/** Đọc số buyer thiếu/thừa trong dòng LỆCH của reconcile; không có dòng này thì trả null. */
+export function parseReconcileDrift(out: string): { missing: number; extra: number } | null {
+  const match = /LỆCH[\s\S]*?buyers thiếu\s+(\d+)\s+\[[\s\S]*?\],\s*thừa\s+(\d+)\s+\[/u.exec(out);
+  if (match === null) return null;
+  return { missing: Number(match[1]), extra: Number(match[2]) };
+}

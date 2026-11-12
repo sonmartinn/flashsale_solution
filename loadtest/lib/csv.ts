@@ -103,6 +103,25 @@ export const E2_COLUMNS = [
   "note",
 ] as const;
 
+/** Cột của e4.csv: driftUnits phải nằm sát s5xx để so với lỗi trong lúc MongoDB mất kết nối. */
+export const E4_COLUMNS = [
+  ...ENV_COLUMNS,
+  "stopAfter201",
+  "s201",
+  "s409",
+  "s5xx",
+  "driftUnits",
+  "connErrors",
+  "ordersAfter",
+  "redisStockAfter",
+  "redisBuyersAfter",
+  "reconcile",
+  "fixApplied",
+  "reconcileAfterFix",
+  "status",
+  "note",
+] as const;
+
 /** Ký tự đầu khiến bảng tính hiểu ô là công thức (chặn CSV formula injection). */
 const FORMULA_START = new Set(["=", "+", "-", "@"]);
 const NEEDS_QUOTES = /[",\r\n]/;

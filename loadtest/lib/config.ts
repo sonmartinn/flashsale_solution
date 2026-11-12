@@ -31,6 +31,11 @@ export interface E1Config extends CommonConfig {
 
 export type E3Config = CommonConfig;
 
+export interface E4Config extends CommonConfig {
+  stock: number;
+  concurrency: number;
+}
+
 export interface E2Config extends CommonConfig {
   /** S: tồn kho mỗi lượt = số request của pha in_stock (D-21) */
   stock: number;
@@ -72,6 +77,12 @@ export const E2_USAGE =
 export const E1_USAGE =
   "Cách dùng: npm run e1 -- [--runs n] [--users n] [--stock n] [--sale id] [--base-url url]";
 export const E3_USAGE = "Cách dùng: npm run e3 -- [--runs n] [--sale id] [--base-url url]";
+export const E4_DEFAULTS = { runs: 1, stock: 1000, concurrency: 50 } as const;
+export const E4_STOP_RATIO = 0.3;
+export const E4_HOLD_MS = 5000;
+export const E4_HEALTH_TIMEOUT_MS = 90_000;
+export const E4_USAGE =
+  "Cách dùng: npm run e4 -- [--runs n] [--stock n] [--concurrency n] [--sale id] [--base-url url]";
 
 const DEFAULT_BASE_URL = "http://127.0.0.1:5000";
 /** Tài khoản admin do seed tạo (Phase 1 D-04). */
@@ -198,6 +209,25 @@ export function parseE3Args(argv: string[], env: EnvSource): E3Config {
     runs: { type: "string" },
   });
   return parseCommon(values, env, E3_DEFAULT_RUNS);
+}
+
+/** Cấu hình E4: tải vừa phải, ngắt MongoDB khi đã bán 30% tồn kho. */
+export function parseE4Args(argv: string[], env: EnvSource): E4Config {
+  const values = parseStrict(argv, {
+    "base-url": { type: "string" },
+    sale: { type: "string" },
+    runs: { type: "string" },
+    stock: { type: "string" },
+    concurrency: { type: "string" },
+  });
+  const common = parseCommon(values, env, E4_DEFAULTS.runs);
+  const stock =
+    values.stock === undefined ? E4_DEFAULTS.stock : parseBoundedInt("stock", values.stock, 10, STOCK_MAX);
+  const concurrency =
+    values.concurrency === undefined
+      ? E4_DEFAULTS.concurrency
+      : parseBoundedInt("concurrency", values.concurrency, 1, 500);
+  return { ...common, stock, concurrency };
 }
 
 /** Danh sách connection "100,300,500": mỗi phần tử là số nguyên 1..1000, không trùng. */

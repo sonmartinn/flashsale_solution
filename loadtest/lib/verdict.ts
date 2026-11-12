@@ -42,6 +42,52 @@ export interface E3Judgement extends RunJudgement {
   realErrors: number;
 }
 
+export interface E4RunInput {
+  sent: number;
+  distinctIds: number;
+  counts: ResponseCounts;
+  stats: StatsSnapshot;
+  mongoStopped: boolean;
+  reconcile: ReconcileOutcome;
+  reconcileAfterFix: ReconcileOutcome;
+  drift: { missing: number; extra: number } | null;
+  driftUnits: number | null;
+  fixExitCode: number | null;
+}
+
+/** Phán quyết E4: bán thiếu khi MongoDB chết là phát hiện dự kiến, bán quá luôn là FAIL. */
+export function judgeE4Run(input: E4RunInput): RunJudgement {
+  const invalid: string[] = [];
+  if (input.counts.s401 > 0) invalid.push(`có 401 (${input.counts.s401})`);
+  if (input.distinctIds !== input.sent) invalid.push(`số id khác nhau (${input.distinctIds}) ≠ số request (${input.sent})`);
+  if (!input.mongoStopped) invalid.push("chưa xác nhận MongoDB đã dừng");
+  if (input.stats.distinctUsers !== input.stats.orders) {
+    invalid.push(`distinctUsers (${input.stats.distinctUsers}) ≠ orders (${input.stats.orders})`);
+  }
+  if (input.reconcile === "invalid" || input.reconcileAfterFix === "invalid") {
+    invalid.push("reconcile không dùng được");
+  }
+  if (input.reconcile === "drift" && input.drift === null) invalid.push("reconcile báo lệch nhưng không đọc được số buyer");
+  if (invalid.length > 0) return { status: "INVALID", reasons: invalid };
+
+  const fail: string[] = [];
+  if (input.stats.oversold > 0) fail.push(`bán quá ${input.stats.oversold} đơn`);
+  if (input.stats.orders > input.stats.totalQty) fail.push(`orders > totalQty (${input.stats.orders}/${input.stats.totalQty})`);
+  if ((input.drift?.missing ?? 0) > 0) fail.push(`có ${input.drift?.missing} order không có buyer Redis`);
+  if (input.driftUnits !== null && input.driftUnits < 0) fail.push(`Redis hứa quá ${Math.abs(input.driftUnits)} đơn vị`);
+  if (input.fixExitCode !== 0) fail.push(`reconcile --fix thoát mã ${input.fixExitCode ?? "null"}`);
+  if (input.reconcileAfterFix !== "clean") fail.push("reconcile sau --fix không khớp");
+  if (fail.length > 0) return { status: "FAIL", reasons: fail };
+
+  const reasons: string[] = [];
+  if (input.reconcile === "drift" && input.drift !== null && input.driftUnits !== null) {
+    reasons.push(
+      `lệch chỉ theo hướng bán thiếu: ${input.driftUnits} đơn vị, ${input.drift.extra} buyer thừa; --fix đã khôi phục`,
+    );
+  }
+  return { status: "PASS", reasons };
+}
+
 /** Các lý do INVALID chung của E1 và E3 (D-13). */
 function commonInvalidReasons(
   mode: SaleMode,

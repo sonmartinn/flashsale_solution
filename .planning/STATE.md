@@ -3,11 +3,11 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Experiments (E1-E4)
 status: executing
-stopped_at: Phase 01 complete, ready to execute Phase 03
-last_updated: "2026-11-12T04:06:26.552Z"
+stopped_at: Phase 01 and 02 re-verified; Phase 03 awaits 03-05 CSV verification and summary, then 03-06 E4
+last_updated: "2026-11-12T04:24:04.783Z"
 last_activity: 2026-11-12
-last_activity_desc: Phase 01 complete, transitioned to Phase 03
-state_head: e382cbb1045565434798592457216bd366a82ebe
+last_activity_desc: Phase 02 complete, transitioned to Phase 03
+state_head: 875accd1f237e146ab187eb04301c041fbe78b0f
 progress:
   total_phases: 5
   completed_phases: 2
@@ -23,21 +23,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-09)
 
 **Core value:** Dưới tải đồng thời, V1 và V2 luôn cho đúng `totalQty` đơn thành công, mỗi người tối đa 1 đơn, còn V0 bán quá. Chứng minh lặp lại bằng thí nghiệm E1 có số liệu.
-**Current focus:** Phase 01 — Foundation (Infra, Data, Auth)
+**Current focus:** Phase 03 — Experiments (E1-E4); đóng 03-05 sau khi kiểm tra CSV, rồi làm 03-06
 
 ## Current Position
 
 Phase: 03 — Experiments (E1-E4)
 Plan: 5
 Status: Ready to execute
-Last activity: 2026-11-12 — Phase 01 complete, transitioned to Phase 03
+Last activity: 2026-11-12 — Phase 02 complete, transitioned to Phase 03
 
 Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15
+- Total plans completed: 19
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -47,6 +47,7 @@ Progress: [████░░░░░░] 40%
 |-------|-------|-------|----------|
 | 01 | 10 | - | - |
 | 02 | 5 | - | - |
+| 03 | 4 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -79,10 +80,11 @@ None yet.
 
 ### Blockers/Concerns
 
-- Code freeze 2026-12-06 (today 2026-11-09, Phases 1–2 done): Phase 3 (E1/E2 proof, never cut) must land next
-- Phase 3 and Phase 4 dev scripts are flagged for `--research-phase` before planning
+- Code freeze 2026-12-06: Phases 01–02 đã xác minh lại và đạt ngày 2026-11-12; Phase 03 còn đóng 03-05 và thực hiện 03-06
+- Phase 03 đã có nghiên cứu và kế hoạch; phần dev scripts Phase 04 vẫn cần `--research-phase` trước khi lập kế hoạch
 - Port 27017 is the Windows MongoDB service; always use `127.0.0.1:27018`
 - [Phase 2] Rủi ro đã chấp nhận ở UAT, phải ghi vào tài liệu rủi ro Phase 5: WR-01 (hoàn kho sau lỗi ghi đơn mơ hồ không phải E11000 có thể ra `totalQty+1`), WR-02 (ioredis `autoResendUnfulfilledCommands` mặc định bật, xem lại trước E4), WR-04 (`?mode=` khác `sale.mode` vượt `totalQty` qua hai kho; báo cáo nêu điều kiện "mọi lượt mua dùng đúng mode của đợt sale")
+- [Review 2026-11-12] Các cảnh báo còn mở trong 02-REVIEW.md: WR-03 (reset chồng với lượt mua đang chạy), WR-06 (reset lỗi muộn giữ cache cũ), WR-07 (E1 nhận số user vượt ngân sách cổng); chưa sửa mã nguồn hay chấp nhận thay người dùng
 - V1–V2 gap on one machine via Docker Desktop may be small (still a valid result); no Mac available for `.sh` testing
 
 ## Deferred Items
@@ -95,6 +97,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-09T10:57:37.133Z
-Stopped at: Phase 01 complete, ready to execute Phase 03
-Resume file: .planning/phases/03-experiments-e1-e4/03-CONTEXT.md
+Last session: 2026-11-12T04:24:04.482Z
+Stopped at: Phase 01 and 02 re-verified; Phase 03 awaits 03-05 CSV verification and summary, then 03-06 E4
+Resume file: .planning/phases/03-experiments-e1-e4/.continue-here.md

@@ -93,3 +93,11 @@ Notes (non-blocking): only 02-03-SUMMARY has a `## Threat Flags` section (none r
 - [x] `status: verified` set in frontmatter
 
 **Approval:** verified 2026-11-08
+
+## Security Audit 2026-11-12
+
+| Metric | Count |
+|---|---|
+| Threats found | 22 |
+| Closed | 22 |
+| Open | 0 |

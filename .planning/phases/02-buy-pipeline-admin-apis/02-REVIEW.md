@@ -1,196 +1,123 @@
 ---
 phase: 02-buy-pipeline-admin-apis
-reviewed: 2026-11-08T13:06:30Z
+reviewed: 2026-11-12T04:13:18Z
 depth: standard
-files_reviewed: 32
+files_reviewed: 39
 files_reviewed_list:
-  - backend/package.json
+  - .gitattributes
+  - .gitignore
+  - AGENTS.md
   - backend/scripts/cli-args.ts
-  - backend/scripts/reconcile.ts
+  - backend/scripts/reset.ts
   - backend/src/controllers/admin.controller.ts
-  - backend/src/controllers/order.controller.ts
-  - backend/src/controllers/product.controller.ts
-  - backend/src/controllers/sale.controller.ts
-  - backend/src/routes/admin.routes.ts
-  - backend/src/routes/index.ts
-  - backend/src/routes/order.routes.ts
-  - backend/src/routes/product.routes.ts
-  - backend/src/routes/sale.routes.ts
-  - backend/src/server.ts
-  - backend/src/services/catalog.service.ts
-  - backend/src/services/lua.ts
-  - backend/src/services/order.service.ts
-  - backend/src/services/purchase.service.ts
-  - backend/src/services/reconcile.service.ts
   - backend/src/services/sale-admin.service.ts
-  - backend/src/services/sale-cache.ts
-  - backend/src/services/stock.service.ts
-  - backend/src/types/ioredis.d.ts
-  - backend/src/utils/dto.ts
-  - backend/src/utils/http-error.ts
   - backend/test/cli-args.test.ts
-  - backend/test/helpers.ts
   - backend/test/integration/admin.test.ts
-  - backend/test/integration/buy.test.ts
-  - backend/test/integration/compensation.test.ts
-  - backend/test/integration/lua.test.ts
-  - backend/test/integration/read.test.ts
-  - backend/test/integration/reconcile.test.ts
+  - backend/test/integration/harness-support.test.ts
+  - loadtest/lib/admin.ts
+  - loadtest/lib/autocannon-phase.ts
+  - loadtest/lib/classify.ts
+  - loadtest/lib/config.ts
+  - loadtest/lib/csv.ts
+  - loadtest/lib/env-info.ts
+  - loadtest/lib/histogram.ts
+  - loadtest/lib/http.ts
+  - loadtest/lib/ids.ts
+  - loadtest/lib/ports.ts
+  - loadtest/lib/preflight.ts
+  - loadtest/lib/reconcile.ts
+  - loadtest/lib/session.ts
+  - loadtest/lib/types.ts
+  - loadtest/lib/verdict.ts
+  - loadtest/package.json
+  - loadtest/scenarios/e1-correctness.ts
+  - loadtest/scenarios/e2-performance.ts
+  - loadtest/scenarios/e3-duplicate.ts
+  - loadtest/test/checks.test.ts
+  - loadtest/test/classify.test.ts
+  - loadtest/test/config.test.ts
+  - loadtest/test/csv.test.ts
+  - loadtest/test/env-info.test.ts
+  - loadtest/test/histogram.test.ts
+  - loadtest/test/ids.test.ts
+  - loadtest/test/ports.test.ts
+  - loadtest/test/verdict.test.ts
+  - loadtest/tsconfig.json
 findings:
   critical: 0
-  warning: 5
-  info: 6
-  total: 11
-  necessity: 1
+  warning: 3
+  info: 0
+  total: 3
+  necessity: 0
 status: issues_found
 ---
 
-# Phase 2: Code Review Report
+# Phase 02: Code Review Report
 
-**Reviewed:** 2026-11-08T13:06:30Z
+**Reviewed:** 2026-11-12T04:13:18Z
+
 **Depth:** standard
-**Files Reviewed:** 32
+
+**Files Reviewed:** 39
+
 **Status:** issues_found
 
 ## Summary
 
-I reviewed the Phase 2 buy pipeline (V0/V1/V2, the shared sale cache, compensation), the admin reset/stats routes, the reconcile CLI and service, the read APIs, and the new tests. I also read the collaborators they call: `middlewares/auth.ts`, `middlewares/error.ts`, `config/redis.ts`, `config/db.ts`, `models/*`, `lua/buy.lua`, and the `ioredis` 6 reconnect code in `node_modules/ioredis/built/redis/event_handler.js`.
+Rà soát nguồn theo `docs/SPECS.md`, đối chiếu PLAN/SUMMARY/CONTEXT, review và disposition cũ, UAT, PROJECT và STATE. Có ba WARNING: một vấn đề cũ WR-03 và hai vấn đề lần đầu được ghi trong báo cáo Phase 02 là WR-06/WR-07. Hai vấn đề sau đã được phát hiện trong review Phase 01 tại commit `e382cbb`; lần này kiểm tra lại các dòng nguồn liên quan, không coi chúng là hai regression mới.
 
-The main paths hold up:
-- The atomic step is correct in both V1 (`findOneAndUpdate` with `remainingQty: { $gte }` + `$inc`) and V2 (Lua script that runs `SISMEMBER`, then `GET`, then `DECRBY` + `SADD`).
-- Every input on the buy, admin and read paths is validated as a string or whitelisted: the `ObjectId` regex, the `SALE_MODES` lookup, and `qty === 1`.
-- The admin guard is applied with `router.use` ahead of every `/api/admin/*` route.
-- The buy success path writes no log.
+**Phạm vi dự phòng:** các SUMMARY Phase 02 không đổi từ commit review trước `3eed0d6024c3df89dfc84daa1775f95cea2e62f6`. Lệnh chuẩn `node .claude/gsd-core/bin/gsd-tools.cjs check evaluation-scope --phase 02 --since 3eed0d6024c3df89dfc84daa1775f95cea2e62f6 --raw` trả `status: degraded`, `reason: no-task-commits-since`, `source: phase-range`, gồm 45 đường dẫn có cả harness Phase 03. Loại lockfile, README thuần tài liệu và bốn file trong results, còn 39 file trên; không tự chọn khoảng commit khác. Không có file bị gitignore; không có structural pre-pass hoặc external reviewer lane.
 
-No blocker was found. The remaining risks sit on the edges of the "V1/V2 never oversell" guarantee:
-- Compensation treats "no order found" as proof that the write did not happen.
-- Refunds in Redis are not idempotent under ioredis's automatic resend.
-- Neither reset nor refunds are fenced against requests still in flight.
-- `?mode=` lets any logged-in user pick a different stock store than the sale uses.
+Review Phase 01 tại `e382cbb` đã đọc tập 66 file bao trùm phạm vi hiện tại; nguồn trong phạm vi không đổi từ commit đó. Dùng kết quả này làm bằng chứng bổ trợ và đọc lại mã hiện tại, nhất là admin reset, cache, compensation và các điểm gọi harness. Kết quả backend typecheck/build đạt, unit 172/172 và integration 200/200 do orchestrator cung cấp chỉ là ngữ cảnh; lần review này không chạy lại test, dịch vụ hay phép đo. Không sửa nguồn, không đọc file env bí mật hoặc worktree cũ.
 
-I also found an error-mapping mismatch that turns some internal write failures into 4xx responses. Phase 3 counts only 5xx as errors, so those failures would disappear from the error rate.
+**Rủi ro đã chấp nhận:** `02-UAT.md` hoàn tất, tests 1–3 đều pass; PROJECT và STATE xác nhận giữ WR-01 (ghi đơn mơ hồ), WR-02 (ioredis gửi lại lệnh không idempotent) và WR-04 (trộn mode qua hai kho). Không mở lại hay tính ba mục đó thành lỗi mới; Phase 05 vẫn phải ghi giới hạn này, gồm điều kiện mọi lượt mua dùng đúng mode của đợt sale và cân nhắc WR-02 trước E4. V0 bán quá, V0 không bù kho và việc không dùng transaction là thiết kế chủ ý.
+
+Đã đọc rubric necessity; không có phát hiện necessity được giữ lại.
+
+## Narrative Findings (AI reviewer)
 
 ## Warnings
 
-### WR-01: D-10 compensation can oversell on an ambiguous write, and can return another request's order
-
-**File:** `backend/src/services/purchase.service.ts:169-185` (`defaultFindOrder` at line 52)
-**Issue:** On any order-insert error other than E11000, `compensate` runs `findOne({ saleId, userId })`. If that returns `null`, it refunds stock (and for V2 removes the buyer). An empty lookup does not prove the insert failed. A `MongoNetworkError` or socket reset that arrives *after* the insert reached `mongod` leaves the insert running or committed on the server. The lookup goes out on a different pooled connection, so it can run before the insert commits. The refund then hands the unit to another user, and that is `totalQty + 1` orders: an oversell. Retryable writes do not cover this, because the deployment is a standalone `mongod`, which does not support them.
-
-The opposite case also exists. In V1, two concurrent requests from the same user both decrement stock. If request B fails with a non-E11000 error, its lookup finds request A's order, so B returns 201 with A's order and never refunds its own decrement. That leaks one unit of stock (an undersell), which is exactly what E3 checks ("tồn kho không bị rò rỉ").
-
-The comment at line 151 ("Khi không chắc chắn thì chọn bán thiếu, không bao giờ bán quá") does not hold for the first case.
-**Fix:** Refund only when the error proves no write happened. Treat everything else as ambiguous and do not refund:
-```ts
-import mongoose from "mongoose";
-function isDefinitelyNotWritten(e: unknown): boolean {
-  const m = mongoose.mongo;
-  // Fails before the command is sent, or the server explicitly rejected the write
-  return (
-    e instanceof mongoose.Error.ValidationError ||
-    e instanceof m.MongoServerSelectionError ||
-    e instanceof m.MongoWaitQueueTimeoutError ||
-    (e instanceof m.MongoServerError && e.code !== 11000)
-  );
-}
-// in compensate, for non-E11000 errors:
-if (!isDefinitelyNotWritten(err)) {
-  const existing = await findOrder(...).catch(() => null);
-  if (existing !== null) return { kind: "ok", order: toOrderDto(existing) };
-  throw err; // ambiguous: do not refund (undersell)
-}
-```
-Also record this limit in the Phase 5 docs. Replacing the D-10 wording "nếu không có đơn thì hoàn kho" (refund when no order exists) is a scope decision, so confirm it with the user first.
-
-### WR-02: Redis refund is not idempotent; ioredis automatically resends unanswered commands, which can apply INCRBY twice
-
-**File:** `backend/src/services/purchase.service.ts:108-110` (also `lua.ts:25`; client options in `backend/src/config/redis.ts:14-18`)
-**Issue:** `createRedis` keeps ioredis's default `autoResendUnfulfilledCommands: true`. In `node_modules/ioredis/built/redis/event_handler.js:313-314` and `415-421`, commands that were sent but not answered when the connection closed are copied to `prevCommandQueue` and **sent again** after reconnecting. With `maxRetriesPerRequest: 1`, the queue is flushed only when `retryAttempts % 2 === 0`, so a reconnect that succeeds on the first attempt resends the commands.
-
-Two consequences:
-- **Refund double-applied:** the bare `redis.incrby(stockKey, qty)` in the V2 E11000 branch can run twice. Stock ends at `+2` instead of `+1`, which allows one extra sale (an oversell).
-- **Buy replayed:** `flashBuy` (EVALSHA) can also be resent. The first run decremented stock and added the buyer. The resend sees `SISMEMBER == 1` and returns `-1`, so the user gets `ALREADY_BOUGHT` with no order, stays locked out, and one unit is leaked.
-**Fix:** Turn off automatic resend for this client. A failed command should surface as an error, never be replayed:
-```ts
-new Redis(url, { connectTimeout: 5000, maxRetriesPerRequest: 1, lazyConnect: true, autoResendUnfulfilledCommands: false });
-```
-If the resend behaviour has to stay, put the V2 refund in a Lua script that is safe to run twice. For example, only `INCRBY` when the `SREM` of a per-request marker returns 1.
-
 ### WR-03: Reset and refunds are not fenced against in-flight buys, so a reset can start the next run already oversold
 
-**File:** `backend/src/services/sale-admin.service.ts:81-108`; `backend/src/services/purchase.service.ts:104-118`
-**Issue:** `resetSale` runs these steps one after another, with no lock and no epoch: `$set remainingQty`, then `Order.deleteMany`, then `MULTI SET stock / DEL buyers`, then invalidate the cache. Three races follow:
-- A V2 request whose Lua script ran before the reset but whose `Order.create` lands after `deleteMany` leaves an order that the fresh Redis state (`stock = totalQty`, buyers empty) does not account for.
-- A V1 or V2 refund (`$inc remainingQty` / `INCRBY`) that lands after the reset's `$set`/`SET` raises fresh stock to `totalQty + 1`.
-- A V1 decrement that lands after the `$set` lowers it.
+**Classification:** WARNING
 
-In the next run, `stats.oversold` or the `orders` count for V1/V2 is off. That contaminates E1/E2, which are the proof of the project's core value. E2 uses autocannon, which abandons slow requests on the client side at its timeout while the server keeps processing them. So "the harness finished" does not mean "the server is idle".
-**Fix:** Pick at least one:
-- (a) Keep an in-flight counter per sale in the purchase service, and have `resetSale` (via a new dep) return 409 while it is non-zero.
-- (b) Have the Phase 3 harness wait for the server to go idle after each run, then reset, then require `stats.orders === 0 && stats.redisInSync !== false && mongoRemaining === totalQty` and a clean `npm run reconcile` before measuring.
-- (c) At minimum, print the same "chỉ chạy khi không có lượt mua" warning that `reconcile` prints, and document it on the reset route.
+**File:** `C:/Dữ liệu của ổ D/Vo Chep Bai/CSDL phi quan he/flashsale/backend/src/services/sale-admin.service.ts:102-130`; bù kho ở `backend/src/services/purchase.service.ts:104-118`.
 
-### WR-04: `?mode=` lets any authenticated user bypass the sale's stock store and oversell a V1/V2 sale
+**Issue:** Vấn đề cũ còn tồn tại, khác ba rủi ro đã được UAT chấp nhận. Reset lần lượt đặt kho MongoDB, xóa đơn và đặt lại Redis, không chặn lượt mua đang xử lý. Một lượt V2 đã chạy Lua nhưng ghi đơn sau `Order.deleteMany` để lại đơn ngoài số kho vừa nạp; hoàn kho V1/V2 đến sau reset có thể nâng kho mới lên `totalQty + 1`. Hoàn tất request ở client không chứng minh server đã xử lý xong khi client timeout. Harness hiện kiểm tra stats sau reset (`loadtest/lib/session.ts:85-91`), nhưng snapshot đó không chặn thao tác cũ đến muộn; kết thúc phiên còn gọi reset (`:97-101`).
 
-**File:** `backend/src/controllers/sale.controller.ts:56-58`, `backend/src/services/purchase.service.ts:236`
-**Issue:** The buy handler is chosen only from the query string. The sale's own `mode` is never compared. Example: on a V2 sale with `totalQty = 10`, ten buys with `?mode=v2` and then ten with `?mode=v1` (Mongo `remainingQty` is untouched by V2) produce 20 orders. `?mode=v0` also works. This needs no test mode, only a normal JWT, so any student or grader in the demo can break the "V2 never oversells" claim from the browser devtools. D-03 accepts this as a documented risk, but the guarantee in CLAUDE.md is stated without that exception.
-**Fix:** Reject a mismatch with `cfg.isTestMode === false`. The UI always sends `sale.mode`, and the load scripts run in test mode:
-```ts
-if (!deps.isTestMode && mode !== sale.mode) throw new HttpError(400, "Chế độ mua không khớp với đợt sale", "INVALID_MODE");
-```
-This needs `mode` in a cache that only reset invalidates, or one extra projection. Alternatively, record in the report that the guarantee holds only when every buy uses the sale's mode.
+**Fix:** Đồng bộ reset với đường mua theo từng sale: khi reset bắt đầu, ngăn lượt mua mới và từ chối hoặc đợi các lượt đang xử lý kết thúc trước khi ghi dữ liệu; giải phóng trạng thái trong `finally`. Nếu giữ giới hạn vận hành chỉ reset khi không có lượt mua, phải có cách xác nhận server đã hết lượt đang xử lý, đặc biệt sau timeout. Kiểm tra bằng lượt mua được giữ tại bước ghi đơn/bù kho rồi gọi reset; không cần chạy phép đo tải.
 
-### WR-05: Rethrowing the original insert error can produce a 4xx, so internal write failures leave the error-rate metric
+### WR-06: Reset lỗi ở bước cuối để cache giữ trạng thái cũ dù dữ liệu đợt sale đã đổi
 
-**File:** `backend/src/services/purchase.service.ts:81, 175, 185`; mapping in `backend/src/middlewares/error.ts:29-36`
-**Issue:** D-10 and the comments say the non-E11000 branch "ném lại lỗi gốc (500)" (rethrows the original error as a 500). `errorHandler` maps `mongoose.Error.ValidationError` to **400 VALIDATION_ERROR** and `CastError` to **400 INVALID_ID**. If `Order.create` fails validation because of a cache or data defect (for example a bad `productId`/`salePrice` in `flash_sales`), the client gets "Dữ liệu không hợp lệ" (400) for a server fault. The same happens on V0 (`insertOrder`, line 81). Under CLAUDE.md, Phase 3 counts only 5xx and connection errors in the error rate, so these failures (each of which leaks or refunds stock) would not show up in E2. The D-12 amendment already fixed the same problem for the refund branch by wrapping the error in `new Error(..., { cause })`.
-**Fix:** Wrap the original error before rethrowing on every compensation and V0 path:
-```ts
-throw new Error("Ghi đơn thất bại", { cause: err });
-```
-Keep `isDuplicateKeyError` checks on the original `err`.
+**Classification:** WARNING
 
-## Info
+**File:** `C:/Dữ liệu của ổ D/Vo Chep Bai/CSDL phi quan he/flashsale/backend/src/services/sale-admin.service.ts:102-130`; cache ở `backend/src/services/sale-cache.ts:25-36`, wiring ở `backend/src/routes/index.ts:21-24`.
 
-### IN-01: Generality without instantiation: `SaleCache.invalidate()` with no argument
+**Issue:** Sau khi FlashSale đã đổi, bất kỳ lỗi nào ở xóa đơn, Redis hoặc ghi StockMovement đều thoát trước `onSaleReset` dòng 130. Ví dụ một sale ended đã được cache: reset đặt MongoDB thành active và nạp kho xong, nhưng ghi nhật ký reset thất bại; API trả 500, các API đọc mới thấy active, còn đường mua tiếp tục từ chối vì cache ended. Cache không TTL nên sai lệch không tự hết. Không cần có lượt mua đồng thời để tái hiện; đây là nhánh lỗi riêng với WR-03. Tương ứng Phase 01 WR-05.
 
-**File:** `backend/src/services/sale-cache.ts:19-20, 68-71`
-**Category:** necessity
-**Issue:** The only production caller is `onSaleReset: saleCache.invalidate` (`routes/index.ts:24`). `sale-admin.service.ts:108` always passes a `saleId`. The "clear everything" branch is used only by `buy.test.ts:397`. No production path ever invalidates the whole cache, and `resetAllSales` resets one sale at a time.
-**Fix:** Make `saleId` required and drop the `entries.clear()` branch, or leave a comment explaining what it is kept for.
+**Fix:** Bảo đảm invalidate sau khi đã bắt đầu thao tác có thể thay đổi FlashSale, kể cả khi bước ghi hoặc bước sau báo lỗi; có thể dùng `try/finally` bao quanh các bước ghi. Giữ nguyên việc trả lỗi reset cho caller và yêu cầu reset khi server không còn lượt mua. Thêm ca làm `StockMovement.create` thất bại sau cập nhật, rồi xác nhận lần mua tiếp theo đọc lại sale hiện tại.
 
-### IN-02: `createApp` builds a V2 buy path that depends on a script registration it does not do
+### WR-07: E1 nhận số user lớn hơn ngân sách cổng nên luôn chờ rồi INVALID trước khi bắn
 
-**File:** `backend/src/routes/index.ts:22`, `backend/src/server.ts:59-60`, `backend/src/types/ioredis.d.ts:9`
-**Issue:** `redis.flashBuy` exists only after `registerBuyScript(redis)` has been called on that exact client. The type augmentation makes it look always present. Any `createApp` consumer that forgets the call gets `TypeError: redis.flashBuy is not a function`, which surfaces as a 500 on every V2 buy. That includes the `startApp` test helper, so each test file has to remember the call.
-**Fix:** Call `registerBuyScript(deps.redis)` inside `createApiRouter`/`createPurchaseService`. `defineCommand` is idempotent, so calling it there is safe. Keep the early startup read in `server.ts` for the one-line `[LỖI]` message.
+**Classification:** WARNING
 
-### IN-03: Shared `HttpError` singletons are thrown for SOLD_OUT, ALREADY_BOUGHT and STOCK_NOT_LOADED
+**File:** `C:/Dữ liệu của ổ D/Vo Chep Bai/CSDL phi quan he/flashsale/loadtest/lib/config.ts:81-84,179-184`; guard ở `loadtest/lib/ports.ts:14-16,90-98`; caller ở `loadtest/scenarios/e1-correctness.ts:114-120,240-254`.
 
-**File:** `backend/src/controllers/sale.controller.ts:12-16, 74`
-**Issue:** The same three `Error` instances are thrown for every request. Their `stack` points at module load, not the request. Any future middleware that annotates `err` (adding a request id, for example) would leak that field across requests.
-**Fix:** Store factories (`() => new HttpError(...)`) in the table, or freeze the instances.
+**Issue:** Parser nhận tới 100000 user, trong khi E1 truyền toàn bộ `cfg.users` vào guard có ngân sách cố định 10000. Với `--users 10001 --stock 100`, nếu netstat hoạt động thì ngay cả TIME_WAIT bằng 0, điều kiện cho phép chạy vẫn không thể thỏa. Harness chờ 180 giây rồi INVALID mà không gửi request. Lúc này phiên đã mở và CSV cũ đã bị ghi đè (`loadtest/lib/session.ts:63-64`); `finally` còn reset sale. Đầu vào không thể chạy đáng lẽ phải bị từ chối trước các tác động đó. Tương ứng Phase 01 WR-06; nằm trong báo cáo này vì phạm vi dự phòng chứa harness Phase 03.
 
-### IN-04: The V1 refund ignores `matchedCount` but still logs a compensation row
+**Fix:** Dùng chung giới hạn ngân sách cho parser E1 và từ chối `users > PORT_BUDGET` trước `openSession`; guard cũng nên báo ngay khi `planned > budget`. Nếu cần hỗ trợ mức lớn hơn, cho phép ngân sách cấu hình nhất quán thay vì chờ một điều kiện không thể đạt. Kiểm tra biên 10000/10001 và guard bằng đồng hồ giả, không bắn tải.
 
-**File:** `backend/src/services/purchase.service.ts:104-106, 166, 184`
-**Issue:** If the sale document is gone, `FlashSale.updateOne(... $inc ...)` matches nothing. `recordCompensation` still writes a `compensate_v1` row with `delta: +qty`, so the audit log says stock was refunded when it was not.
-**Fix:** Check `(await FlashSale.updateOne(...)).matchedCount === 1`, and throw (going through `refundFailure`) when it is not.
+## Dấu vết các phát hiện trước
 
-### IN-05: `perUserLimit` is exposed but never enforced
+Giữ nguyên ID/tiêu đề WR-03; dành WR-01/WR-02/WR-04 cho các rủi ro đã chấp nhận. Không sửa `02-REVIEW-DISPOSITION.md` trong lần review này; các dòng `open` cũ của file đó cần được đọc cùng UAT/PROJECT/STATE mới hơn.
 
-**File:** `backend/src/utils/dto.ts:96, 131`
-**Issue:** `SaleDto.perUserLimit` is returned to the UI. The buy path always enforces exactly one order per user through the unique `(saleId, userId)` index and the Lua `SISMEMBER` check. A sale stored with `perUserLimit: 2` would advertise a limit the API never applies. Today every writer sets 1 (`seed.service.ts:174` and the schema default), so the issue is latent.
-**Fix:** Drop the field from the DTO, or add a comment or assertion that it must be 1.
-
-### IN-06: Admin reset silently ignores a non-JSON body
-
-**File:** `backend/src/controllers/admin.controller.ts:47`
-**Issue:** `req.body ?? {}` turns any body without a JSON content type (for example form-encoded `mode=v1`) into `{}`. The sale is reset with its *current* mode and the API returns 200, so a harness that sent the wrong content type believes the mode changed.
-**Fix:** When `req.headers["content-length"]` is non-zero or `transfer-encoding` is set, and `req.body === undefined`, return 400 `VALIDATION_ERROR`. Alternatively, make sure the Phase 3 harness checks `sale.mode` in the response.
+WR-05 cũ không được tính lại: ví dụ trước cần dữ liệu sale bị sửa hỏng ngoài các writer hiện có để gây CastError/ValidationError ở Order.create; chưa chứng minh được trigger trong luồng đầu vào được hỗ trợ. Điều này không xác nhận mã đã sửa. IN-01..IN-06 cũ cũng không được tính lại: không chứng minh tác động hiện tại đủ để giữ thành phát hiện; riêng singleton HttpError (IN-03) là quyết định đã ghi trong PROJECT, và perUserLimit bằng 1 (IN-05) là yêu cầu SPECS. Không dùng giả định về middleware tương lai hoặc consumer quên bước khởi tạo bắt buộc để bổ sung lỗi mới.
 
 ---
 
-_Reviewed: 2026-11-08T13:06:30Z_
-_Reviewer: Claude (gsd-code-reviewer)_
+_Reviewed: 2026-11-12T04:13:18Z_
+
+_Reviewer: Codex (gsd-code-reviewer)_
+
 _Depth: standard_

@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Experiments (E1-E4)
 status: executing
-stopped_at: Phase 01 and 02 re-verified; Phase 03 awaits 03-05 CSV verification and summary, then 03-06 E4
-last_updated: "2026-11-12T04:24:04.783Z"
+stopped_at: Completed 03-05 after verifying committed E1/E2/E3 CSVs; ready for 03-06 E4
+last_updated: "2026-11-12T04:32:53.203Z"
 last_activity: 2026-11-12
-last_activity_desc: Phase 02 complete, transitioned to Phase 03
-state_head: 875accd1f237e146ab187eb04301c041fbe78b0f
+last_activity_desc: Phase 03 execution started
+state_head: e1a858282978003eb43942979ba76214b2dba069
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 21
-  completed_plans: 19
+  completed_plans: 20
   percent: 40
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-09)
 
 **Core value:** Dưới tải đồng thời, V1 và V2 luôn cho đúng `totalQty` đơn thành công, mỗi người tối đa 1 đơn, còn V0 bán quá. Chứng minh lặp lại bằng thí nghiệm E1 có số liệu.
-**Current focus:** Phase 03 — Experiments (E1-E4); đóng 03-05 sau khi kiểm tra CSV, rồi làm 03-06
+**Current focus:** Phase 03 — Experiments (E1-E4)
 
 ## Current Position
 
-Phase: 03 — Experiments (E1-E4)
-Plan: 5
+Phase: 03 (Experiments (E1-E4)) — EXECUTING
+Plan: 6 of 6
 Status: Ready to execute
-Last activity: 2026-11-12 — Phase 02 complete, transitioned to Phase 03
+Last activity: 2026-11-12 — Phase 03 execution started
 
 Progress: [████░░░░░░] 40%
 
@@ -97,6 +97,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-12T04:24:04.482Z
-Stopped at: Phase 01 and 02 re-verified; Phase 03 awaits 03-05 CSV verification and summary, then 03-06 E4
-Resume file: .planning/phases/03-experiments-e1-e4/.continue-here.md
+Last session: 2026-11-12T04:32:52.927Z
+Stopped at: Completed 03-05 after verifying committed E1/E2/E3 CSVs; ready for 03-06 E4
+Resume file: .planning/phases/03-experiments-e1-e4/03-06-PLAN.md

@@ -61,12 +61,12 @@ Nguồn yêu cầu gốc: `docs/SPECS.md`. Chi tiết kỹ thuật (tên trườ
 ### Thí nghiệm (EXP)
 
 - [ ] **EXP-01**: Thư viện dùng chung cho script tải: đăng nhập admin, reset qua API (kèm mode), đọc stats, sinh ObjectId cho `x-test-user`, ghi CSV từ Node (dấu thập phân `.`), kiểm tra điều kiện trước khi đo (server ở chế độ test, index unique tồn tại, stats ban đầu đúng `totalQty`)
-- [ ] **EXP-02**: E1 chạy bằng script Node riêng (`fetch` + `Promise.all`, tạo đủ 1.000 promise trước khi chờ): kho 100, 1.000 user khác nhau, lặp 5 lần mỗi phiên bản V0/V1/V2, reset trước mỗi lần, tự kiểm tra số user khác nhau và không có 401
-- [ ] **EXP-03**: E1 ghi CSV tổng hợp (ngày đo, cấu hình, pool, số đơn thành công, tồn kho cuối, số đơn vượt, số user khác nhau) và in kết luận PASS/FAIL/INVALID: V0 có đơn vượt, V1 và V2 đúng `totalQty` trong mọi lần; đối chiếu Redis–MongoDB sạch sau mỗi lần V2
-- [ ] **EXP-04**: E3: một user gửi 10 request đồng thời, chỉ V1 và V2; ghi CSV và kiểm tra user đó có đúng 1 đơn, tồn kho không rò rỉ
-- [ ] **EXP-05**: E2 dùng autocannon với `setupRequest` và biến đếm chung (không dùng `workers`), mỗi request một user khác nhau; kho ≥ 1.000 qua tham số; 100/300/500 kết nối, lặp ≥ 5 lần, cấu hình kết nối giống nhau giữa V1 và V2
-- [ ] **EXP-06**: E2 tự thu `responseTime` từng request để tính p50 và p95, đếm riêng 201, 409 và lỗi thật (chỉ 5xx và lỗi kết nối) từ `statusCodeStats`, đo tách giai đoạn còn hàng và giai đoạn hết hàng; ghi CSV tổng hợp lên git, file thô không lên git
-- [ ] **EXP-07**: Mỗi thí nghiệm chạy được bằng một lệnh npm và tài liệu hóa quy trình đo (`start:test`, reset trước mỗi lần, không log trong đường mua)
+- [x] **EXP-02**: E1 chạy bằng script Node riêng (`fetch` + `Promise.all`, tạo đủ 1.000 promise trước khi chờ): kho 100, 1.000 user khác nhau, lặp 5 lần mỗi phiên bản V0/V1/V2, reset trước mỗi lần, tự kiểm tra số user khác nhau và không có 401
+- [x] **EXP-03**: E1 ghi CSV tổng hợp (ngày đo, cấu hình, pool, số đơn thành công, tồn kho cuối, số đơn vượt, số user khác nhau) và in kết luận PASS/FAIL/INVALID: V0 có đơn vượt, V1 và V2 đúng `totalQty` trong mọi lần; đối chiếu Redis–MongoDB sạch sau mỗi lần V2
+- [x] **EXP-04**: E3: một user gửi 10 request đồng thời, chỉ V1 và V2; ghi CSV và kiểm tra user đó có đúng 1 đơn, tồn kho không rò rỉ
+- [x] **EXP-05**: E2 dùng autocannon với `setupRequest` và biến đếm chung (không dùng `workers`), mỗi request một user khác nhau; kho ≥ 1.000 qua tham số; 100/300/500 kết nối, lặp ≥ 5 lần, cấu hình kết nối giống nhau giữa V1 và V2
+- [x] **EXP-06**: E2 tự thu `responseTime` từng request để tính p50 và p95, đếm riêng 201, 409 và lỗi thật (chỉ 5xx và lỗi kết nối) từ `statusCodeStats`, đo tách giai đoạn còn hàng và giai đoạn hết hàng; ghi CSV tổng hợp lên git, file thô không lên git
+- [x] **EXP-07**: Mỗi thí nghiệm chạy được bằng một lệnh npm và tài liệu hóa quy trình đo (`start:test`, reset trước mỗi lần, không log trong đường mua)
 - [ ] **EXP-08** *(tùy chọn, cắt đầu tiên)*: E4: ngắt MongoDB khi đang bán V2, kiểm tra sau bù trừ Redis và `orders` khớp nhau (qua script đối chiếu), ghi CSV
 
 ### Giao diện (WEB)
@@ -161,12 +161,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ADMIN-02 | Phase 2 | Complete |
 | ADMIN-03 | Phase 2 | Complete |
 | EXP-01 | Phase 3 | Pending |
-| EXP-02 | Phase 3 | Pending |
-| EXP-03 | Phase 3 | Pending |
-| EXP-04 | Phase 3 | Pending |
-| EXP-05 | Phase 3 | Pending |
-| EXP-06 | Phase 3 | Pending |
-| EXP-07 | Phase 3 | Pending |
+| EXP-02 | Phase 3 | Complete |
+| EXP-03 | Phase 3 | Complete |
+| EXP-04 | Phase 3 | Complete |
+| EXP-05 | Phase 3 | Complete |
+| EXP-06 | Phase 3 | Complete |
+| EXP-07 | Phase 3 | Complete |
 | EXP-08 | Phase 3 | Pending |
 | WEB-01 | Phase 4 | Pending |
 | WEB-02 | Phase 4 | Pending |

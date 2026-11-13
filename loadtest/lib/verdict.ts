@@ -43,6 +43,8 @@ export interface E3Judgement extends RunJudgement {
 }
 
 export interface E4RunInput {
+  /** Tồn kho cấu hình của lượt đo, không lấy lại giới hạn từ snapshot stats. */
+  totalQty: number;
   sent: number;
   distinctIds: number;
   counts: ResponseCounts;
@@ -72,7 +74,7 @@ export function judgeE4Run(input: E4RunInput): RunJudgement {
 
   const fail: string[] = [];
   if (input.stats.oversold > 0) fail.push(`bán quá ${input.stats.oversold} đơn`);
-  if (input.stats.orders > input.stats.totalQty) fail.push(`orders > totalQty (${input.stats.orders}/${input.stats.totalQty})`);
+  if (input.stats.orders > input.totalQty) fail.push(`orders > totalQty (${input.stats.orders}/${input.totalQty})`);
   if ((input.drift?.missing ?? 0) > 0) fail.push(`có ${input.drift?.missing} order không có buyer Redis`);
   if (input.driftUnits !== null && input.driftUnits < 0) fail.push(`Redis hứa quá ${Math.abs(input.driftUnits)} đơn vị`);
   if (input.fixExitCode !== 0) fail.push(`reconcile --fix thoát mã ${input.fixExitCode ?? "null"}`);

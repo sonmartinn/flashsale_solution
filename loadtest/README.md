@@ -1,4 +1,4 @@
-# Quy trình đo tải (E1, E2, E3)
+# Quy trình đo tải (E1, E2, E3, E4)
 
 Tài liệu này là quy trình đo chính thức của đồ án (EXP-07). Ai trong nhóm, hoặc giảng viên chấm, cũng có thể làm theo để chạy lại từng thí nghiệm bằng **một lệnh** và hiểu từng con số trong file CSV kết quả.
 
@@ -9,8 +9,9 @@ Tài liệu này là quy trình đo chính thức của đồ án (EXP-07). Ai t
 | **E1 – Tính đúng** | `npm run e1` | 1.000 user khác nhau cùng mua một đợt sale còn 100 sản phẩm. V0 có bán quá không? V1 và V2 có luôn đúng 100 đơn không? |
 | **E3 – Mua trùng** | `npm run e3` | Một user gửi 10 request mua cùng lúc. V1 và V2 có giữ đúng 1 đơn/người và không rò rỉ tồn kho không? |
 | **E2 – Hiệu năng** | `npm run e2` | V1 (MongoDB nguyên tử) so với V2 (Redis + Lua): thông lượng và độ trễ ở 100, 300, 500 kết nối, đo riêng giai đoạn còn hàng và hết hàng. |
+| **E4 – Sự cố MongoDB (tùy chọn)** | `npm run e4` | Khi MongoDB dừng giữa lúc bán V2, hệ thống có giữ được giới hạn kho và runbook đối soát có khôi phục Redis không? |
 
-E4 (lỗi MongoDB giữa chừng, tùy chọn) được mô tả trong một mục riêng của tài liệu này nếu thí nghiệm đó được giữ lại.
+E4 được mô tả trong mục riêng bên dưới; đây là thí nghiệm tùy chọn và là mục cắt đầu tiên nếu thiếu thời gian.
 
 ## Chuẩn bị
 
@@ -108,7 +109,7 @@ Tồn kho (100) và số request (10 request đồng thời của cùng một us
 
 S và M phải lớn hơn hoặc bằng số kết nối lớn nhất (autocannon không chạy được khi số request nhỏ hơn số kết nối).
 
-### Biến môi trường (cả ba thí nghiệm)
+### Biến môi trường (cả bốn thí nghiệm)
 
 | Biến | Mặc định | Ý nghĩa |
 |---|---|---|
@@ -263,7 +264,7 @@ Mỗi phiên kết thúc bằng một bảng tổng hợp theo mode (E2: bảng 
 
 | Kết luận | Mã thoát | Ý nghĩa |
 |---|---|---|
-| `PASS` (E1, E3) / `VALID` (E2) | 0 | Phép đo đáng tin và khẳng định đúng. |
+| `PASS` (E1, E3, E4) / `VALID` (E2) | 0 | Phép đo đáng tin và khẳng định đúng. |
 | `FAIL` | 1 | Phép đo đáng tin nhưng khẳng định bị phá (bán quá, sai số đơn, rò rỉ tồn kho, đối soát lệch). |
 | `INVALID` | 2 | Phép đo không đáng tin: server không chạy hoặc không ở chế độ test, preflight sai, stats sau reset sai, có 401, số id gửi khác số request, `distinctUsers ≠ orders`, đối soát v2 không chạy được, hết thời gian chờ cổng; E1/E3 còn tính cả mọi lỗi thật. Tham số dòng lệnh sai cũng thoát mã 2. |
 
@@ -279,9 +280,75 @@ Mỗi phiên kết thúc bằng một bảng tổng hợp theo mode (E2: bảng 
 
 - Mỗi lần chạy `npm run eN` **ghi đè** `results/eN.csv` bằng các dòng của riêng phiên đó (chỉ sau khi preflight qua). Mỗi dòng được ghi xuống đĩa ngay khi lượt xong, nên nếu tiến trình chết giữa chừng thì các dòng đã ghi vẫn còn. Lịch sử các phiên nằm trong git.
 - `results/raw/` (JSON thô của từng lượt) bị git bỏ qua. Chỉ các file `results/*.csv` được commit.
-- Chỉ commit phiên **chính thức** (lệnh mặc định, không cờ) có kết luận `PASS` (E1, E3) hoặc `VALID` (E2). Không commit CSV của lần chạy thử: dòng E2 chạy thử có `smoke` trong `note`, dòng E1 cấu hình khác mặc định có `cấu hình không mặc định`, còn E3 chạy thử nhận ra qua số dòng ít hơn 10.
+- Chỉ commit phiên **chính thức** (lệnh mặc định, không cờ) có kết luận `PASS` (E1, E3, E4) hoặc `VALID` (E2). Không commit CSV của lần chạy thử: dòng E2 chạy thử có `smoke` trong `note`, dòng E1 cấu hình khác mặc định có `cấu hình không mặc định`, còn E3 chạy thử nhận ra qua số dòng ít hơn 10. E4 không có cờ `--smoke`: một lượt chạy thử vẫn có thể tạo CSV hai dòng giống phiên chính thức, nên người chạy phải phân biệt mục đích của phiên và không commit CSV smoke.
 - Một phiên chính thức FAIL hoặc INVALID không được thay bằng một lần chạy lại "đẹp hơn" mà không nói ra. Hãy ghi lại dòng kết luận và bảng tổng hợp của phiên đó.
 - CSV là UTF-8 **không BOM**, xuống dòng LF, dấu phẩy phân cách, dấu chấm thập phân. Mở bằng Excel qua **Data > From Text/CSV** và chọn File Origin **65001: Unicode (UTF-8)**, nếu không cột `note` tiếng Việt sẽ bị lỗi font. Trên Windows có `core.autocrlf=true`, git có thể checkout file thành CRLF; nội dung không đổi.
+
+## E4 (tùy chọn): ngắt MongoDB khi đang bán V2
+
+Giữ terminal A chạy `npm run start:test` trong `backend/`. Từ terminal B trong `loadtest/`, chạy:
+
+```
+npm run e4
+```
+
+E4 chỉ dừng container `flashsale-mongo` của dự án, không dừng dịch vụ MongoDB Windows ở cổng 27017. Redis luôn chạy; harness không bao giờ dùng `docker compose down -v`. Dừng các lượt mua khác trong lúc đo vì E4 reset đợt sale và chạy `reconcile --fix` khi kết thúc tải.
+
+### Cờ của E4
+
+| Cờ | Mặc định | Ý nghĩa |
+|---|---|---|
+| `--stock n` | 1000 | Tồn kho mỗi lượt, số nguyên từ 10 đến 1.000.000. |
+| `--concurrency n` | 50 | Số worker gửi request liên tiếp, từ 1 đến 500. |
+| `--runs n` | 1 | Số lượt thí nghiệm, từ 1 đến 100. |
+| `--sale id` | tự tìm | ObjectId của đợt sale; bỏ trống thì cần đúng một đợt sale đang mở. |
+| `--base-url url` | `http://127.0.0.1:5000` | Origin của backend; ưu tiên hơn `LOADTEST_BASE_URL`. |
+
+Ví dụ cấu hình khác mặc định: `npm run e4 -- --stock 2000 --concurrency 100 --runs 1`. Các biến admin và base URL dùng chung với E1/E2/E3. Kết quả chính thức dùng lệnh mặc định và phải do người đo chạy trên máy của mình (D-33).
+
+### Trình tự và phục hồi
+
+1. Kiểm tra test mode, tài khoản admin, unique index và container MongoDB đang chạy; chờ ngân sách cổng rồi reset V2 về kho 1000 (mặc định).
+2. Khởi động 50 worker với user khác nhau. Khi số phản hồi 201 đạt `ceil(0.3 × stock)`, gọi `docker stop flashsale-mongo`; `stopAfter201` ghi số 201 tại thời điểm phát lệnh. Nếu không đạt ngưỡng trong 120 giây thì INVALID.
+3. Tiếp tục phát tải trong 5 giây sau khi lệnh stop thành công, rồi ngừng phát request mới. **Chờ toàn bộ request đang chạy kết thúc trước khi khởi động MongoDB**, để kết quả bù trừ không phụ thuộc thời điểm restart. Timeout phía client là 30 giây/request.
+4. Gọi `docker start flashsale-mongo`, kiểm tra health mỗi 2 giây trong tối đa 90 giây. Terminal backend có thể in nhiều dòng lỗi 500 trong lúc MongoDB ngừng hoạt động; đó là hành vi dự kiến của E4 (D-30), không được tắt log hay sửa backend để làm đẹp kết quả.
+5. Đọc stats, chạy đối soát cho đúng đợt sale, sau đó `reconcile --fix` và đối soát lại. Đây là runbook SPECS §8: **phát hiện lệch → sửa Redis theo MongoDB → kiểm tra đã đồng bộ**.
+6. Ghi CSV và JSON thô, rồi reset đợt sale về mode/tổng kho ban đầu. Nếu đã phát lệnh stop mà start chưa thành công, khối `finally` thử khởi động MongoDB trở lại.
+
+Kết quả dự kiến là Redis giữ ít hàng hơn mức `totalQty - orders` và có một số buyer thừa: hệ thống bán thiếu trong sự cố; `--fix` khôi phục đồng bộ. Thời điểm sự cố cũng có thể tạo kết quả không lệch. Cả hai trường hợp được đánh giá theo bất biến bên dưới, không theo một con số drift cố định. JSON thô lưu số lượng từng mã phản hồi, cả ba đầu ra reconcile, `driftUnits`, độ trễ 5xx lớn nhất và thời gian lượt đo; có thể so độ lệch với số 5xx để phân tích kết quả thực tế.
+
+**Nếu lượt chạy bị ngắt, chạy `docker start flashsale-mongo`**, rồi dùng `docker ps` xác nhận cả `flashsale-mongo` và `flashsale-redis` đang chạy. Nếu tự khởi động lại thất bại, không tiếp tục đo cho đến khi MongoDB khỏe trở lại.
+
+### Verdict E4
+
+- **INVALID (mã 2):** có 401; id không khác nhau theo số request; chưa xác nhận MongoDB đã dừng; số user khác số đơn; reconcile trước hoặc sau fix không dùng được; hoặc báo drift nhưng không đọc được số buyer thiếu/thừa. Lỗi preflight, timeout phục hồi và tham số sai cũng làm phiên INVALID.
+- **FAIL (mã 1):** bán quá, số đơn vượt kho đã cấu hình, có đơn thiếu buyer Redis, `driftUnits < 0` (Redis hứa nhiều hàng hơn MongoDB có thể đáp ứng), `--fix` không thoát 0 hoặc đối soát sau fix vẫn chưa clean.
+- **PASS (mã 0):** không có các lỗi trên. Drift chỉ theo hướng bán thiếu được chấp nhận khi runbook đã sửa xong; note ghi số đơn vị bán thiếu và số buyer thừa. Drift trước fix của E4 tự nó không phải FAIL. Lỗi 5xx trong lúc MongoDB ngừng hoạt động là số liệu cần ghi lại, không tự làm E4 INVALID.
+
+Mỗi phiên kết thúc bằng `KẾT LUẬN E4: PASS|FAIL|INVALID — ...`. Nếu FAIL hoặc INVALID, giữ dòng kết luận và đường dẫn JSON thô để báo cáo, không commit CSV đó và không chạy lại để thay bằng một kết quả đẹp hơn mà không giải thích.
+
+### Cột e4.csv
+
+Chín cột môi trường đầu (`session`, `date`, `gitCommit`, `nodeVersion`, `os`, `cpuModel`, `cpuCount`, `totalMemGB`, `maxPoolSize`) có cùng nghĩa với các bảng CSV ở trên. Các cột tiếp theo có thứ tự cố định:
+
+| Cột | Ý nghĩa |
+|---|---|
+| `stopAfter201` | Số 201 khi bắt đầu phát lệnh dừng MongoDB. |
+| `s201` | Tổng số request tạo đơn thành công. |
+| `s409` | Tổng số 409 SOLD_OUT và ALREADY_BOUGHT. |
+| `s5xx` | Số lỗi HTTP 5xx quan sát được trong lượt. |
+| `driftUnits` | `(totalQty - orders) - redisStock`, đo sau sự cố, trước fix; dương là bán thiếu, âm là hứa quá; ô trống khi không đọc được kho Redis. |
+| `connErrors` | Lỗi kết nối cộng timeout phía client. |
+| `ordersAfter` | Số đơn trong MongoDB sau khi tải kết thúc và MongoDB phục hồi, trước fix. |
+| `redisStockAfter` | Kho Redis tại cùng snapshot trước fix. |
+| `redisBuyersAfter` | Số buyer Redis tại cùng snapshot trước fix. |
+| `reconcile` | Đối soát trước fix: `clean`, `drift`, hoặc `n/a` khi không dùng được. |
+| `fixApplied` | `yes` khi có drift và fix thoát 0; `failed` khi có drift nhưng fix thất bại; `no` khi ban đầu không drift (CLI fix vẫn được gọi). |
+| `reconcileAfterFix` | Đối soát sau fix: `clean`, `drift`, hoặc `n/a`. |
+| `status` | Verdict của lượt: PASS, FAIL hoặc INVALID. |
+| `note` | Lý do kết luận, gồm độ lệch bán thiếu nếu có. |
+
+CSV E4 mặc định có đúng hai dòng: header và một lượt đo. Lượt E4 chính thức chỉ được commit khi `status = PASS` và `reconcileAfterFix = clean`; JSON thô vẫn nằm trong `results/raw/` và được git bỏ qua.
 
 ## Giới hạn
 

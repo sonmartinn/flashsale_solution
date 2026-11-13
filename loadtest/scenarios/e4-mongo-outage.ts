@@ -176,6 +176,7 @@ async function runOnce(s: Session, cfg: E4Config, run: number): Promise<RunStatu
     m.afterOut = after.out;
     m.reconcileAfterFix = classifyReconcile(after.code, after.out);
     const judgement = judgeE4Run({
+      totalQty: cfg.stock,
       sent: m.sent,
       distinctIds: usedIds.size,
       counts: m.counts,

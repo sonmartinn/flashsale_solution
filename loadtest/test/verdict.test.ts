@@ -512,6 +512,8 @@ describe("verdict.test", () => {
       { name: "có một 401", over: { counts: { s401: 1 } } },
       { name: "MongoDB chưa được xác nhận đã dừng", over: { mongoStopped: false } },
       { name: "reconcile không dùng được", over: { reconcile: "invalid" as ReconcileOutcome } },
+      { name: "reconcile sau --fix không dùng được", over: { reconcileAfterFix: "invalid" as ReconcileOutcome } },
+      { name: "số user khác số đơn", over: { stats: { distinctUsers: 962 } } },
       { name: "reconcile báo lệch nhưng không đọc được drift", over: { drift: null } },
       { name: "số id khác request đã gửi", over: { distinctIds: 962 } },
     ]) {

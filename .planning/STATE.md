@@ -3,11 +3,11 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: Experiments (E1-E4)
 status: executing
-stopped_at: Completed 03-05 after verifying committed E1/E2/E3 CSVs; ready for 03-06 E4
-last_updated: "2026-11-12T04:32:53.203Z"
-last_activity: 2026-11-12
-last_activity_desc: Phase 03 execution started
-state_head: e1a858282978003eb43942979ba76214b2dba069
+stopped_at: "03-06 Task 3: awaiting official E4 run and CSV commit; Tasks 1-2 complete"
+last_updated: "2026-11-13T15:38:25.612Z"
+last_activity: 2026-11-13
+last_activity_desc: 03-06 Tasks 1-2 complete; awaiting official E4 operator run and CSV commit
+state_head: 0e4c7d57b99e8a0afe93f2b62e819e4d11928b53
 progress:
   total_phases: 5
   completed_phases: 2
@@ -29,15 +29,15 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 
 Phase: 03 (Experiments (E1-E4)) — EXECUTING
 Plan: 6 of 6
-Status: Ready to execute
-Last activity: 2026-11-12 — Phase 03 execution started
+Status: Awaiting human action — 03-06 Task 3, official E4 run (D-33)
+Last activity: 2026-11-13 — 03-06 Tasks 1–2 complete; 289/289 loadtest tests, typechecks and backend build passed
 
 Progress: [████░░░░░░] 40%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 19
+- Total plans completed: 20
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -47,7 +47,7 @@ Progress: [████░░░░░░] 40%
 |-------|-------|-------|----------|
 | 01 | 10 | - | - |
 | 02 | 5 | - | - |
-| 03 | 4 | - | - |
+| 03 | 5 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -80,7 +80,8 @@ None yet.
 
 ### Blockers/Concerns
 
-- Code freeze 2026-12-06: Phases 01–02 đã xác minh lại và đạt ngày 2026-11-12; Phase 03 còn đóng 03-05 và thực hiện 03-06
+- Code freeze 2026-12-06: Phases 01–02 đã xác minh lại và đạt ngày 2026-11-12; 03-05 đã đóng ở 3746cb1. Phase 03 chờ người dùng chạy E4 chính thức và commit e4.csv (03-06 Task 3, D-33), sau đó mới viết SUMMARY và xác minh phase
+- [03-06] Task 1: 6eaa9d2; Task 2 RED: df532cd, GREEN/runbook: 0e4c7d5. Kiểm thử 289/289 đạt; typecheck loadtest/backend và build backend đạt. Smoke kỹ thuật 2026-11-12 PASS, bán thiếu 76 đơn vị/76 buyer thừa, --fix và re-check clean; CSV smoke không được giữ làm kết quả chính thức
 - Phase 03 đã có nghiên cứu và kế hoạch; phần dev scripts Phase 04 vẫn cần `--research-phase` trước khi lập kế hoạch
 - Port 27017 is the Windows MongoDB service; always use `127.0.0.1:27018`
 - [Phase 2] Rủi ro đã chấp nhận ở UAT, phải ghi vào tài liệu rủi ro Phase 5: WR-01 (hoàn kho sau lỗi ghi đơn mơ hồ không phải E11000 có thể ra `totalQty+1`), WR-02 (ioredis `autoResendUnfulfilledCommands` mặc định bật, xem lại trước E4), WR-04 (`?mode=` khác `sale.mode` vượt `totalQty` qua hai kho; báo cáo nêu điều kiện "mọi lượt mua dùng đúng mode của đợt sale")
@@ -97,6 +98,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-12T04:32:52.927Z
-Stopped at: Completed 03-05 after verifying committed E1/E2/E3 CSVs; ready for 03-06 E4
-Resume file: .planning/phases/03-experiments-e1-e4/03-06-PLAN.md
+Last session: 2026-11-13T15:38:25.359Z
+Stopped at: 03-06 Task 3: awaiting official E4 run and CSV commit; Tasks 1-2 complete
+Resume file: .planning/phases/03-experiments-e1-e4/.continue-here.md

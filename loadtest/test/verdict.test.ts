@@ -11,6 +11,7 @@ import {
   judgeE1Run,
   judgeE2Run,
   judgeE3Run,
+  judgeE4Run,
   worstStatus,
   type E2PhaseInput,
 } from "../lib/verdict.js";
@@ -80,6 +81,49 @@ function e3(
     stats: stats({ ...base, ...over.stats }),
     reconcile: over.reconcile ?? (mode === "v2" ? "clean" : "n/a"),
   });
+}
+
+/** Một lượt E4 hợp lệ: MongoDB đã dừng, lệch (nếu có) chỉ theo hướng bán thiếu. */
+function e4(
+  over: {
+    totalQty?: number;
+    stats?: Partial<StatsSnapshot>;
+    counts?: Partial<ResponseCounts>;
+    sent?: number;
+    distinctIds?: number;
+    mongoStopped?: boolean;
+    reconcile?: ReconcileOutcome;
+    reconcileAfterFix?: ReconcileOutcome;
+    drift?: { missing: number; extra: number } | null;
+    driftUnits?: number | null;
+    fixExitCode?: number | null;
+  } = {},
+) {
+  const input = {
+    totalQty: over.totalQty ?? 1000,
+    sent: over.sent ?? 963,
+    distinctIds: over.distinctIds ?? 963,
+    counts: counts(over.counts),
+    stats: stats({
+      mode: "v2",
+      totalQty: 1000,
+      mongoRemaining: 37,
+      redisStock: 0,
+      redisBuyers: 1000,
+      orders: 963,
+      distinctUsers: 963,
+      oversold: 0,
+      redisInSync: false,
+      ...over.stats,
+    }),
+    mongoStopped: over.mongoStopped ?? true,
+    reconcile: over.reconcile ?? "drift",
+    reconcileAfterFix: over.reconcileAfterFix ?? "clean",
+    drift: over.drift === undefined ? { missing: 0, extra: 37 } : over.drift,
+    driftUnits: over.driftUnits ?? 37,
+    fixExitCode: over.fixExitCode ?? 0,
+  };
+  return judgeE4Run(input);
 }
 
 /** E2: S = 1000 tồn kho, M = 1000 request sold_out. */
@@ -417,6 +461,64 @@ describe("verdict.test", () => {
     it("v2 với reconcile \"invalid\" -> INVALID", () => {
       assert.equal(e3("v2", { reconcile: "invalid" }).status, "INVALID");
     });
+  });
+
+  describe("judgeE4Run", () => {
+    it("lệch bán thiếu với 37 buyer thừa, --fix sạch -> PASS kèm ghi chú", () => {
+      const judgement = e4();
+      assert.equal(judgement.status, "PASS");
+      assert.equal(judgement.reasons.length, 1);
+      assert.match(judgement.reasons[0] as string, /bán thiếu: 37 đơn vị, 37 buyer thừa/);
+    });
+
+    it("không lệch, đối soát sau --fix sạch -> PASS", () => {
+      const judgement = e4({
+        stats: { mongoRemaining: 0, redisStock: 0, redisBuyers: 1000, orders: 1000, distinctUsers: 1000 },
+        sent: 1000,
+        distinctIds: 1000,
+        reconcile: "clean",
+        drift: null,
+        driftUnits: 0,
+      });
+      assert.deepEqual(judgement, { status: "PASS", reasons: [] });
+    });
+
+    it("stats không được thay thế tồn kho cấu hình: 1001 đơn trên cấu hình 1000 -> FAIL", () => {
+      const judgement = e4({
+        totalQty: 1000,
+        sent: 1001,
+        distinctIds: 1001,
+        stats: { totalQty: 2000, mongoRemaining: 999, redisStock: 0, redisBuyers: 1001, orders: 1001, distinctUsers: 1001 },
+        reconcile: "clean",
+        drift: null,
+        driftUnits: 0,
+      });
+      assert.equal(judgement.status, "FAIL");
+    });
+
+    for (const c of [
+      { name: "bán quá 1 đơn", over: { stats: { oversold: 1 } } },
+      { name: "một order không có buyer Redis", over: { drift: { missing: 1, extra: 37 } } },
+      { name: "Redis hứa quá một đơn vị", over: { driftUnits: -1 } },
+      { name: "--fix thoát mã 2", over: { fixExitCode: 2 } },
+      { name: "đối soát sau --fix còn lệch", over: { reconcileAfterFix: "drift" as ReconcileOutcome } },
+    ]) {
+      it(`${c.name} -> FAIL`, () => {
+        assert.equal(e4(c.over).status, "FAIL");
+      });
+    }
+
+    for (const c of [
+      { name: "có một 401", over: { counts: { s401: 1 } } },
+      { name: "MongoDB chưa được xác nhận đã dừng", over: { mongoStopped: false } },
+      { name: "reconcile không dùng được", over: { reconcile: "invalid" as ReconcileOutcome } },
+      { name: "reconcile báo lệch nhưng không đọc được drift", over: { drift: null } },
+      { name: "số id khác request đã gửi", over: { distinctIds: 962 } },
+    ]) {
+      it(`${c.name} -> INVALID`, () => {
+        assert.equal(e4(c.over).status, "INVALID");
+      });
+    }
   });
 
   describe("combineRuns, worstStatus, exitCodeFor", () => {

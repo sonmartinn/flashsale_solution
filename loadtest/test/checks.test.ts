@@ -3,7 +3,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { checkHealth, checkPreRun } from "../lib/preflight.js";
-import { classifyReconcile } from "../lib/reconcile.js";
+import { classifyReconcile, parseReconcileDrift } from "../lib/reconcile.js";
 import { InvalidError, type HealthInfo, type SaleMode, type StatsSnapshot } from "../lib/types.js";
 
 const SALE_ID = "65a1b2c3d4e5f60718293a4b";
@@ -84,6 +84,17 @@ describe("checks.test", () => {
     it("mã 1 hoặc null (quá giờ, không chạy được) -> invalid", () => {
       assert.equal(classifyReconcile(1, "[LỖI] Không kết nối được MongoDB"), "invalid");
       assert.equal(classifyReconcile(null, "(v2): KHỚP"), "invalid");
+    });
+  });
+
+  describe("parseReconcileDrift", () => {
+    it("đọc số buyer thiếu và thừa từ dòng LỆCH", () => {
+      const out = "Đợt sale abc (v2): LỆCH — stock thực tế 963, mong đợi 1000; buyers thiếu 0 [], thừa 37 [a, b, ...]";
+      assert.deepEqual(parseReconcileDrift(out), { missing: 0, extra: 37 });
+    });
+
+    it("dòng KHỚP không có dữ liệu drift", () => {
+      assert.equal(parseReconcileDrift("Đợt sale abc (v2): KHỚP — stock 0 = 1000 - 1000 đơn"), null);
     });
   });
 

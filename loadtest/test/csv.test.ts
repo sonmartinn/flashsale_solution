@@ -8,6 +8,7 @@ import {
   E1_COLUMNS,
   E2_COLUMNS,
   E3_COLUMNS,
+  E4_COLUMNS,
   ENV_COLUMNS,
   createCsvWriter,
   formatCell,
@@ -33,6 +34,12 @@ const E2_HEADER =
   "session,date,gitCommit,nodeVersion,os,cpuModel,cpuCount,totalMemGB,maxPoolSize," +
   "connections,mode,run,phase,requests,totalQty,durationMs,rps,p50Ms,p95Ms,p99Ms,meanMs,maxMs," +
   "s201,s409SoldOut,s409AlreadyBought,s5xx,connErrors,timeouts,realErrors,status,note";
+
+/** Tiêu đề e4.csv đã đóng băng theo D-29 sửa đổi: driftUnits đứng ngay sau s5xx. */
+const E4_HEADER =
+  "session,date,gitCommit,nodeVersion,os,cpuModel,cpuCount,totalMemGB,maxPoolSize," +
+  "stopAfter201,s201,s409,s5xx,driftUnits,connErrors,ordersAfter,redisStockAfter,redisBuyersAfter," +
+  "reconcile,fixApplied,reconcileAfterFix,status,note";
 
 describe("csv.test", () => {
   const cases: Array<[CsvValue, string]> = [
@@ -87,6 +94,11 @@ describe("csv.test", () => {
     assert.equal(E3_COLUMNS.join(","), E3_HEADER);
     assert.deepEqual(E1_COLUMNS.slice(0, ENV_COLUMNS.length), [...ENV_COLUMNS]);
     assert.deepEqual(E3_COLUMNS.slice(0, ENV_COLUMNS.length), [...ENV_COLUMNS]);
+  });
+
+  it("tiêu đề E4 khớp đúng chuỗi đã đóng băng", () => {
+    assert.equal(E4_COLUMNS.join(","), E4_HEADER);
+    assert.deepEqual(E4_COLUMNS.slice(0, ENV_COLUMNS.length), [...ENV_COLUMNS]);
   });
 
   describe("ghi file e1.csv thật ra đĩa", () => {

@@ -11,6 +11,8 @@ import {
   E3_REQUESTS,
   E3_STOCK,
   E3_USAGE,
+  E4_DEFAULTS,
+  parseE4Args,
   parseE1Args,
   parseE2Args,
   parseE3Args,
@@ -289,5 +291,31 @@ describe("config.test", () => {
     it("dòng cách dùng E2 nhắc đúng lệnh", () => {
       assert.match(E2_USAGE, /^Cách dùng: npm run e2 -- /);
     });
+  });
+
+  describe("parseE4Args", () => {
+    it("không có tham số: dùng 1 lượt, tồn kho 1000 và 50 worker", () => {
+      assert.deepEqual(parseE4Args([], {}), {
+        baseUrl: "http://127.0.0.1:5000",
+        saleId: null,
+        runs: 1,
+        stock: 1000,
+        concurrency: 50,
+        adminEmail: "admin@flashsale.local",
+        adminPassword: "matkhau123",
+      });
+      assert.deepEqual(E4_DEFAULTS, { runs: 1, stock: 1000, concurrency: 50 });
+    });
+
+    for (const argv of [
+      ["--stock", "9"],
+      ["--concurrency", "0"],
+      ["--concurrency", "501"],
+      ["--bogus"],
+    ]) {
+      it(`từ chối ${argv.join(" ")}`, () => {
+        assert.throws(() => parseE4Args(argv, {}), ConfigError);
+      });
+    }
   });
 });

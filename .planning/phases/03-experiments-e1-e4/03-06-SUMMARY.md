@@ -34,12 +34,11 @@ key-files:
 key-decisions:
   - "D-29 amended: a pre-fix V2 drift is PASS only when it is undersell-only, has no missing Redis buyers, has no oversell, and --fix followed by a re-check is clean."
   - "D-33: the committed E4 result comes from the operator's machine; the agent technical smoke is evidence of harness execution, not the official measurement."
-  - "judgeE4Run uses the configured E4 stock, so non-default --stock runs are judged against the actual reset quantity."
+  - "judgeE4Run uses the configured E4 stock, so a stats snapshot cannot redefine the configured stock ceiling."
 patterns-established:
   - "E4 records driftUnits beside 5xx counts and preserves a raw JSON evidence file for the session."
 requirements-completed: [EXP-08]
 actuals:
-  tokens: 9683
   tasks: 3
   commits: 5
 plan_head_before: 3746cb1b5a611baa4d6792c9664920094e715a15
@@ -131,7 +130,7 @@ Checkpoint context was recorded in `a0da86d` before the operator committed the o
 
 **1. [Rule 1 - Bug] Judged E4 against the configured stock quantity**
 - **Found during:** Task 2 RED/GREEN cycle.
-- **Issue:** A non-default `--stock` reset needed the verdict to compare orders and stock against `cfg.stock`, rather than a fixed/default quantity.
+- **Issue:** The verdict compared orders against stats.totalQty, allowing a stats snapshot to redefine the stock ceiling. The RED case used 1,001 orders on configured stock 1,000 and a misleading higher stats total.
 - **Fix:** Passed the configured total quantity into `judgeE4Run` and added regression cases.
 - **Files modified:** `loadtest/lib/verdict.ts`, `loadtest/scenarios/e4-mongo-outage.ts`, `loadtest/test/verdict.test.ts`.
 - **Verification:** 289/289 loadtest tests passed on 2026-11-13.

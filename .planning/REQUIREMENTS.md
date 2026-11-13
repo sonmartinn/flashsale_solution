@@ -67,7 +67,7 @@ Nguồn yêu cầu gốc: `docs/SPECS.md`. Chi tiết kỹ thuật (tên trườ
 - [x] **EXP-05**: E2 dùng autocannon với `setupRequest` và biến đếm chung (không dùng `workers`), mỗi request một user khác nhau; kho ≥ 1.000 qua tham số; 100/300/500 kết nối, lặp ≥ 5 lần, cấu hình kết nối giống nhau giữa V1 và V2
 - [x] **EXP-06**: E2 tự thu `responseTime` từng request để tính p50 và p95, đếm riêng 201, 409 và lỗi thật (chỉ 5xx và lỗi kết nối) từ `statusCodeStats`, đo tách giai đoạn còn hàng và giai đoạn hết hàng; ghi CSV tổng hợp lên git, file thô không lên git
 - [x] **EXP-07**: Mỗi thí nghiệm chạy được bằng một lệnh npm và tài liệu hóa quy trình đo (`start:test`, reset trước mỗi lần, không log trong đường mua)
-- [ ] **EXP-08** *(tùy chọn, cắt đầu tiên)*: E4: ngắt MongoDB khi đang bán V2, kiểm tra sau bù trừ Redis và `orders` khớp nhau (qua script đối chiếu), ghi CSV
+- [x] **EXP-08** *(tùy chọn, cắt đầu tiên)*: E4: ngắt MongoDB khi đang bán V2, kiểm tra sau bù trừ Redis và `orders` khớp nhau (qua script đối chiếu), ghi CSV
 
 ### Giao diện (WEB)
 
@@ -167,7 +167,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EXP-05 | Phase 3 | Complete |
 | EXP-06 | Phase 3 | Complete |
 | EXP-07 | Phase 3 | Complete |
-| EXP-08 | Phase 3 | Pending |
+| EXP-08 | Phase 3 | Complete |
 | WEB-01 | Phase 4 | Pending |
 | WEB-02 | Phase 4 | Pending |
 | WEB-03 | Phase 4 | Pending |

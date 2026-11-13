@@ -1,86 +1,60 @@
 ---
-phase: "3"
+phase: "03"
 slug: "experiments-e1-e4"
-# status lifecycle: draft (seeded by plan-phase) → validated (set by validate-phase §6)
-# audit-milestone §5.5 distinguishes NOT-VALIDATED (draft) from PARTIAL (validated + nyquist_compliant: false) (#2117)
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: validated
+nyquist_compliant: true
+wave_0_complete: true
 created: "2026-11-09"
+updated: "2026-11-13"
 ---
 
-# Phase 3 — Validation Strategy
-
-> Per-phase validation contract for feedback sampling during execution.
-
----
+# Phase 03 Validation
 
 ## Test Infrastructure
 
-| Property | Value |
-|----------|-------|
-| **Framework** | `node:test` (Node 24) + tsx 4.23.15 loader |
-| **Config file** | none — scripts in `package.json` (loadtest scaffold is Wave 0) |
-| **Quick run command** | `cd loadtest && npm test` (pure units, no Docker) |
-| **Full suite command** | `cd backend && npm run typecheck && npm test && npm run test:int` and `cd loadtest && npm run typecheck && npm test` |
-| **Estimated runtime** | ~90 seconds (backend integration needs Docker Desktop running) |
-
----
-
-## Sampling Rate
-
-- **After every task commit:** Run `npm run typecheck` in the touched package + `cd loadtest && npm test`
-- **After every plan wave:** Run backend `npm test && npm run test:int` (Docker up) + loadtest `npm test`
-- **Before `/gsd-verify-work`:** Full suite must be green, backend `build` green, smoke e1/e3/e2 (e4 if kept) exit as expected
-- **Max feedback latency:** 90 seconds
-
----
+Node 24 node:test with tsx, strict TypeScript NodeNext. Pure loadtest suite: npm.cmd --prefix loadtest run typecheck; npm.cmd --prefix loadtest test. Current run: 289/289 passed, zero skipped/failed. Backend unit/integration coverage is tracked below and was re-run by the phase regression gate before verifier dispatch.
 
 ## Per-Task Verification Map
 
-| Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
-|---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 3-xx-xx | — | — | EXP-01 | — | ids unique/24-hex lowercase; CSV escape + number format; classify(status, code); env-info git fallback; port-guard parsing | unit | `cd loadtest && npm test` | ❌ W0 | ⬜ pending |
-| 3-xx-xx | — | — | EXP-01 (D-01) | — | reset `{totalQty}` accepts only integer 1..1000000; rejects `"100"`, 0, -1, 1.5, 1000001, true, null with 400 | integration + unit | `cd backend && npm run test:int` / `cd backend && npm test` | ❌ W0 | ⬜ pending |
-| 3-xx-xx | — | — | EXP-01 (D-07) | — | `uniqueOrderIndex` true/false (dropped, non-unique, collection missing) | integration | `cd backend && npm run test:int` | ❌ W0 | ⬜ pending |
-| 3-xx-xx | — | — | EXP-02/03 | — | E1 verdict rules (V0 oversells every run; V1/V2 exact; INVALID triggers) | unit | `cd loadtest && npm test` | ❌ W0 | ⬜ pending |
-| 3-xx-xx | — | — | EXP-04 | — | E3 verdict rules | unit | `cd loadtest && npm test` | ❌ W0 | ⬜ pending |
-| 3-xx-xx | — | — | EXP-05/06 | — | nearest-rank percentiles, rps from own timestamps, error arithmetic, E2 verdict | unit | `cd loadtest && npm test` | ❌ W0 | ⬜ pending |
-
-*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
-*Task IDs are filled in once plans exist.*
-
----
-
-## Wave 0 Requirements
-
-- [ ] `loadtest/package.json`, `loadtest/tsconfig.json`, `loadtest/test/` — framework scaffold
-- [ ] `loadtest/test/ids.test.ts`, `csv.test.ts`, `histogram.test.ts`, `http-classify.test.ts`, `verdict.test.ts`, `env-info.test.ts`, `ports.test.ts`
-- [ ] `backend/test/integration/<new>.test.ts` (Redis db 12) for D-01 + D-07
-- [ ] Edits: `backend/test/cli-args.test.ts` (`--qty` now valid), `backend/test/integration/admin.test.ts` (`STATS_KEYS`)
-
----
+| Task | Requirement | Kind | Evidence | Result |
+|------|-------------|------|----------|--------|
+| 03-01/1 | EXP-01 | tracer | backend/test/integration/harness-support.test.ts; backend/test/integration/admin.test.ts; backend/test/cli-args.test.ts | Current backend 172 unit + 200 integration tests passed |
+| 03-01/2 | EXP-01 | auto | backend/test/integration/harness-support.test.ts; backend/test/integration/admin.test.ts; backend/test/cli-args.test.ts | Current backend 172 unit + 200 integration tests passed |
+| 03-01/3 | EXP-01 | auto | backend/test/integration/harness-support.test.ts; backend/test/integration/admin.test.ts; backend/test/cli-args.test.ts | Current backend 172 unit + 200 integration tests passed |
+| 03-02/1 | EXP-01 | checkpoint:human-verify | loadtest/test/{ids,csv,env-info,classify,config,verdict,ports}.test.ts | 289/289 loadtest tests green |
+| 03-02/2 | EXP-01 | tracer | loadtest/test/{ids,csv,env-info,classify,config,verdict,ports}.test.ts | 289/289 loadtest tests green |
+| 03-02/3 | EXP-01 | auto | loadtest/test/{ids,csv,env-info,classify,config,verdict,ports}.test.ts | 289/289 loadtest tests green |
+| 03-03/1 | EXP-02, EXP-03, EXP-04 | tracer | loadtest/test/{verdict,config,checks}.test.ts; official e1.csv/e3.csv in e07e0db | Unit green; official 15 E1 PASS and 10 E3 PASS |
+| 03-03/2 | EXP-02, EXP-03, EXP-04 | auto | loadtest/test/{verdict,config,checks}.test.ts; official e1.csv/e3.csv in e07e0db | Unit green; official 15 E1 PASS and 10 E3 PASS |
+| 03-03/3 | EXP-02, EXP-03, EXP-04 | auto | loadtest/test/{verdict,config,checks}.test.ts; official e1.csv/e3.csv in e07e0db | Unit green; official 15 E1 PASS and 10 E3 PASS |
+| 03-04/1 | EXP-05, EXP-06 | tracer | loadtest/test/{histogram,classify,config,verdict}.test.ts; official e2.csv in e07e0db | Unit green; official 60 VALID rows |
+| 03-04/2 | EXP-05, EXP-06 | auto | loadtest/test/{histogram,classify,config,verdict}.test.ts; official e2.csv in e07e0db | Unit green; official 60 VALID rows |
+| 03-05/1 | EXP-02..EXP-07 | tracer | loadtest/README.md; 03-05-SUMMARY.md; official CSVs e07e0db | Procedure and checkpoint verified |
+| 03-05/2 | EXP-02..EXP-07 | checkpoint:human-action | loadtest/README.md; 03-05-SUMMARY.md; official CSVs e07e0db | Procedure and checkpoint verified |
+| 03-06/1 | EXP-08 | tracer | loadtest/test/{verdict,config,checks,csv}.test.ts; e4.csv in 8f08e3c | Unit green; official PASS, post-fix clean |
+| 03-06/2 | EXP-08 | auto | loadtest/test/{verdict,config,checks,csv}.test.ts; e4.csv in 8f08e3c | Unit green; official PASS, post-fix clean |
+| 03-06/3 | EXP-08 | checkpoint:human-action | loadtest/test/{verdict,config,checks,csv}.test.ts; e4.csv in 8f08e3c | Unit green; official PASS, post-fix clean |
 
 ## Manual-Only Verifications
 
-| Behavior | Requirement | Why Manual | Test Instructions |
-|----------|-------------|------------|-------------------|
-| E1 end-to-end smoke | EXP-02/03 | Needs Docker + `npm run start:test` running | `cd loadtest && npm run e1 -- --runs 1` |
-| E3 end-to-end smoke | EXP-04 | Needs Docker + server | `cd loadtest && npm run e3 -- --runs 1` |
-| E2 end-to-end smoke | EXP-05/06 | Needs Docker + server; long-running | `cd loadtest && npm run e2 -- --smoke --runs 1` |
-| Measurement procedure documented | EXP-07 | Documentation review | Check the procedure doc exists and lists reset, warm-up, start:test, pool size |
-| E4 Mongo outage | EXP-08 | Stops a Docker container mid-sale | `cd loadtest && npm run e4` |
-| Official runs | EXP-02..06 | Long runs on the operator machine; results committed | Run e1/e3/e2 full sessions, commit CSVs |
+| Behavior | Evidence | Status |
+|----------|----------|--------|
+| Official E1/E2/E3 measurements on operator machine (D-33) | e07e0db; 03-05-SUMMARY.md verifies frozen headers, row counts, default settings and verdicts | Verified |
+| Official E4 MongoDB outage and recovery (D-33) | 8f08e3c; exact 2-line E4 CSV, PASS/clean; matching raw session 20261113T161142Z-94ab | Verified |
+| Measurement procedure | loadtest/README.md covers reset, compiled start:test, warm-up, maxPoolSize, error formulas, all columns, E4 recovery | Verified by document inspection |
 
----
+## Sign-Off
 
-## Validation Sign-Off
+- Framework scaffold and referenced test files exist; no missing test infrastructure remains.
+- All EXP-01..EXP-08 have unit/integration or operator evidence. No unfulfilled manual checkpoint remains.
+- Commands are one-shot and contain no watch flags. Official experiment durations are outside unit feedback targets.
+- No new tests or source changes were needed for this retrospective audit. Backend regression was re-run after code review: 172 unit and 200 integration tests passed, zero skipped/failed.
+- Existing backend support tests cover reset invalid values and exact unique-index detection; the final regression gate passed before verifier dispatch.
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 90s
-- [ ] `nyquist_compliant: true` set in frontmatter
+## Validation Audit 2026-11-13
 
-**Approval:** pending
+| Metric | Count |
+|---|---|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |

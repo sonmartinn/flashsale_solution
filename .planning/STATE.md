@@ -1,38 +1,38 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 03
-current_phase_name: Experiments (E1-E4)
-status: ready_for_verification
-stopped_at: "03-06 complete; Phase 03 review and regression passed, verifier pending"
-last_updated: "2026-11-13T16:40:52.885Z"
-last_activity: 2026-11-13
-last_activity_desc: Official E4 verified; all 6 plans complete; review and regression passed
-state_head: 0e4c7d57b99e8a0afe93f2b62e819e4d11928b53
+current_phase: 4
+current_phase_name: Web App & Dev Scripts
+status: planning
+stopped_at: Phase 03 complete, ready to plan Phase 4
+last_updated: "2026-11-16T10:13:21.644Z"
+last_activity: 2026-11-16
+last_activity_desc: Phase 03 complete, transitioned to Phase 4
+state_head: 445c20903f55de885bb848a1f9c9f452e82ab88d
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 21
   completed_plans: 21
-  percent: 40
+  percent: 60
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-09)
+See: .planning/PROJECT.md (updated 2026-11-16)
 
 **Core value:** Dưới tải đồng thời, V1 và V2 luôn cho đúng `totalQty` đơn thành công, mỗi người tối đa 1 đơn, còn V0 bán quá. Chứng minh lặp lại bằng thí nghiệm E1 có số liệu.
-**Current focus:** Phase 03 — Experiments (E1-E4)
+**Current focus:** Phase 04 — Web App & Dev Scripts
 
 ## Current Position
 
-Phase: 03 (Experiments (E1-E4)) — EXECUTING
-Plan: 6 of 6
-Status: Ready for Phase 03 verification
-Last activity: 2026-11-13 ? Official E4 verified; 6/6 plans complete; review clean; 289 loadtest + 172 unit + 200 integration tests passed
+Phase: 4 — Web App & Dev Scripts
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-16 — Phase 03 complete, transitioned to Phase 4
 
-Progress: [████░░░░░░] 40%
+Progress: [██████░░░░] 60% (3/5 phases); 21/21 plans đã lập hoàn tất, Phase 04–05 chưa lập kế hoạch.
 
 ## Performance Metrics
 
@@ -62,17 +62,11 @@ Progress: [████░░░░░░] 40%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [Init]: Rebuild from scratch per `docs/SPECS.md`; old code at `40dea55` is not restored
-- [Init]: Sale mode switches via reset (`POST /admin/sales/:id/reset { mode }`, seed/CLI `--mode`); `GET /sales/:id` reads `remaining` by `sale.mode`
-- [Init]: Static sale cache shared by V0/V1/V2, cleared on reset; load scripts reset only through the admin API
-- [Init]: E1 uses a dedicated Node `fetch` + `Promise.all` script; E2 uses autocannon with self-computed p95
-- [Roadmap]: All four cuttable items stay in v1 and are planned last in their phases (cut order E4 → web chart → admin page → polling)
-- [Phase 1]: `start:test` = `dotenv run -q --override -f .env.test` (shell NODE_ENV never leaks in); health exposes `testMode`, load-script preflight must check `testMode === true`
-- [Phase 1]: Reset service is the factory `createSaleAdminService({ redis, onSaleReset })`; the Phase 2 admin route passes `saleCache.invalidate`
-- [Phase 1]: Body-less POSTs (buy, reset without mode) must omit Content-Type; zero-byte declared-JSON bodies are rejected with 400
-- [Phase 2]: V1/V2 dùng chung `insertOrderOrCompensate`; V0 không hoàn kho (D-09). Lỗi không phải E11000 tra `findOne` trước khi hoàn kho
-- [Phase 2]: Một `saleAdmin` cho mỗi app, reset qua HTTP xóa đúng cache mà đường mua đọc; stats nằm trong `createSaleAdminService`
-- [Phase 2]: Reconcile CLI thoát 0/2/1, `--fix` sửa Redis theo MongoDB bằng một `multi()` có kiểm tra kết quả
+- [Phase 3]: Script tải chỉ đo JS đã biên dịch qua `start:test`, kiểm tra `health.testMode === true` và reset qua API admin trước mỗi lượt; số liệu chính thức do người dùng chạy (D-33).
+- [Phase 3]: E2 dùng autocannon với bộ đếm user chung, tự tính p50/p95 nearest-rank và rps, đo riêng còn hàng/hết hàng; chỉ 5xx và lỗi kết nối tính là lỗi thật, không dùng tốc độ để quyết định tính đúng (D-25).
+- [Phase 3]: E4 chấp nhận lệch trước sửa theo hướng bán thiếu nếu không thiếu buyer và không bán quá; bắt buộc `reconcile --fix` rồi kiểm tra lại sạch (D-29). CSV chính thức E4 ghi 74 đơn vị lệch, không dùng số 76 của smoke làm kết quả chính thức.
+- [Phase 4]: UI mua theo `sale.mode`; `GET /sales/:id` trả `remaining` theo mode đó. POST không có body phải bỏ Content-Type; khai báo JSON nhưng gửi rỗng trả 400.
+- [Roadmap]: Giữ phạm vi và thứ tự cắt E4 → biểu đồ web → trang admin → polling; E4 đã hoàn tất. Quyết định đầy đủ và các rủi ro chấp nhận nằm trong PROJECT.md.
 
 ### Pending Todos
 
@@ -80,13 +74,14 @@ None yet.
 
 ### Blockers/Concerns
 
-- Code freeze 2026-12-06: Phases 01-02 passed re-verification; Phase 03 has 6/6 SUMMARYs, official E1-E4 data and passed review/regression; final verifier pending
-- [03-06] Task 1: 6eaa9d2; Task 2 RED: df532cd, GREEN/runbook: 0e4c7d5. Kiểm thử 289/289 đạt; typecheck loadtest/backend và build backend đạt. Smoke kỹ thuật 2026-11-12 PASS, bán thiếu 76 đơn vị/76 buyer thừa, --fix và re-check clean; CSV smoke không được giữ làm kết quả chính thức
-- Phase 03 đã có nghiên cứu và kế hoạch; phần dev scripts Phase 04 vẫn cần `--research-phase` trước khi lập kế hoạch
+- Code freeze 2026-12-06: Phase 01–03 verification passed; Phase 03 đóng ngày 2026-11-16 với 6/6 SUMMARY, 51/51 must-haves và CSV chính thức E1–E4. Phase 04–05 chưa lập kế hoạch.
+- [Phase 3] Regression 2026-11-13 đạt: 289 loadtest, 172 unit backend, 200 integration; backend/loadtest typecheck và backend build đạt. Báo cáo: `03-REGRESSION.md`, `03-VERIFICATION.md`.
+- [Phase 4] Phần dev scripts cần `--research-phase` trước khi lập kế hoạch (PowerShell 5.1, bash 3.2, tiến trình nền và kiểm tra cổng).
 - Port 27017 is the Windows MongoDB service; always use `127.0.0.1:27018`
-- [Phase 2] Rủi ro đã chấp nhận ở UAT, phải ghi vào tài liệu rủi ro Phase 5: WR-01 (hoàn kho sau lỗi ghi đơn mơ hồ không phải E11000 có thể ra `totalQty+1`), WR-02 (ioredis `autoResendUnfulfilledCommands` mặc định bật, xem lại trước E4), WR-04 (`?mode=` khác `sale.mode` vượt `totalQty` qua hai kho; báo cáo nêu điều kiện "mọi lượt mua dùng đúng mode của đợt sale")
+- [Phase 2] Rủi ro đã chấp nhận ở UAT, phải ghi vào tài liệu rủi ro Phase 5: WR-01 (hoàn kho sau lỗi ghi đơn mơ hồ không phải E11000 có thể ra `totalQty+1`), WR-02 (ioredis `autoResendUnfulfilledCommands` mặc định bật; E4 PASS không loại bỏ rủi ro gửi lại lệnh), WR-04 (`?mode=` khác `sale.mode` vượt `totalQty` qua hai kho; báo cáo nêu điều kiện "mọi lượt mua dùng đúng mode của đợt sale")
 - [Review 2026-11-12] Các cảnh báo còn mở trong 02-REVIEW.md: WR-03 (reset chồng với lượt mua đang chạy), WR-06 (reset lỗi muộn giữ cache cũ), WR-07 (E1 nhận số user vượt ngân sách cổng); chưa sửa mã nguồn hay chấp nhận thay người dùng
 - V1–V2 gap on one machine via Docker Desktop may be small (still a valid result); no Mac available for `.sh` testing
+- [Bàn giao] Giữ nguyên 5 worktree cũ trong `.claude/worktrees/`, nhất là sửa đổi chưa commit của `agent-a0eddd2f1d095e170`; không merge hay xóa khi chưa hỏi. Ghi chú `start:test` cũ trong `.claude/CLAUDE.md` do người dùng cập nhật; `backend/package.json` là chuẩn.
 
 ## Deferred Items
 
@@ -98,6 +93,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-13T15:38:25.359Z
-Stopped at: 03-06 complete; Phase 03 verifier pending
-Resume file: .planning/phases/03-experiments-e1-e4/.continue-here.md
+Last session: 2026-11-16
+Stopped at: Phase 03 complete, ready to plan Phase 4
+Resume file: None

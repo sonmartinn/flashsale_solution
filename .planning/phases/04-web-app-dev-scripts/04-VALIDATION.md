@@ -17,15 +17,15 @@ Planning contract only: commands targeting frontend or scripts are not runnable 
 |---|---|
 | Framework | Native node:test and node:assert/strict; tsx for frontend TypeScript tests |
 | Existing pattern | backend/test/build.test.ts; loadtest/test/config.test.ts |
-| Frontend configuration | New frontend/package.json, app/node/test tsconfigs in 04-01 |
+| Frontend configuration | New frontend/package.json and app/node tsconfigs in 04-01; node project includes pure test files |
 | Quick frontend command | npm.cmd --prefix frontend test |
 | Quick script command | node --test scripts/test/dev-scripts.test.mjs |
 | Focused TypeScript command | From frontend: node --import tsx --test test/sale-state.test.ts (substitute owning file) |
-| Full gate | Frontend tests/typecheck/build; script fixture suite; backend typecheck/build/test and integration suite when affected/runtime available |
+| Full gate | Frontend tests/typecheck/build; script fixture suite; backend typecheck/build plus tests through scripts/test/run-backend-checks.mjs (disposable DOTENV_CONFIG_PATH); integration when warranted |
 | Browser | agent-browser skill plus the selected design skill's own audit scripts; real dev /api proxy |
 | Feedback target | Focused tests under 30 seconds; measure during implementation |
 
-On Windows use npm.cmd; equivalent npm commands work in bash. Invoke checks separately in PowerShell 5.1 and inspect exit codes. Never run the actual start script as the agent in this workspace: it can create/read the prohibited backend/.env. Disposable fixtures may use fake configuration. A real-service UAT checkpoint is explicitly assigned to 04-04.
+On Windows use npm.cmd; equivalent npm commands work in bash. Invoke checks separately in PowerShell 5.1 and inspect exit codes. Never run the actual start script as the agent in this workspace: it can create/read the prohibited backend/.env. Disposable fixtures may use fake configuration. A real-service UAT checkpoint is explicitly assigned to 04-07. Browser smoke uses the real isolated API launcher from 04-01, which sets disposable cwd/config before importing backend modules.
 
 ## Sampling Rate
 
@@ -39,30 +39,34 @@ On Windows use npm.cmd; equivalent npm commands work in bash. Invoke checks sepa
 | Task ID | Wave | Requirements | Threat Ref | Secure behavior | Automated verification | Additional evidence |
 |---|---|---|---|---|---|---|
 | 04-01-01 | 1 | WEB-01 | T-04-01 | Official package identity before install | GSD package-legitimacy query | Human verifies SUS package versions/repositories before install |
-| 04-01-02 | 1 | WEB-01, WEB-03 | T-04-01 | Render text safely; relative /api | Frontend typecheck/build + api.test.ts | Actual proxy response on home; gate armed before creating page |
-| 04-01-03 | 1 | WEB-03 | T-04-01 | Local assets, honest product information | Frontend build + asset checks | Design checker/layout/perf, licensed six images, offline browser |
-| 04-02-01 | 2 | WEB-02, WEB-04 | T-04-02 | Current-session Bearer, internal return path | auth.test.ts + sale-state.test.ts | Real login -> one buy on sale.mode |
-| 04-02-02 | 2 | WEB-04, WEB-06 | T-04-03 | No automatic retry; current account only | sale-state.test.ts + api.test.ts | Business codes, uncertain result, own orders |
-| 04-02-03 | 2 | WEB-02, WEB-04, WEB-06 | T-04-02 | Late old-session replies discarded | Frontend test/typecheck/build | Guest/user switching, reload, clock boundaries; browser route audits |
-| 04-03-01 | 2 | DEV-01, DEV-02 | T-04-04 | Only owned launcher tree | Script fixture suite | Fake repo with spaces/accents, start -> stop -> restart |
-| 04-03-02 | 2 | DEV-01, DEV-02, DEV-04 | T-04-05 | Seed only on proven empty DB; no secret output | Script fixture suite with PS5.1 AST/encoding checks | Failed Docker/count/npm/health, reused/missing PID, partial start |
-| 04-04-01 | 3 | DEV-03, DEV-04 | T-04-06 | Isolated PGID, never caller/foreign group | Script suite + Git Bash bash -n | Runtime remains UNTESTED until macOS evidence |
-| 04-04-02 | 3 | DEV-05 | T-04-06 | Accurate validation report and git modes | Script suite + git mode/attribute checks | Manual matrix prepared from every SPECS case |
-| 04-04-03 | 3 | DEV-05 | T-04-04 | Agent does not touch real secret file | Prerequisite fixture suite, no real start by agent | User runs all real Windows tests including terminal close |
-| 04-05-01 | 4 | WEB-05 | T-04-07 | No overlapping reads or late updates | polling.test.ts with controlled scheduler | Browser delayed request, hide/show, route/account/sale change |
-| 04-05-02 | 4 | WEB-05 | T-04-07 | Stale state never becomes invented stock | Full frontend suite/typecheck/build | Retain negative stock and stockLoaded=false, manual refresh fallback |
-| 04-06-01 | 5 | WEB-07 | T-04-08 | Server-backed admin permission; honest stats | admin-state.test.ts + frontend suite | Guest/user/admin, null Redis, v0/v1 badge N/A |
-| 04-06-02 | 5 | WEB-07 | T-04-08 | Confirmed single reset and invalidated reads | admin-state.test.ts + frontend suite | Cancel/send/fail reset; pause in-flight response |
-| 04-06-03 | 5 | WEB-01..07, DEV-05 | all | Full regression and truthful evidence | Frontend/backend typecheck/build; script/behavior suites | Five-route design reports, end-of-phase browser UAT |
+| 04-01-02 | 1 | WEB-01, WEB-03 | T-04-01 | Relative /api; isolated API configuration | Frontend typecheck/build | Real proxy/home tracer; gate/deals before first page |
+| 04-02-01 | 2 | WEB-01, WEB-03 | T-04-09 | Local licensed six photos/fonts | Asset tests/typecheck/build | Actual served URLs/glyphs |
+| 04-02-02 | 2 | WEB-01, WEB-03 | T-04-09 | Honest stand-ins; no runtime CDN | Asset tests/typecheck/build | Offline browser/perf evidence |
+| 04-03-01 | 3 | WEB-01, WEB-03 | T-04-10 | Safe typed catalog and text | api.test.ts/typecheck/build | Complete home/catalog/mobile navigation |
+| 04-03-02 | 3 | WEB-01, WEB-03 | T-04-10 | Real responsive/read-state evidence | Native suite/typecheck/build | Skill checker/layout/screenshots/perf/gate |
+| 04-04-01 | 4 | WEB-02, WEB-04 | T-04-02 | Current-session Bearer, internal return path | auth.test.ts + sale-state.test.ts | Real login -> one mode-correct buy |
+| 04-04-02 | 4 | WEB-02, WEB-04 | T-04-02 | Storage/session/clock boundaries | Native suite/typecheck/build | Reload, bad storage and guest/login return |
+| 04-05-01 | 5 | WEB-04, WEB-06 | T-04-03 | No automatic retry; current-account orders | sale-state.test.ts + api.test.ts | Business codes, uncertain result, own orders |
+| 04-05-02 | 5 | WEB-02, WEB-04, WEB-06 | T-04-03 | Late old-session replies discarded | Native suite/typecheck/build | Customer route/role/clock/browser audit |
+| 04-06-01 | 4 | DEV-01, DEV-02 | T-04-04 | Exclusive lifecycle and owned tree | Script fixture suite | Accented repo start -> stop -> restart, concurrent starts |
+| 04-06-02 | 4 | DEV-01, DEV-02, DEV-04 | T-04-05 | Proven empty DB; no secret output | Script suite + PS5.1 AST/encoding | Docker/count/npm/health failure, reused/missing PID |
+| 04-07-01 | 6 | DEV-03, DEV-04 | T-04-06 | Isolated PGID, never caller/foreign group | Script suite + individual bash -n per file | macOS runtime UNTESTED unless observed |
+| 04-07-02 | 6 | DEV-05 | T-04-06 | Accurate report/git modes | Script suite + mode/attribute checks | Every SPECS real-case row prepared |
+| 04-07-03 | 6 | DEV-05 | T-04-04 | Agent never touches real secret | Green fixture prerequisite | User real Windows checklist/terminal close |
+| 04-08-01 | 7 | WEB-05 | T-04-07 | No overlapping reads or late updates | polling.test.ts + typecheck | Browser delayed/hide/route/account lifecycle |
+| 04-08-02 | 7 | WEB-05 | T-04-07 | Stale stock remains honest | Native suite/typecheck/build | Negative/missing stock and manual refresh |
+| 04-09-01 | 8 | WEB-07 | T-04-08 | Server-backed admin; honest nullable stats | admin-state.test.ts + typecheck | Roles, pause and nullable badge |
+| 04-09-02 | 8 | WEB-07 | T-04-08 | Confirmed single reset; no stale read | Native suite/build | Cancel/send/fail reset and pause race |
+| 04-09-03 | 8 | WEB-01..07, DEV-05 | all | Full regression; no actual env read | Frontend/backend typecheck/build; protected backend runner; fixture suite | Five-route skill/UI-UAT and real Windows evidence |
 
 ## Wave 0 Requirements
 
-- [ ] 04-01 creates frontend manifest/test script with tsx and compiler configs that include tests.
-- [ ] 04-01 creates frontend/test/api.test.ts and local asset verification.
-- [ ] 04-02 creates frontend/test/auth.test.ts and sale-state.test.ts.
-- [ ] 04-03 creates scripts/test/dev-scripts.test.mjs and disposable fake command/repo fixtures.
-- [ ] 04-05 creates frontend/test/polling.test.ts exercising the actual production scheduler.
-- [ ] 04-06 creates frontend/test/admin-state.test.ts.
+- [ ] 04-01 creates manifest/test script/strict configs and the isolated real API launcher; tests begin in 04-02, so the bootstrap checks type/build/browser rather than claiming zero tests.
+- [ ] 04-02 creates frontend/test/assets.test.ts; 04-03 creates api.test.ts.
+- [ ] 04-04 creates frontend/test/auth.test.ts and sale-state.test.ts.
+- [ ] 04-06 creates scripts/test/dev-scripts.test.mjs and disposable fake command/repo fixtures.
+- [ ] 04-08 creates frontend/test/polling.test.ts for the actual production scheduler.
+- [ ] 04-09 creates admin-state.test.ts and scripts/test/run-backend-checks.mjs protecting backend tests from implicit dotenv reads.
 - [ ] Browser route checks use actual components and network observations, complementing pure helper tests.
 
 Each harness is created and run with its owning slice. Existing backend tests are reused rather than copied into a different framework.

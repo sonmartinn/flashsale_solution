@@ -13,7 +13,7 @@ Mapped inline on 2026-11-16 from current source, 04-CONTEXT.md and 04-RESEARCH.m
 | frontend/src/pages/AdminPage.tsx | controllers/admin.controller.ts; services/sale-admin.service.ts | Stats nullable fields, reset result is not SaleDto; refetch after mutation |
 | frontend/src/services/polling.ts + hooks/usePolling.ts | React effect cleanup docs; CONTEXT D-15 | New scheduler; production clock/fetch/visibility seams are testable without a UI testing dependency |
 | frontend local assets / layout / CSS | .agents/skills/design-taste-frontend/assets and references | Required skill owns design/dealers/audits; adapt to React, retain original kit files, use waivers for task screens |
-| scripts/start.ps1, stop.ps1, dev-common.ps1, dev-runner.ps1 | SPECS §12; backend/test/helpers.js pattern | New native lifecycle code; helpers centralize project paths, ports and ownership. Fixtures use fake repo/config, never real backend/.env |
+| scripts/start.ps1, stop.ps1, dev-common.ps1, dev-runner.ps1 | SPECS §12; backend/test/helpers.ts pattern | New native lifecycle code; helpers centralize project paths, ports and ownership. Fixtures use fake repo/config, never real backend/.env |
 | scripts/start.sh, stop.sh, dev-common.sh | SPECS §12; Windows behavior contract from 04-03 | Same behavior and flags, independent POSIX process-group implementation; no claim Windows tree code ports literally |
 | scripts/test/dev-scripts.test.mjs | backend/test/build.test.ts; loadtest/test/config.test.ts | node:test + assert; temporary fixtures and production parser/helpers, real controlled children only |
 | .gitignore, .gitattributes | Current files | Preserve CSV and GSD rules, append .dev/ and shell EOL rules; git executable bits for .sh |

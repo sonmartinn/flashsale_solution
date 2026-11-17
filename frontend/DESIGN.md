@@ -3,7 +3,67 @@ Deal: hero product; palette mint-pink-accounts; Figtree; nav-split; footer-dark;
 
 Nền #f8f8f8 giữ ảnh và giá dễ đọc; xanh #1f6b3a dành cho hành động xem sale. Giữ nguyên token do dealer xuất.
 
-## Tracer storefront 04-03 — chờ duyệt trước Task 2
+## Audit storefront 04-03 — Task 2
+
+**`GATE: OFF (no build active)`**; giữ lịch sử OPEN3, không reset/rearm hoặc chạy lại gate sau OFF. Người dùng đã duyệt “Duyệt storefront 04-03, tiếp tục Task 2”. Các đoạn chờ duyệt bên dưới là lịch sử Task1, được mục này thay thế.
+
+Audit dùng bản build thật http://localhost:5174/ và Edge cài sẵn, mỗi script browser chạy tuần tự. Đặt `CHROME_PATH=C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe` cho process kiểm tra. Không sửa kit/checker, không đổi ảnh/font đã duyệt.
+
+```text
+node .agents/skills/design-taste-frontend/scripts/consistency.mjs http://localhost:5174/ --profile .taste-skill/chrome-consistency-04-03 --page product --category giày --primary "Xem đợt sale" --widths 1440,1024,820,768,390 --rhythm-widths 1440,820,768,390 --out .taste-skill/consistency-04-03
+node .agents/skills/design-taste-frontend/assets/layout/check.mjs --url http://localhost:5174/ --profile .taste-skill/chrome-layout-04-03 --sizes 1440x900,1024x768,820x1180,768x1024,390x844 --shots .taste-skill/layout-04-03 --json
+node .agents/skills/design-taste-frontend/scripts/copy-lint.mjs .taste-skill/consistency-04-03/rendered.html --kind product --json
+```
+
+Full consistency: **26FAIL/27WARN**, không probe error. Theo width:1440=6/8,1024=2/5,820=4/3,768=7/4,390=7/7. Sweep1280/1152/896 và đi320x640:0FAIL. CTA cũ đã đạt; no-visual/hole đã đạt sau khi có ảnh catalog nên hai waiver catalog văn bản cũ **hết áp dụng**. Assets/font-load/nav/menu/focus/contrast/links/hover/reduced-motion đạt. Copy-lint223words,0finding; các matcher heading/nút/skip-link tiếng Anh trong consistency vẫn không hiểu danh từ/động từ Việt. “Đến nội dung” thực sự là link đầu tiên đến#top.
+
+Layout checker giữ stress mặc định, exit1:3finding screen-height của catalog tại1024 (1552px=2screen+16),768 (2056px=2screen+8),390 (3667px=4.35screen);1440/820 không finding. OverflowX=false ở cả5width. Đã mở/nhìn cả5first-screen PNG trong layout-04-03; ảnh và hamburger đều hiện. Full-page screenshot Task1 vẫn ở shots/storefront-<width>.png, thay đổi tải ảnh không thay bố cục.
+
+Ngoại lệ D-04/D-07 cụ thể, không quy đổi raw FAIL thành automated PASS:
+
+- card-layout, `.catalog-grid`: sáu thẻ hàng cần cùng một cấu trúc ảnh/tên/giá/thuộc tính để so sánh; không phải sáu feature marketing cần sáu composition.
+- photo-repeat, ảnh thứ4 catalog: đúng cùng sản phẩm sneaker với active sale, cùng ảnh API; không bỏ hàng hoặc tạo góc chụp giả để tránh lặp.
+- copy-headings, h2#products-h và h2#limit-h: gọi đúng danh mục và quy tắc trong SPECS, matcher danh từ Anh không nhận tiếng Việt. Giữ waiver cũ cho target#products-h trong lịch sử, không dùng một target bao phủ các lỗi không liên quan.
+- container-edges, hero__lead x949: cột9..12 của recipe product nguyên bản được deal, không phải mép container lệch.
+- section-height và one-section ở catalog/section sau: giữ đủ sáu sản phẩm và mọi thuộc tính bằng chữ dễ đọc, mobile4.35screen; tablet tự giãn16/8px. Không giấu dữ liệu hoặc cắt thành các mục quảng cáo.
+
+**OPEN thực sự:** empty-area footer (50–67% tại1440/820/768), one-section phân loại nút close rộng thành band; không miễn trừ khoảng trống như thể đã sửa. WARN giữ: orphan cuối dòng thuộc tính, stranded-action trong statement, bộ ảnh stand-in khác độ sáng/màu (ảnh áo thun khác nhất), photo-credit cần thay bằng ảnh hàng thật; scroll-linked/reveal chỉ trong word-highlight đã deal và reduced-motion đạt. Không có fact/brand/form/contact giả mới, canonical domain vẫn chưa có vì demo local.
+
+**OPEN mạng chậm:**1.6Mbit/s/400ms/no-cache phát hiện ảnh sneaker173KiB đến muộn1giây; cuối probe tải xong, không phải URL hỏng. Đã thử eager cho ảnh catalog cùng productId với hero nhưng lượt phone vẫn FAIL cùng ảnh, nên hoàn nguyên thử nghiệm; không giữ thay đổi không giải quyết vấn đề. Hero vẫn eager/high-priority, catalog lazy. Ảnh1920px cần biến thể responsive nhỏ hơn để đóng giới hạn này; không gọi là waiver hoặc PASS. Lượt phone riêng (consistency-04-03-phone, cùng command nhưng --widths390 --rhythm-widths390) có9FAIL/10WARN; checker cảnh báo không có desktop read trước nên các finding row/card/edges chỉ có giá trị tham khảo. Không thay thế lượt đầy đủ26/27 hoặc giấu slow-load failure.
+
+Perf thật trên5174 (`node .agents/skills/design-taste-frontend/scripts/perf.mjs http://localhost:5174/ --profile .taste-skill/chrome-perf-04-03 --json .taste-skill/perf-04-03.json`): **2FAIL/4WARN**, exit1. FAIL oversized-images tại1440 (6ảnh) và390 (7img bao gồm ảnh sneaker lặp); natural1200/1000/1920px lớn hơn2.2×frame409/340/390px. Đây là giới hạn chưa đóng, không gọi asset/perf PASS. Transfer~1109KiB, ảnh730KiB/6file, lớn nhất206KiB, JSparsed397KiB, CSS49KiB, fonts191.7KiB/2file,26/25request, CLS0, broken0,WebGL0. WARN CPUhost96–98%/fontbytes; timing chỉ tham khảo, không phải E2. Ảnh cùng loại đã duyệt chưa có srcset; cần biến thể nhỏ hơn để xử lý cả oversized và slow-load trong một thay đổi tài sản có kiểm chứng.
+
+Task2 acceptance chức năng kiểm tra lại trên build5174, HTTPS ngoài bị chặn:1440/1024/820/768/390/320 đều đủ6hàng,7img decode,giá/mọi thuộc tính khớp API,external=[],overflow=false; icon18px khi menu hiện. Browser loading có aria-busy, khóa refresh và giữ dữ liệu cuối;3vòng home→sale→home hủy moment cũ rồi chỉ mount1moment mới; footer/#products và credits.html200. 11kit files được so SHA256 với nguồn và giống hệt. 21native tests, frontend typecheck/build cuối đạt; không thay backend hoặc ghi số đo chính thức.
+
+Danh sách public chính xác sau dealer và assets04-02 (không thêm file ngầm):
+
+```text
+assets/system.css
+assets/system.js
+assets/layout/layout.css
+assets/layout/layout.js
+assets/motion/motion.css
+assets/motion/motion.js
+assets/moments/lib.js
+assets/moments/moments.js
+assets/moments/word-highlight/moment.css
+assets/moments/word-highlight/moment.js
+assets/ui/ui.js
+assets/fonts/Figtree-Variable.ttf
+assets/fonts/OFL.txt
+assets/fonts/BeVietnamPro-Regular.ttf
+assets/fonts/BeVietnamPro-OFL.txt
+images/products/ao-thun-cotton-basic.jpg
+images/products/quan-jeans-slim-fit.jpg
+images/products/vay-hoa-midi.jpg
+images/products/giay-sneaker-trang.jpg
+images/products/tui-tote-canvas.jpg
+images/products/ao-khoac-gio.jpg
+favicon.svg
+credits.html
+```
+
+## Tracer storefront 04-03 — đã duyệt, ghi chép Task 1
 
 Giữ product/other, hero product, palette mint-pink-accounts/Figtree (Be Vietnam Pro bổ sung chữ Việt), nav-split/footer-dark/close-type/brand-band/solid/ring và word-highlight. HomePage đọc sale trước, tiếp theo catalog6 sản phẩm thật có ảnh/tên/giá/thuộc tính và làm mới thủ công. Giá đọc API/vi-VN, không có link hoặc nút mua giả trên các thẻ không bán trực tiếp. Statement giữ quy tắc một sản phẩm và link sale thật. Không thêm route hàng, cart, filter hay thư viện UI.
 

@@ -1,7 +1,17 @@
 product / site-kind other — cửa hàng thời trang trực tuyến, bước đầu 04-01.
-Deal: hero product; palette mint-pink-accounts; Figtree; nav-split; footer-dark; close-type; brand-band; solid; ring; moment word-highlight.
+Deal: hero product; palette mint-pink-accounts; Figtree; nav-split; footer-dark; close-type; brand-band; solid; ring; moment word-highlight. 04-02 bổ sung Be Vietnam Pro local cho glyph Việt còn thiếu, không thay deal.
 
 Nền #f8f8f8 giữ ảnh và giá dễ đọc; xanh #1f6b3a dành cho hành động xem sale. Giữ nguyên token do dealer xuất.
+
+## Đính chính và tracer tài sản 04-02 (2026-11-17)
+
+Thông tin trong phần này thay thế khẳng định glyph của ghi chép 04-01 bên dưới: Figtree 62.712 byte **không** có đầy đủ tiếng Việt. Test cmap thực tế bắt lỗi U+01A0 “Ơ”; metadata Google Fonts chỉ khai báo latin và latin-ext. Việc browser hiển thị được chữ không chứng minh glyph thuộc Figtree. Bổ sung Be Vietnam Pro Regular (132.948 byte, SIL OFL 1.1, nguồn Google Fonts chính thức) làm fallback local trong cả hai font token; giữ Figtree chính và toàn bộ màu/scale/kit. Ngoại lệ chức năng được cho phép bởi 04-02 và D-03/D-05, không phải chọn lại typography vì sở thích.
+
+Đủ sáu ảnh JPEG tại đường dẫn seed. Giữ nguyên sneaker; áo thun Marina Podrez, jeans Castorly Stock, váy hoa Marcelo Verfe, tote Stephanie Ho, áo khoác Ali Babajahdi. Giấy phép/nguồn/giới hạn stand-in chi tiết ở ASSETS.md và credit chung `/credits.html`. Ảnh jeans gấp/áo khoác cận cổ không chứng minh dáng hoặc tính chống nước của hàng thật. Không sửa dữ liệu sản phẩm để hợp ảnh. Ảnh áo khoác có biển giá và các ảnh có logo đã bị loại.
+
+Task 1: 8/8 test PASS, frontend/backend typecheck/build PASS. Edge đọc sáu URL thật từ API fixture qua5173, `Image.decode()`/MIME/dimensions đạt. Cả hai font load local, HTTPS ngoài bị chặn, không có resource ngoài và không tràn ngang ở1440/1024/820/768/390/320. Đã chụp/nhìn sáu screenshot `.taste-skill/shots/assets-<width>.png`. Menu tablet/mobile còn trông trống và khoảng trống statement/footer vẫn có; chúng thuộc lát cắt layout04-03, không gọi visual PASS.
+
+Lượt gate hiện tại: **`GATE: OFF (no build active)`**. Marker giai đoạn04-01 đã ở `build.done.json`; `gate.json` vẫn giữ lịch sử **OPEN3**. Không reset/rearm để vượt vòng sửa. Kiểm tra consistency/perf/offline Task2 chưa thực thi vì tracer có human-check; chờ duyệt ảnh/font rồi tiếp tục. Không lấy perf04-01 làm kết quả mới và không tuyên bố gate đầy đủ năm route.
 
 ## Ghi nhận trước trang đầu
 

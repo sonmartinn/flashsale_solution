@@ -1,0 +1,60 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-11-17T16:52:08.091Z",
+  "phase": "04",
+  "phase_name": "Web App & Dev Scripts",
+  "phase_dir": ".planning/phases/04-web-app-dev-scripts",
+  "plan": 4,
+  "task": 1,
+  "total_tasks": 2,
+  "status": "paused",
+  "pause_reason": "Người dùng gọi $gsd-pause-work khi đang viết bản nháp 04-04 Task 1.",
+  "completed_tasks": [
+    {"id": "04-01", "name": "Bootstrap/proxy tracer đã duyệt", "status": "done", "commit": "92b3c95"},
+    {"id": "04-02", "name": "Ảnh/font local và kiểm chứng offline đã duyệt", "status": "done", "commit": "087cce7"},
+    {"id": "04-03", "name": "Storefront đã duyệt, audit đầy đủ với giới hạn OPEN", "status": "done", "commit": "215b3ee"},
+    {"id": "04-04-01", "name": "Auth và purchase tracer", "status": "in_progress", "progress": "Mới viết draft auth.ts, sale-state.ts, AuthProvider.tsx, ProtectedRoute.tsx và note thiết kế trong DESIGN.md. CHƯA kiểm tra kiểu/test/build các draft, chưa nối App, chưa có LoginPage/SalePage hoặc test auth/clock. Chưa commit draft, chưa có SUMMARY 04-04."}
+  ],
+  "remaining_tasks": [
+    {"id": "04-04-01", "name": "Hoàn thiện và kiểm chứng login/register -> same sale -> đúng một buy POST; commit tracer rồi chờ human-check", "status": "in_progress"},
+    {"id": "04-04-02", "name": "Kiểm chứng session và purchase tracer sau duyệt", "status": "not_started"},
+    {"id": "04-06", "name": "Dev scripts Windows, cùng wave4", "status": "not_started"},
+    {"id": "04-05/07/08/09", "name": "Các wave phụ thuộc: orders, bash/UAT, polling, admin/regression", "status": "not_started"}
+  ],
+  "blockers": [],
+  "open_findings": [
+    {"scope": "04-03", "description": "Raw consistency26FAIL/27WARN; layout3screen-height findings; perf2FAIL/4WARN do ảnh oversized; slow-network ảnh sneaker muộn1giây nhưng sau đó tải xong. Eager catalog thử nghiệm không hiệu quả đã hoàn nguyên. Chi tiết ngoại lệ D-04 và OPEN thật ở frontend/DESIGN.md/SUMMARY04-03. Không gọi visual/perf PASS."},
+    {"scope": "design gate", "description": "GATE: OFF (no build active), lịch sử OPEN3. Không reset/rearm hoặc chạy lại gate sau OFF."}
+  ],
+  "async_jobs": [],
+  "human_actions_pending": [],
+  "decisions": [
+    {"decision": "Người dùng duyệt ảnh/font04-02 và storefront04-03", "rationale": "Hai checkpoint đã có câu trả lời rõ ràng; không hỏi lại.", "phase": "04"},
+    {"decision": "04-03 hoàn tất lát cắt bằng báo cáo trung thực, không đổi raw FAIL thành PASS", "rationale": "D-25 yêu cầu báo cáo PASS/OPEN/ERROR và ngoại lệ D-04; giữ đủ sản phẩm/thuộc tính thật.", "phase": "04"},
+    {"decision": "04-04 draft dùng store thế hệ phiên, Bearer hiện tại và đồng hồ monotonic", "rationale": "Tránh phản hồi phiên cũ làm đăng xuất phiên mới, chặn return URL ngoài và đồng bộ countdown bằng now server. Đây là draft chưa được kiểm chứng.", "phase": "04"},
+    {"decision": "Giữ draft chưa commit và không tạo SUMMARY04-04", "rationale": "Người dùng yêu cầu pause giữa Task1; chưa có tracer/verify đủ điều kiện hoàn thành.", "phase": "04"}
+  ],
+  "background_processes": [
+    {"name": "isolated real API fixture", "pid": 39704, "session": 18915, "port": 5000, "health_at_pause": "200", "mongo": "127.0.0.1:27018/flashsale_test_ui_39704", "redis_db": 14, "sale_id": "6afc68ea0d5332af9479f0ff"},
+    {"name": "Vite dev", "session": 53075, "port": 5173, "health_at_pause": "200"},
+    {"name": "Vite build preview", "session": 62971, "port": 5174, "health_at_pause": "200"},
+    {"name": "agent-browser", "session": "flashsale-assets-edge", "notes": "Edge, HTTPS ngoài bị chặn; không có job kiểm tra còn chạy."}
+  ],
+  "uncommitted_files_measured_at": "Trước commit handoff; lấy từ git status --porcelain trong lượt pause",
+  "uncommitted_files": [
+    " M .planning/ROADMAP.md",
+    " M .planning/STATE.md",
+    " M .planning/config.json",
+    " M frontend/DESIGN.md",
+    "?? .agents/",
+    "?? .planning/state.json",
+    "?? frontend/src/auth/",
+    "?? frontend/src/components/ProtectedRoute.tsx",
+    "?? frontend/src/services/auth.ts",
+    "?? frontend/src/services/sale-state.ts",
+    "?? skills-lock.json"
+  ],
+  "handoff_commit_files": [".planning/HANDOFF.json", ".planning/STATE.md", ".planning/phases/04-web-app-dev-scripts/.continue-here.md"],
+  "next_action": "Khi người dùng gọi $gsd-resume-work: đọc CLAUDE.md, handoff/STATE và PLAN04-04, xem git diff và 4draft files, tiếp tục Task1 tại chỗ; không chạy lại04-02/03 hoặc hỏi lại hai checkpoint đã duyệt. Hoàn thiện route/form/buy/tests rồi mới xác minh và xin duyệt tracer04-04.",
+  "context_notes": "Branch develop; chỉ3/9plan Phase04 complete,24/30total. Các thay đổi config/state.json/agents/skills-lock đã có trước; ROADMAP vốn dirty và có cập nhật tiến độ3/9 nên để unstaged. Không đọc/tạo backend/.env, không sửa CLAUDE.md/CSV/worktree cũ, không push/cài phần mềm/kill lạ. Giữ fixture cũ Redis15/Mongo35164. Không có SUMMARY placeholder theo rg. Check cuối21tests/typecheck/build chỉ áp dụng storefront57f3ffc, không áp dụng draft04-04 mới. Dùng Edge cho audit, base64 UTF8 cho eval tiếng Việt trên PowerShell5.1; font Figtree thiếu glyph nên BeVietnamPro local bổ sung là cần thiết. Không có blocker bắt buộc người dùng trả lời hiện tại; checkpoint04-04 chỉ đến khi tracer hoàn thiện. Phase04-07 còn UATWindows thật sau này."
+}

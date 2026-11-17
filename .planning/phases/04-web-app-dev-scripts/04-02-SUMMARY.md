@@ -20,7 +20,7 @@ key-files:
 key-decisions:
   - Giữ deal Figtree; bổ sung fallback local vì test cmap chứng minh thiếu U+01A0
   - Giữ nguyên hero sneaker, không thay dữ liệu hàng để khớp ảnh đại diện
-  - Dừng sau Task 1 theo tracer feedback gate; Task 2 chưa thực thi
+  - Người dùng duyệt ảnh/font rồi Task 2 kiểm chứng đầy đủ; giữ kết quả visual OPEN trung thực
 requirements-completed: [WEB-01, WEB-03]
 coverage:
   - id: D1
@@ -30,7 +30,7 @@ coverage:
       - {kind: unit, ref: "frontend/test/assets.test.ts — 8/8 pass", status: pass}
       - {kind: automated_ui, ref: ".taste-skill/assets-1440.json — six Image.decode/MIME/dimensions", status: pass}
     human_judgment: true
-    rationale: Cần duyệt ảnh đại diện theo tracer human-check trước Task 2
+    rationale: Người dùng đã duyệt ảnh/font bằng “oke tôi duyệt bộ ảnh/font” trước Task 2
   - id: D2
     description: Chuỗi font local có glyph tiếng Việt, không request CDN
     requirement: WEB-01
@@ -39,15 +39,18 @@ coverage:
       - {kind: automated_ui, ref: ".taste-skill/assets-{1440,1024,820,768,390,320}.json", status: pass}
       - {kind: other, ref: "frontend/backend typecheck and build", status: pass}
     human_judgment: true
-    rationale: Font fallback là thay đổi nhìn thấy được; tracer có human-check
+    rationale: Font fallback là thay đổi nhìn thấy được và đã được người dùng duyệt
   - id: D3
     description: Task 2 — kiểm chứng offline/perf/consistency đầy đủ
-    verification: [{kind: automated_ui, ref: "Chưa thực thi vì tracer feedback gate", status: unknown}]
-    human_judgment: false
+    verification:
+      - {kind: automated_ui, ref: ".taste-skill/assets-task2-{1440,1024,820,768,390,320}.json", status: pass}
+      - {kind: automated_ui, ref: ".taste-skill/perf-04-02.json — 0 FAIL/5 WARN", status: pass}
+      - {kind: automated_ui, ref: ".taste-skill/consistency-04-02/report.json — 20 FAIL/21 WARN", status: fail}
+    human_judgment: true
+    rationale: Asset contract đạt; layout cũ và matcher ngôn ngữ còn finding được báo OPEN theo acceptance của Task 2
 duration: not-recorded
 completed: 2026-11-17
-status: halted
-halt_reason: Awaiting human verification of 04-02 Task 1 asset/font tracer before Task 2
+status: complete
 ---
 
 # Phase 4 Plan 02 — Tracer ảnh/font local
@@ -56,8 +59,8 @@ halt_reason: Awaiting human verification of 04-02 Task 1 asset/font tracer befor
 
 ## Tiến độ và commit
 
-1. Task 1 — **implemented, chờ tracer feedback**: `eeb9949` — `feat(04-02): add licensed local product assets and Vietnamese font fallback` (12 file).
-2. Task 2 — **pending**. Không chạy expansion trước phản hồi; không tự nhận plan hoặc phase hoàn tất.
+1. Task 1 — **đã duyệt**: `eeb9949` — `feat(04-02): add licensed local product assets and Vietnamese font fallback` (12 file). Phản hồi: “oke tôi duyệt bộ ảnh/font”.
+2. Task 2 — **complete**: `52bf167` — `test(04-02): record offline asset and built-page audit evidence`. Kiểm chứng thực hiện sau phản hồi; phase vẫn đang thực thi.
 
 04-01 đã được duyệt trong commit `92b3c95`; không hỏi lại package hoặc thực thi lại tracer cũ. Các requirement ID phía trên được giữ theo template GSD, chưa đánh dấu WEB-01/03 hoàn tất vì còn plan dùng chung.
 
@@ -76,7 +79,14 @@ halt_reason: Awaiting human verification of 04-02 Task 1 asset/font tracer befor
 | Console | `agent-browser errors` không trả lỗi |
 | Gate hiện tại | `GATE: OFF (no build active)`; marker04-01 ở build.done.json, lịch sử OPEN3 còn nguyên |
 
-Native kiểm tra JPEG signature/SOF/EOI và ngân sách; không phải decoder điểm ảnh. Browser mới là bằng chứng decode thật. Không gọi “offline toàn bộ ứng dụng” khi API local vẫn cần chạy. Task2 chưa có kết quả consistency/perf mới; không lấy perf04-01 làm bằng chứng cho lần này.
+Native kiểm tra JPEG signature/SOF/EOI và ngân sách; không phải decoder điểm ảnh. Browser mới là bằng chứng decode thật. Không gọi “offline toàn bộ ứng dụng” khi API local vẫn cần chạy. Task2 có kết quả mới bên dưới, không lấy perf04-01 làm bằng chứng cho lần này.
+
+## Task 2 sau khi duyệt
+
+- Chạy lại frontend tests/typecheck/build: 8/8 PASS, strict build PASS.
+- Browser build5174 chặn HTTPS ngoài, sáu chiều rộng1440/1024/820/768/390/320:6ảnh decode/MIME/dimensions PASS,2font loaded,external=[],overflow=false; console không lỗi. Evidence mới `.taste-skill/assets-task2-<width>.json`.
+- Skill perf qua Edge headless:0FAIL/5WARN, khoảng551KiB transfer, JSparsed394KiB,2font191.7KiB, hero173KiB,CLS0,broken0,WebGL0. WARN doCPUhost100% ở hai width, fontbytes>160KiB và hero1920px ở390. Không dùng timing UI như E2.
+- Skill consistency đầy đủ năm chiều rộng:20FAIL/21WARN;320px0FAIL. Assets,font-load,empty-visual,reduced-motion,hover,contrast,links,focus và overflow đạt.20FAIL lặp qua width ở7nhóm: no-visual,hole,copy-headings,container-edges (4waiver cũ có lý do) và cta/empty-area/one-section (OPEN cũ). Chấp nhận Task2 cho phép report OPEN trung thực; chưa gọi full-storefront PASS. Layout/catalog thuộc04-03. Không reset/rearm gate, giữOFF hiện tại vàOPEN3 lịch sử.
 
 Ảnh thật đã mở/nhìn, nguồn và giới hạn stand-in ở `frontend/ASSETS.md`, footer chung `/credits.html`. Giữ nguyên sneaker04-01. Không chứng minh slim-fit/nylon/chống nước bằng ảnh đại diện. Không có API/route quảng cáo/giỏ hàng mới. Catalog hiện vẫn là danh sách văn bản, ảnh catalog thuộc04-03.
 
@@ -100,7 +110,7 @@ Giữ chạy để duyệt. Khi dọn chỉ dùng tiến trình/DB/key đã xác
 
 ## Checkpoint và resume
 
-Theo `execute-plan.md` tracer có `<human-check>` phải dừng trước Task2. Chờ người dùng duyệt ảnh/font04-02 hoặc nêu ảnh cần đổi. Sau phản hồi, tiếp tục **Task2 của04-02**, chưa sang04-03; giữ commit hiện tại, không tải lại/cài lại. Chỉ đổi status complete sau khi Task2 đạt. Security/review/regression cuối phase chưa đến.
+Checkpoint ảnh/font04-02 đã được duyệt và Task2 hoàn tất. Tiếp tục04-03 theo wave/dependency; không hỏi lại ảnh/font hoặc cài lại dependency. WEB-01/03 còn plan dùng chung, không đánh dấu requirement hoàn tất sớm. Security/review/regression cuối phase chưa đến.
 
 ## Self-Check: PASSED
 

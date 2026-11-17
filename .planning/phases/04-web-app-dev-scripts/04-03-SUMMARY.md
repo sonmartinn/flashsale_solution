@@ -21,7 +21,7 @@ key-decisions:
   - Giữ toàn bộ dealer choices và bộ ảnh/font04-02 đã được duyệt
   - Hiển thị object kích thước tote đầy đủ, không chỉ nhận thuộc tính scalar
   - Chờ HomePage tải xong trước khi cuộn anchor catalog từ route sale
-  - Dừng tại tracer feedback trước Task2, không bắt đầu04-04/06
+  - Duyệt tracer trước Task2; giữ raw audit FAIL/OPEN và không reset gate
 requirements-completed: [WEB-01, WEB-03]
 coverage:
   - id: D1
@@ -32,7 +32,7 @@ coverage:
       - {kind: automated_ui, ref: ".taste-skill/storefront-states.json — 6 cases", status: pass}
       - {kind: unit, ref: "frontend/test/api.test.ts — 13 cases", status: pass}
     human_judgment: true
-    rationale: Tracer có human-check, cần duyệt storefront trước audit mở rộng
+    rationale: Người dùng đã duyệt storefront trước Task2; giữ giới hạn visual/perf có bằng chứng
   - id: D2
     description: Shared layout, menu bàn phím và strict client
     requirement: WEB-01
@@ -41,11 +41,10 @@ coverage:
       - {kind: other, ref: "frontend typecheck/build", status: pass}
       - {kind: automated_ui, ref: "menu click/Tab/Escape; focus BUTTON, ariaExpanded=false; icon18px", status: pass}
     human_judgment: true
-    rationale: Menu và bố cục mới cần phản hồi tracer; full checker/perf Task2 chưa chạy
+    rationale: Tracer đã duyệt; full checker/perf có báo cáo raw FAIL, không được đổi thành visual PASS
 duration: not-recorded
 completed: 2026-11-17
-status: halted
-halt_reason: Awaiting human verification of 04-03 storefront tracer before Task 2
+status: complete
 ---
 
 # Phase 4 Plan 03 — Tracer storefront đầy đủ
@@ -54,8 +53,8 @@ halt_reason: Awaiting human verification of 04-03 storefront tracer before Task 
 
 ## Task và commit
 
-1. Task1 — implemented, chờ tracer feedback: `57f3ffc` — `feat(04-03): build typed storefront catalog and accessible shared navigation` (9files).
-2. Task2 — pending; chưa chạy full storefront checker/layout/perf hoặc sang04-04/06.
+1. Task1 — complete: `57f3ffc` — `feat(04-03): build typed storefront catalog and accessible shared navigation` (9files). Người dùng đã duyệt “Duyệt storefront 04-03, tiếp tục Task 2”.
+2. Task2 — complete: `575d515` — báo cáo checker/layout/copy/perf, browser offline/lifecycle/states và asset manifest ở frontend/DESIGN.md. Các FAIL thị giác/hiệu năng được giữ OPEN theo D-25; không tuyên bố gate PASS.
 
 04-02 đã hoàn tất sau khi người dùng nói “oke tôi duyệt bộ ảnh/font”; Task2 audit commit52bf167, SUMMARY087cce7. Không hỏi lại bộ ảnh/font và không cài dependency mới. Requirement IDs theo template, chưa đánh dấu WEB-01/03 complete sớm vì còn plan dùng chung.
 
@@ -82,9 +81,22 @@ Giữ product/other, mint-pink-accounts/Figtree + fallbackBeVietnamPro, hero pro
 - [Rule2] Chặn path control/whitespace/fragment trướcfetch và giữ AbortError khi hủy trong lúc đọc JSONbody; có test hành vi, không thay backend contract.
 - Không khôi phục mã cũ, không sửa backend/.env/CLAUDE.md/CSV/worktree cũ, không thêm package hoặc push.
 
-## Resume
+## Task2 — acceptance và audit thực tế
 
-Chờ người dùng duyệt storefront04-03 hoặc nêu chỉnh sửa. Sau duyệt, tiếp tục **04-03 Task2** để chạy checker/layout/perf/empty-error/reduced-motion đầy đủ; chưa sang04-04/06 trước khi04-03 complete. Giữ WEB-01/03 chưa tick. Full phase security/review/regression chưa đến.
+- `npm.cmd --prefix frontend test`:21/21PASS; `run typecheck` và `run build` đạt. Build cuối khớp code57f3ffc (JS index-DunM4wXQ.js); không giữ thử nghiệm eager không hiệu quả. 11kit files SHA256 giống nguồn.
+- Browser build5174, chặn HTTPS ngoài:1440/1024/820/768/390/320 đủ6hàng/7img decode, tên/giá/tất cả thuộc tính khớp API,external=[],overflow=false; icon18px ở tablet/mobile. Mỗi width chạy lại6case no-sale/empty/error/stale/retry/route, không dữ liệu giả. Loading khóa refresh/giữ dữ liệu cuối;3vòng route unmount moment cũ và mount đúng1moment mới. Footer anchor/credits200 đạt.
+- Skill consistency đầy đủ:26FAIL/27WARN, không probe error; narrow320 và sweep1280/1152/896:0FAIL. CTA/no-visual/hole đã đạt, hai waiver catalog văn bản cũ hết áp dụng. nav/focus/hover/contrast/reduced-motion/assets/font-load/links đạt.
+- Copy-lint trên rendered.html:223words,0finding. Layout checker không tắt stress:3finding screen-height catalog1024(+16px),768(+8px),390(4.35screen);1440/820 không finding,5width overflowX=false. Đã nhìn5ảnh first-screen mới và giữ5ảnh full-page Task1.
+- Ngoại lệ chức năng D-04/D-07: card-layout vì sáu thẻ sản phẩm dùng cùng cấu trúc để so sánh; photo-repeat vì cùng sneaker ở sale/catalog; section-height/catalog kéo dài để giữ đủ thuộc tính; copy-headings vì matcher tiếng Anh; container-edges vì recipe product nguyên bản cột9..12. Lý do/selector chi tiết ở DESIGN, không thay raw FAIL bằng PASS.
+- OPEN thật: footer empty-area50–67%, nút close bị phân loại band; ảnh sneaker173KiB trễ1giây trong mạng1.6Mbit/s/400ms/no-cache nhưng sau đó tải xong. Thử eager cho ảnh catalog chung hero không đóng lỗi, đã hoàn nguyên; không sửa pixel/ảnh/font đã duyệt. Lượt phone riêng9FAIL/10WARN có probe note thiếu desktop-before-phone nên không thay lượt đầy đủ.
+- Perf build:2FAIL/4WARN — oversized-images6ởdesktop/7ởphone. Transfer~1109KiB,ảnh730KiB/6file,JSparsed397KiB,CSS49KiB,font191.7KiB/2file,CLS0,broken0,WebGL0. CPU96–98% nên timing tương đối. Cần ảnh responsive nhỏ hơn để đóng oversized/slow-load; đây không phải waiver hoặc E2.
+- Giữ `GATE: OFF (no build active)`, lịch sử OPEN3, không reset/rearm/rerun sau OFF. Gate/perf không PASS; Task2 hoàn tất bằng bằng chứng chức năng, raw reports và giới hạn minh bạch, theo tiêu chí D-25.
+
+Raw commands/reports và danh sách chính xác23public files nằm trong DESIGN.md. Evidence ignored: consistency-04-03/report.json, consistency-04-03-phone/report.json, perf-04-03.json, layout-04-03/*.png, storefront-task2-<width>.json, storefront-task2-states-<width>.json; helper storefront-lifecycle.js. Raw layout JSON đã trả trong transcript, không tự nhận đã ghi report.json cho layout.
+
+## Next plan
+
+04-03 complete sau duyệt và Task2. Tiếp tục wave4:04-04 auth/buy tracer và04-06 dev scripts theo dependency, thực hiện inline. WEB-01/03 còn plan dùng chung nên chưa tick trong REQUIREMENTS. Full phase security/review/regression chưa đến; giữ các finding OPEN để báo cáo cuối phase.
 
 Fixture PID39704/session18915, Mongo flashsale_test_ui_39704 tại27018, RedisDB14, sale6afc68ea0d5332af9479f0ff. Vite5173/preview5174 đang phục vụ. Browser session flashsale-assets-edge. Không dọn tiến trình/dữ liệu cũ nếu chưa xác minh ownership.
 
@@ -92,4 +104,4 @@ Evidence ignored: `.taste-skill/storefront-<width>.json`, `storefront-states.jso
 
 ## Self-Check: PASSED
 
-9file nguồn/doc tồn tại,21tests/typecheck/build và browser acceptance Task1 đạt, commit57f3ffc trên develop. Đây là xác nhận artifact tracer; human approval/Task2/full phase còn chờ.
+9file nguồn/doc tồn tại,21tests/typecheck/build và browser acceptance Task1/Task2 đạt, commit57f3ffc trên develop; tracer đã được duyệt. Self-check artifact không đồng nghĩa visual/perf PASS hoặc full phase complete.

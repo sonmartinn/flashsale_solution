@@ -3,6 +3,22 @@ Deal: hero product; palette mint-pink-accounts; Figtree; nav-split; footer-dark;
 
 Nền #f8f8f8 giữ ảnh và giá dễ đọc; xanh #1f6b3a dành cho hành động xem sale. Giữ nguyên token do dealer xuất.
 
+## Tracer storefront 04-03 — chờ duyệt trước Task 2
+
+Giữ product/other, hero product, palette mint-pink-accounts/Figtree (Be Vietnam Pro bổ sung chữ Việt), nav-split/footer-dark/close-type/brand-band/solid/ring và word-highlight. HomePage đọc sale trước, tiếp theo catalog6 sản phẩm thật có ảnh/tên/giá/thuộc tính và làm mới thủ công. Giá đọc API/vi-VN, không có link hoặc nút mua giả trên các thẻ không bán trực tiếp. Statement giữ quy tắc một sản phẩm và link sale thật. Không thêm route hàng, cart, filter hay thư viện UI.
+
+Layout dùng chung giữ header qua route, có chỗ gắn sessionLinks cho04-04, skip link, menu44px với SVG thật, aria-controls/expanded, Escape trả focus và Tab trong menu mở. Padding của btn từng ép icon về0px dù SVG tồn tại: đã sửa app CSS padding0, kiểm tra chiều rộng icon18px ở820/768/390/320. Không sửa kit. Catalog3 cột desktop,2 cột tablet,1 cột mobile; tên/giá/attributes nằm trong padding card. Kích thước tote là object, hiển thị đủ rộng/cao/sâu, không bỏ mất dữ liệu linh hoạt của MongoDB. Anchor sản phẩm chờ HomePage tải xong khi quay từ sale.
+
+21test native PASS (13client/catalog +8asset); frontend typecheck/build PASS. Client giữ /api, chỉ tự thêm JSONheader khi có body, bảo toàn ApiError và AbortError kể cả đang đọc response body, không retry mutation. Các path ngoài/backslash/control/whitespace/fragment bị từ chối trước fetch. Public DTO chuyển sang types.ts, tương ứng dto.ts backend; không import cấu hình backend vào frontend.
+
+Browser qua API thật5173: sáu sản phẩm khớp tên/ảnh/giá/mọi thuộc tính (kể cả object),7img decode, không resource ngoài/tràn ngang tại1440/1024/820/768/390/320. `.taste-skill/storefront-<width>.json` lưu kết quả. Fault injection chỉ trong browser, khôi phục fetch thật trong finally: không active sale vẫn6 hàng/không sale linkgiả; products rỗng không hàng giả; lỗi refresh giữ hàng/sale/thời điểm cuối và báo stale; lỗi tải đầu có retry; retry phục hồi; sale link thật và quay về/#products sau fetch đều PASS. `.taste-skill/storefront-states.json` có6case. Không gọi đó là thay đổi/trạng thái DB thật. Menu click/Tab/Escape chạy, activeElement=BUTTON/ariaExpanded=false sau Escape, app console không lỗi.
+
+Skill shoot qua Edge headless trên5174 đã chụp và nhìn1440/1024/820/768/390; bản tablet/mobile được chụp lại sau sửa icon. 1440=4500px (5screens),1024=3856px,768=5128px: tablet còn giãn16/8px so với5screen; không gọi nhịp mọi kích thước hoàn hảo. Mobile catalog giữ đầy đủ6 hàng và attributes nên dài hơn2screen (390:4.34screen), ngoại lệ chức năng D-04/D-07; không cắt thông tin hoặc ép chữ nhỏ để đạt công thức marketing. Sneaker xuất hiện hero và hàng catalog đúng cùng sản phẩm, cần waiver cụ thể photo-repeat nếu checker đòi ảnh khác; không tạo thêm ảnh hoặc giấu hàng. Footer/statement còn khoảng trống trong screenshot; sẽ được audit trong Task2.
+
+**`GATE: OFF (no build active)`**, lịch sử04-01 OPEN3 còn nguyên. Không chạy lại gate sau OFF hoặc reset round. Full checker/layout/perf của04-03 **Task2 chưa chạy**, đang chờ tracer feedback theo execute-plan; không dùng audit04-02 làm PASS cho storefront mới. Bốn waiver cũ giữ lịch sử; no-visual/hole catalog sẽ phải đánh giá lại vì catalog hiện có ảnh. Giữ copy tiếng Việt và voice card trực tiếp đã chọn; không thêm assumed fact/canonical domain/form giả.
+
+Public assets giữ đúng11file kit (system.css,system.js; layout/layout.css,layout/layout.js; moments/lib.js,moments/moments.js,moments/word-highlight/moment.css,moment.js; motion/motion.css,motion/motion.js; ui/ui.js) nguyên bản. Font files/license: fonts/Figtree-Variable.ttf,OFL.txt,BeVietnamPro-Regular.ttf,BeVietnamPro-OFL.txt. Sáu JPEG giữ nguyên04-02; nguồn và shot list thay bằng hàng thật vẫn ở ASSETS.md, credit chung /credits.html. Không tạo asset runtime ngoài danh sách này.
+
 ## Kết thúc kiểm chứng tài sản 04-02
 
 Người dùng đã duyệt “oke tôi duyệt bộ ảnh/font”; Task2 hoàn tất sau phản hồi. Kết quả phần này cập nhật các ghi chép đang chờ trong mục tracer bên dưới.

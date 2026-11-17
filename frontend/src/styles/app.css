@@ -26,13 +26,31 @@
 .closing__cta.close--type { display: flex; flex-direction: column; align-items: stretch; gap: var(--s-7); }
 .closing__cta h2 { font-size: var(--t-h1); max-width: 12ch; }
 .closing__cta .btn--xl { width: 100%; min-height: 96px; }
-.nav__toggle { flex-shrink: 0; }
+.nav__toggle { flex-shrink: 0; padding: 0; }
 .statement h2 { margin-bottom: var(--s-7); }
 .statement .mo-wh__text { font-size: clamp(36px, 5.5vw, 80px); }
 .statement .btn { margin-top: var(--s-6); }
 .catalog .catalog-meta { color: inherit; }
+.catalog { --h: 2; }
+.catalog-grid { align-items: stretch; row-gap: var(--s-6); margin-block: var(--s-6); }
+.product-card.card { padding: 0; overflow: hidden; color: var(--p-ink); background: var(--p-bg); }
+.product-card > img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; }
+.product-info { padding: var(--s-5); }
+.product-info h3 { font: 500 var(--t-card)/1.3 var(--font-text); letter-spacing: -0.01em; margin: 0; }
+.product-price { font-size: var(--t-lead); margin-block: var(--s-3) var(--s-5); }
+.product-attributes { display: grid; gap: var(--s-2); margin: 0; font-size: var(--t-body); line-height: 1.55; }
+.product-attributes > div { display: grid; grid-template-columns: 1fr 2fr; gap: var(--s-3); }
+.product-attributes :is(dt, dd) { min-width: 0; margin: 0; overflow-wrap: anywhere; }
+.catalog-refresh { align-self: flex-start; }
 .hero--product .hero__stage img { object-position: center; }
+@media (min-width: 640px) and (max-width: 1023px) {
+  .catalog-grid > .product-card { grid-column: span 6; }
+}
 @media (max-width: 639px) {
+  /* Sáu hàng có thông tin mua thực; giữ chữ/thuộc tính đầy đủ khi catalog dài hơn hai màn hình. */
+  .catalog { height: auto; }
+  .catalog-grid > .product-card { grid-column: 1 / -1; }
+  .catalog-refresh { width: 100%; }
   .catalog .rows li { min-height: 72px; }
   .hero--product .hero__head { gap: var(--s-5); }
   .hero--product .hero__stage { aspect-ratio: 4 / 3; }

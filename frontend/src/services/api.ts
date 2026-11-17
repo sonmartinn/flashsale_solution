@@ -1,31 +1,4 @@
-export interface ProductSummaryDto {
-  id: string;
-  name: string;
-  slug: string;
-  category: string;
-  images: string[];
-  price: number;
-}
-
-export interface ProductDto extends ProductSummaryDto {
-  attributes: Record<string, unknown>;
-  description?: string;
-}
-
-export interface SaleDto {
-  id: string;
-  productId: string;
-  product: ProductSummaryDto;
-  salePrice: number;
-  totalQty: number;
-  perUserLimit: number;
-  startAt: string;
-  endAt: string;
-  status: "scheduled" | "active" | "ended";
-  mode: "v0" | "v1" | "v2";
-  remaining: number;
-  stockLoaded: boolean;
-}
+export type { ProductSummaryDto, ProductDto, SaleDto } from "./types.ts";
 
 export class ApiError extends Error {
   readonly status: number;
@@ -42,7 +15,7 @@ interface JsonOptions extends Omit<RequestInit, "body"> { body?: unknown }
 
 /** Một lần gọi, không tự gửi lại mutation; chỉ khai báo JSON khi thực sự có body. */
 export async function requestJson<T>(path: string, options: JsonOptions = {}): Promise<T> {
-  if (!path.startsWith("/") || path.startsWith("//") || path.includes("\\") || /[\r\n]/.test(path)) {
+  if (!path.startsWith("/") || path.startsWith("//") || /[\\\u0000-\u0020\u007f#]/.test(path)) {
     throw new Error("Đường dẫn API phải là đường dẫn nội bộ.");
   }
   const { body, ...init } = options;
@@ -53,7 +26,10 @@ export async function requestJson<T>(path: string, options: JsonOptions = {}): P
     ...init, headers, cache: "no-store",
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
-  const payload: unknown = await response.json().catch(() => null);
+  const payload: unknown = await response.json().catch((cause: unknown) => {
+    if (init.signal?.aborted) throw cause;
+    return null;
+  });
   if (!response.ok) {
     const value = typeof payload === "object" && payload !== null ? payload as Record<string, unknown> : {};
     throw new ApiError(response.status,

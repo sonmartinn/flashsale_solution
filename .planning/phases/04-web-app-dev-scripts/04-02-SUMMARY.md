@@ -44,7 +44,7 @@ coverage:
     description: Task 2 — kiểm chứng offline/perf/consistency đầy đủ
     verification: [{kind: automated_ui, ref: "Chưa thực thi vì tracer feedback gate", status: unknown}]
     human_judgment: false
-duration: 38min
+duration: not-recorded
 completed: 2026-11-17
 status: halted
 halt_reason: Awaiting human verification of 04-02 Task 1 asset/font tracer before Task 2

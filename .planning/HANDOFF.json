@@ -34,12 +34,14 @@
     {"decision": "04-04 draft dùng store thế hệ phiên, Bearer hiện tại và đồng hồ monotonic", "rationale": "Tránh phản hồi phiên cũ làm đăng xuất phiên mới, chặn return URL ngoài và đồng bộ countdown bằng now server. Đây là draft chưa được kiểm chứng.", "phase": "04"},
     {"decision": "Giữ draft chưa commit và không tạo SUMMARY04-04", "rationale": "Người dùng yêu cầu pause giữa Task1; chưa có tracer/verify đủ điều kiện hoàn thành.", "phase": "04"}
   ],
-  "background_processes": [
-    {"name": "isolated real API fixture", "pid": 39704, "session": 18915, "port": 5000, "health_at_pause": "200", "mongo": "127.0.0.1:27018/flashsale_test_ui_39704", "redis_db": 14, "sale_id": "6afc68ea0d5332af9479f0ff"},
-    {"name": "Vite dev", "session": 53075, "port": 5173, "health_at_pause": "200"},
-    {"name": "Vite build preview", "session": 62971, "port": 5174, "health_at_pause": "200"},
-    {"name": "agent-browser", "session": "flashsale-assets-edge", "notes": "Edge, HTTPS ngoài bị chặn; không có job kiểm tra còn chạy."}
-  ],
+  "background_processes": [],
+  "terminal_cleanup": {
+    "date_local": "2026-11-18",
+    "requested_by_user": true,
+    "closed_sessions": [18915, 53075, 62971, 40131],
+    "notes": "Đã Ctrl-C API fixture/Vite dev/preview; terminal40131 là lệnh đọc tài liệu đã kết thúc, đã thu kết quả terminal. Đã đóng agent-browser session flashsale-assets-edge. Xác minh PID39704/8404/38128/12336 cùng các launcher không còn và netstat không có LISTENING5000/5173/5174. Không đổi Docker/volume hay dọn DB.",
+    "fixture": {"mongo": "127.0.0.1:27018/flashsale_test_ui_39704", "redis_db": 14, "sale_id": "6afc68ea0d5332af9479f0ff", "lock": ".taste-skill/ui-fixture.lock", "lock_status": "stale; file còn nhưng PID39704 đã dừng; xác minh lại ownership và archive lock trước khi khởi tạo fixture mới, không xóa dữ liệu cũ"}
+  },
   "uncommitted_files_measured_at": "Trước commit handoff; lấy từ git status --porcelain trong lượt pause",
   "uncommitted_files": [
     " M .planning/ROADMAP.md",

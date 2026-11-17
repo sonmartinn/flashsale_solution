@@ -3,6 +3,14 @@ Deal: hero product; palette mint-pink-accounts; Figtree; nav-split; footer-dark;
 
 Nền #f8f8f8 giữ ảnh và giá dễ đọc; xanh #1f6b3a dành cho hành động xem sale. Giữ nguyên token do dealer xuất.
 
+## Kết thúc kiểm chứng tài sản 04-02
+
+Người dùng đã duyệt “oke tôi duyệt bộ ảnh/font”; Task2 hoàn tất sau phản hồi. Kết quả phần này cập nhật các ghi chép đang chờ trong mục tracer bên dưới.
+
+`GATE: OFF (no build active)` giữ nguyên; lịch sử04-01 OPEN3 được giữ, không chạy lại gate sau OFF và không reset/rearm vòng cũ. Báo cáo consistency đầy đủ mới tại `.taste-skill/consistency-04-02/report.json`:20FAIL/21WARN trên1440/1024/820/768/390. Lượt đi320px0FAIL; assets/font-load/empty-visual/reduced-motion/contrast/links/focus/hover/overflow đạt. Bốn waiver04-01 cho no-visual/hole/copy-headings/container-edges còn đúng với catalog văn bản/recipe hiện tại. CTA/empty-area/one-section vẫn OPEN; các WARN scroll chỉ nằm trong word-highlight được deal, matcher động từ/skip-link tiếng Việt chưa hiểu nội dung tiếng Việt, photo-weight do hero1920px trênmobile. Không giấu finding hoặc sửa kit/checker. Đây là audit tài sản trên layout cũ, không phải full-storefront audit04-03.
+
+Perf build5174 mới:0FAIL/5WARN, khoảng551KiB transfer, 191.7KiB fonts/2family/2file, 173KiB hero, CLS0, broken0. CPUhost100% nên timing chỉ tham khảo; font bytes và oversized mobile là WARN có lý do ở ASSETS.md. Browser Task2 qua5174 chặn HTTPS ngoài xác nhận6ảnh decode,2font local loaded, external=[]/overflow=false ở1440/1024/820/768/390/320;8test và strict typecheck/build chạy lại đạt. Không dùng số perf UI làm kết quả E2.
+
 ## Đính chính và tracer tài sản 04-02 (2026-11-17)
 
 Thông tin trong phần này thay thế khẳng định glyph của ghi chép 04-01 bên dưới: Figtree 62.712 byte **không** có đầy đủ tiếng Việt. Test cmap thực tế bắt lỗi U+01A0 “Ơ”; metadata Google Fonts chỉ khai báo latin và latin-ext. Việc browser hiển thị được chữ không chứng minh glyph thuộc Figtree. Bổ sung Be Vietnam Pro Regular (132.948 byte, SIL OFL 1.1, nguồn Google Fonts chính thức) làm fallback local trong cả hai font token; giữ Figtree chính và toàn bộ màu/scale/kit. Ngoại lệ chức năng được cho phép bởi 04-02 và D-03/D-05, không phải chọn lại typography vì sở thích.

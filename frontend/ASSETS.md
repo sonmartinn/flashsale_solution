@@ -36,3 +36,13 @@ Task 1 (2026-11-17): 8/8 native tests PASS; frontend/backend typecheck và build
 `GATE: OFF (no build active)` là kết quả hiện tại khi gọi skill gate ở root; marker 04-01 nằm trong `build.done.json`, lịch sử giữ OPEN 3. Không rearm/reset vòng cũ để biến thành PASS. Ba finding 04-01 chưa đóng; screenshot hiện tại còn khoảng trống footer/statement và menu tablet/mobile trông trống, ghi cho 04-03. Kiểm tra consistency/perf/offline đầy đủ của Task 2 còn chờ tracer feedback, không dùng kết quả cũ của 04-01 thay kết quả mới.
 
 Catalog có ảnh trên trang chủ thuộc 04-03; 04-02 giữ danh sách văn bản hiện tại. Để duyệt ảnh bây giờ, mở từng đường dẫn `/images/products/<slug>.jpg` ở máy chủ Vite hoặc xem các file local trong bảng nguồn.
+
+## Duyệt tracer và Task 2
+
+Người dùng đã duyệt bằng “oke tôi duyệt bộ ảnh/font”. Không hỏi lại việc chọn ảnh/font. Task 2 chạy trên cùng bộ tài sản đã duyệt.
+
+`perf.mjs http://localhost:5174/ --profile .taste-skill/chrome-perf-04-02 --json .taste-skill/perf-04-02.json` qua Edge headless (`CHROME_PATH`): **0 FAIL, 5 WARN**. 1440/390px truyền khoảng551KiB, JS parsed394KiB, font191.7KiB/2file/2family, ảnh hero173KiB, broken requests0, CLS0, WebGL0. Cảnh báo: CPU host100% ở hai lượt rộng (không dùng timing để kết luận tốc độ), font vượt mức WARN160KiB nhưng dưới FAIL320KiB, ảnh hero1920px lớn hơn mức cần trên390px. Không đổi ảnh hero đã duyệt chỉ để xóa WARN; responsive catalog/ảnh tiếp tục trong04-03. Đây là kiểm tra tài nguyên giao diện, không phải số liệu E2.
+
+`consistency.mjs` đầy đủ (Edge, 1440/1024/820/768/390, rhythm1440/820/768/390) đã chạy: **20 FAIL, 21 WARN**, report `.taste-skill/consistency-04-02/report.json`. PASS: assets, font-load, empty-visual, photo-upscale, reduced-motion, hover-move, keyboard focus, tên control, contrast, links, overflow và lượt đi320px. FAIL lặp theo chiều rộng thuộc bảy nhóm: no-visual/hole ở catalog văn bản, copy-headings tiếng Việt, container-edges của recipe hero và cta/empty-area/one-section đã ghi ở04-01. Bốn waiver cũ giải thích bốn nhóm đầu; ba nhóm còn lại giữ OPEN cho04-03, không gọi report PASS và không reset gate.
+
+Browser Task2 chạy lại trên5174 với HTTPS ngoài bị chặn: cả6ảnh decode/MIME/dimensions đạt, cả2font loaded, external=[] và overflow=false ở1440/1024/820/768/390/320. Kết quả mới `.taste-skill/assets-task2-<width>.json`; `agent-browser errors` rỗng. 8 native tests, typecheck và build chạy lại đạt. Task2 không thêm ảnh mới, không đổi hàng/giá và không cài dependency. Phạm vi tài sản của04-02 hoàn tất; giao diện đầy đủ chưa được gọi PASS.

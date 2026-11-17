@@ -1,0 +1,39 @@
+@font-face { font-family: "Figtree"; src: url("/assets/fonts/Figtree-Variable.ttf") format("truetype"); font-style: normal; font-weight: 300 900; font-display: swap; }
+:root {
+  --p-bg: #f8f8f8; --p-surface: #eeeeee; --p-ink: #0a0a0a; --p-muted: #6a6a6a;
+  --p-accent: #1f6b3a; --p-accent-ink: #ffffff; --p-action: #1f6b3a; --p-action-ink: #ffffff;
+  --p-inv-bg: #0a0a0a; --p-inv-surface: #171717; --p-inv-ink: #f8f8f8; --p-inv-muted: #939393;
+  --p-inv-accent: #1f6b3a; --p-inv-accent-ink: #ffffff; --p-inv-action: #1f6b3a; --p-inv-action-ink: #ffffff;
+  --font-display: "Figtree", system-ui, sans-serif;
+  --font-text: "Figtree", system-ui, sans-serif;
+  --display-weight: 400;
+  --display-tracking: -0.025em;
+  --display-tracking-xl: -0.035em;
+}
+.sale-offer { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-3); }
+.sale-price { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-4); margin: 0; font-size: var(--t-lead); }
+.sale-price del { font-size: var(--t-small); color: var(--muted); }
+.stock { margin: 0; font-size: var(--t-body); }
+.stock--negative { color: #a32121; }
+.catalog-meta { color: var(--muted); margin-block: var(--s-5); }
+.catalog .rows { margin-block: var(--s-6); }
+.catalog .rows li { min-height: 64px; font-size: var(--t-body); gap: var(--s-5); }
+.read-error { margin-block: var(--s-5); }
+.legal { display: flex; justify-content: space-between; flex-wrap: wrap; gap: var(--s-5); }
+.legal a { display: inline-flex; align-items: center; min-height: 44px; }
+.closing__cta.close--type { display: flex; flex-direction: column; align-items: stretch; gap: var(--s-7); }
+.closing__cta h2 { font-size: var(--t-h1); max-width: 12ch; }
+.closing__cta .btn--xl { width: 100%; min-height: 96px; }
+.nav__toggle { flex-shrink: 0; }
+.statement h2 { margin-bottom: var(--s-7); }
+.statement .mo-wh__text { font-size: clamp(36px, 5.5vw, 80px); }
+.statement .btn { margin-top: var(--s-6); }
+.catalog .catalog-meta { color: inherit; }
+.hero--product .hero__stage img { object-position: center; }
+@media (max-width: 639px) {
+  .catalog .rows li { min-height: 72px; }
+  .hero--product .hero__head { gap: var(--s-5); }
+  .hero--product .hero__stage { aspect-ratio: 4 / 3; }
+  .sale-offer { width: 100%; }
+  .sale-offer .btn { width: 100%; }
+}

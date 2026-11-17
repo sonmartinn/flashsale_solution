@@ -17,3 +17,6 @@ loadtest/results/*
 
 # Bộ cài GSD cho Codex (npx ... --codex --local): cũng ghi cứng đường dẫn máy, không đưa lên git.
 .codex/
+
+# Hồ sơ trình duyệt, ảnh kiểm tra và lịch sử dealer cục bộ của skill thiết kế.
+.taste-skill/

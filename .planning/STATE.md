@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 4
+current_phase: 04
 current_phase_name: Web App & Dev Scripts
 status: executing
-stopped_at: Phase 4 plans verified — ready to execute
-last_updated: "2026-11-16T11:56:08.718Z"
-last_activity: 2026-11-16
-last_activity_desc: Phase 04 planned — 9 plans in 8 waves, independent plan check passed
-state_head: 432d3dc8ae6191ae26c934f2ac21bf9f65c89c16
+stopped_at: 04-01 tracer implemented; awaiting human feedback before 04-02
+last_updated: "2026-11-17T04:57:41.126Z"
+last_activity: 2026-11-17
+last_activity_desc: 04-01 implemented and summarized; awaiting tracer feedback
+state_head: 8084727266aba4100585fbca4a39e38d988cc13d
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 30
-  completed_plans: 21
+  completed_plans: 22
   percent: 60
 ---
 
@@ -27,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 
 ## Current Position
 
-Phase: 4 (Web App & Dev Scripts) — READY TO EXECUTE
-Plan: 0 of 9 complete (next: 04-01)
-Status: Ready to execute
-Last activity: 2026-11-16 — Phase 04 research and 9 plans complete; independent checker passed after scope split
+Phase: 04 (Web App & Dev Scripts) — EXECUTING
+Plan: 04-01 implemented (2/2 tasks); tracer feedback pending; 0/9 plans accepted
+Status: Awaiting human verification of 04-01 before 04-02
+Last activity: 2026-11-17 — Code 9dc87f4, SUMMARY 8084727; strict checks pass, visual gate OPEN 3
 
 Progress: [██████░░░░] 60% (3/5 phases); 21/30 plans đã lập hoàn tất, Phase 04 có 9 plans sẵn sàng thực thi, Phase 05 chưa lập kế hoạch.
 
@@ -77,6 +77,7 @@ None yet.
 - Code freeze 2026-12-06: Phase 01–03 verification passed; Phase 03 đóng ngày 2026-11-16 với 6/6 SUMMARY, 51/51 must-haves và CSV chính thức E1–E4. Phase 04 có 9 plans/8 waves đã kiểm tra; Phase 05 chưa lập kế hoạch.
 - [Phase 3] Regression 2026-11-13 đạt: 289 loadtest, 172 unit backend, 200 integration; backend/loadtest typecheck và backend build đạt. Báo cáo: `03-REGRESSION.md`, `03-VERIFICATION.md`.
 - [Phase 4] Nghiên cứu dev scripts đã hoàn tất trong 04-RESEARCH.md (PowerShell 5.1, bash 3.2, tiến trình nền, ownership và kiểm tra cổng). Kế hoạch có checkpoint xác minh package trước cài đặt và UAT Windows thật ở 04-07; macOS phải ghi rõ nếu chỉ kiểm tra cú pháp.
+- [Phase 4] 04-01 đã triển khai, package được người dùng xác nhận; chờ duyệt tracer. SUMMARY status halted để không chạy 04-02 trước phản hồi. Gate OPEN 3 (CTA/footer); 4 waiver ghi ở frontend/DESIGN.md. Frontend/backend typecheck/build đạt; perf build 0 FAIL/3 WARN; fixture giữ chạy để duyệt trên5173/5174.
 - Port 27017 is the Windows MongoDB service; always use `127.0.0.1:27018`
 - [Phase 2] Rủi ro đã chấp nhận ở UAT, phải ghi vào tài liệu rủi ro Phase 5: WR-01 (hoàn kho sau lỗi ghi đơn mơ hồ không phải E11000 có thể ra `totalQty+1`), WR-02 (ioredis `autoResendUnfulfilledCommands` mặc định bật; E4 PASS không loại bỏ rủi ro gửi lại lệnh), WR-04 (`?mode=` khác `sale.mode` vượt `totalQty` qua hai kho; báo cáo nêu điều kiện "mọi lượt mua dùng đúng mode của đợt sale")
 - [Review 2026-11-12] Các cảnh báo còn mở trong 02-REVIEW.md: WR-03 (reset chồng với lượt mua đang chạy), WR-06 (reset lỗi muộn giữ cache cũ), WR-07 (E1 nhận số user vượt ngân sách cổng); chưa sửa mã nguồn hay chấp nhận thay người dùng
@@ -93,6 +94,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-16T10:58:22.983Z
-Stopped at: Phase 4 plans verified — ready to execute
-Resume file: .planning/phases/04-web-app-dev-scripts/04-PLAN-CHECK.md
+Last session: 2026-11-17T04:57:39.375Z
+Stopped at: 04-01 tracer implemented; awaiting human feedback before 04-02
+Resume file: .planning/phases/04-web-app-dev-scripts/.continue-here.md

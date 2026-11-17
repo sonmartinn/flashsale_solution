@@ -127,7 +127,7 @@ Plans:
 
 Plans:
 **Wave 1**
-- [ ] 04-01-PLAN.md — Package verification, design deals, bounded real-sale home/proxy tracer and isolated API fixture (wave 1; package checkpoint)
+- [ ] 04-01-PLAN.md — Package verification, design deals, bounded real-sale home/proxy tracer and isolated API fixture (wave 1; implemented, tracer feedback pending; code 9dc87f4)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 04-02-PLAN.md — Six licensed local product images, dealt Vietnamese fonts and offline asset verification (wave 2)
@@ -179,5 +179,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 (Phase 4 depends only
 | 1. Foundation (Infra, Data, Auth) | 10/10 | Complete    | 2026-11-08 |
 | 2. Buy Pipeline & Admin APIs | 5/5 | Complete    | 2026-11-09 |
 | 3. Experiments (E1-E4) | 6/6 | Complete    | 2026-11-16 |
-| 4. Web App & Dev Scripts | 0/9 | Planned | - |
+| 4. Web App & Dev Scripts | 0/9 | Executing — tracer review | - |
 | 5. Results Chart, README & Analysis | 0/TBD | Not started | - |

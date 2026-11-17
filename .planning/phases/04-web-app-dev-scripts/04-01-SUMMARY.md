@@ -20,7 +20,7 @@ key-files:
 key-decisions:
   - Người dùng đã xác nhận package trước cài đặt; không cài React Compiler optional
   - Giữ deal hợp lệ đầu tiên và chép nguyên bản 11 file kit
-  - Chờ duyệt tracer trước mở rộng 04-02; không đánh dấu phase hoàn tất
+  - Người dùng đã duyệt tracer để tiếp tục 04-02; giữ các finding giao diện đã báo
 requirements-completed: [WEB-01, WEB-03]
 coverage:
   - id: D1
@@ -46,8 +46,7 @@ coverage:
     rationale: Tracer có human-check và ba finding giao diện còn mở; cần duyệt trước mở rộng.
 duration: 85min
 completed: 2026-11-17
-status: halted
-halt_reason: awaiting-tracer-feedback
+status: complete
 ---
 
 # Phase 4 Plan 01: Tracer trang chủ dùng API thật
@@ -58,7 +57,7 @@ halt_reason: awaiting-tracer-feedback
 
 - Bắt đầu gate/triển khai: 2026-11-17T03:24:56Z; hoàn tất kiểm tra: khoảng 04:50Z. Thời lượng gồm chờ quyền công cụ.
 - Task 1: người dùng xác nhận “oke tôi xác nhận” trước npm install. Audit 6 OK, 4 SUS latest-age có evidence repository/engines/peers; không biến SUS thành PASS.
-- Task 2: đã triển khai và kiểm tra; **tracer feedback checkpoint còn chờ**.
+- Task 2: đã triển khai và kiểm tra; **tracer feedback đã được duyệt** bằng phản hồi “Duyệt tracer, tiếp tục 04-02”.
 - Code: `9dc87f4` — `feat(04-01): build real-sale storefront tracer and isolated API fixture` (30 file).
 - Không có unit frontend ở lát cắt này; harness/test đầu tiên thuộc 04-02. Không chạy hoặc sửa số liệu thí nghiệm chính thức.
 
@@ -106,9 +105,9 @@ T-04-01: React render text từ API; requestJson dùng /api nội bộ, AbortSig
 
 ## Checkpoint và bước tiếp
 
-Mở http://localhost:5173/ (dev) hoặc http://localhost:5174/ (build preview), xem giá/tồn kho, bấm Xem đợt sale và thử các chiều rộng. 04-01 **halted có chủ đích**, chưa đánh dấu WEB-01/03 hoàn tất trong REQUIREMENTS, chưa chạy04-02.
+Người dùng đã xem và duyệt tracer để tiếp tục 04-02. Đóng trạng thái halted; ba finding visual vẫn được ghi nhận, không đổi thành automated PASS. WEB-01/03 còn phụ thuộc các plan dùng chung nên chưa đánh dấu hoàn tất trong REQUIREMENTS.
 
-Khi người dùng duyệt tracer: đổi SUMMARY status thànhcomplete, cập nhật progress/tracking theo GSD, rồi thực thi04-02. Không cài lại package hoặc chạy lại code từ đầu. Nếu cần sửa, tiếp tục đúng checkpoint và ghi các thay đổi thực tế.
+Tiếp tục 04-02 từ code hiện tại, không cài lại package hoặc thực thi lại 04-01.
 
 ## Self-Check: PASSED
 

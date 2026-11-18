@@ -3,7 +3,53 @@ Deal: hero product; palette mint-pink-accounts; Figtree; nav-split; footer-dark;
 
 Nền #f8f8f8 giữ ảnh và giá dễ đọc; xanh #1f6b3a dành cho hành động xem sale. Giữ nguyên token do dealer xuất.
 
-## Tracer 04-05 Task 1 — đơn của tôi và kết quả mua (chờ duyệt)
+## Audit route khách hàng 04-05 — Task 2
+
+Người dùng đã duyệt tracer Task 1 (“approved”). Audit chạy trên bản build `vite preview --port 5174 --strictPort`, API thật qua `scripts/test/ui-api-fixture.mjs` (MongoDB `flashsale_test_ui_33640`, Redis DB 15, saleId `6afd8b8562f44dfa27c7b0ae`; fixture tự xóa DB/khóa khi dừng, đã kiểm tra DB 15 trống). agent-browser bị treo ở lượt trước nên dùng lại driver CDP Edge headless. **`GATE: OFF (no build active)`** khi gọi `gate.mjs` trong worktree; giữ lịch sử OPEN 3, không arm/reset vòng mới. Không chạy thí nghiệm tải.
+
+**Chức năng trên trình duyệt** — `node scripts/test/ui-browser/customer-audit.mjs <saleId> .taste-skill/shots-0405-t2 <abs>/.taste-skill/chrome-0405-t2 400`: **63/63 PASS** ở lượt cuối (kết quả `.taste-skill/shots-0405-t2/04-05-task2-browser.json`, ảnh cùng thư mục, đều gitignored). Lỗi đều tiêm trong trang qua `hook.js`; dữ liệu thật chỉ là đơn của user0401–0410 trong DB fixture.
+
+- Bàn phím: Tab đầu tiên ở `/login` là “Đến nội dung” có vòng focus; 7 Tab tới email, Tab sang mật khẩu, Enter đăng nhập và về đúng sale; Tab tới “Mua ngay” + Enter → đúng 1 POST, “Mua thành công…”; Tab + Enter “Xem đơn của tôi” → `/orders`; Enter “Làm mới đơn hàng” → đúng 1 GET. Menu 390: Enter mở (`aria-expanded=true`), Tab ở trong header, Escape đóng và trả focus về nút.
+- Bố cục 1440/1024/820/768/390/320 cho `/login`, sale (khách và đã mua), `/orders`: không tràn ngang, mọi link/nút ≥44px, ô nhập 48px, một h1; nút “Mua ngay” rộng hết cụm ở 390/320.
+- 12 đơn (DTO thật nhân bản, một tên rất dài) ở 1440/1024/820/390/320: danh sách nằm trong section, không đè footer, không tràn.
+- Giảm chuyển động: h1 opacity 1, countdown vẫn đổi theo giây.
+- Phiên: sai mật khẩu báo cạnh form (`aria-invalid`, `aria-describedby=auth-error`), không báo hết hạn, không tạo phiên; reload `/orders` và `/sales` giữ phiên, đọc lại đúng 1 lần; token hỏng ở `/orders` → 401, xóa phiên, `/login?returnTo=%2Forders` với “Phiên đăng nhập đã hết hạn…”, đăng nhập lại về `/orders`.
+- Đơn trống: “Bạn chưa có đơn hàng” và “Về trang chủ” dẫn về `/`. `/sales/ffffffffffffffffffffffff` (404) và `/sales/khong-phai-ma` (400): “Không tìm thấy đợt sale.”, đúng 1 GET, “Xem sản phẩm” về `/#products`.
+- Lỗi đọc: lần đầu “Không đọc được đợt sale.”/“Không đọc được đơn hàng.” + “Thử đọc lại” và thử lại tải được; lỗi khi làm mới giữ tồn đã đọc (“Còn 87 sản phẩm”, không về 0), báo “Dữ liệu đã cũ… Cập nhật lúc…”, khóa mua, nút làm mới vẫn dùng được; `/orders` giữ danh sách cũ.
+- Đồng hồ: giờ server lệch −2 giờ so với máy. Trước `startAt` khóa “Đợt sale chưa mở…”, tự mở sau 3,9 s không đọc lại; còn 5 giây thì đồng hồ về “0 ngày 0 giờ 0 phút 0 giây” và khóa sau 4,9 s, không phát sinh GET, `aria-live="off"`, không POST nào.
+- Phiên cũ: GET `/orders/me` của tài khoản trước trả 200 muộn 3 s (bỏ qua abort) sau khi tài khoản sau đăng nhập — không hiện trên trang mới. POST mua trả 201 muộn sau khi đăng xuất trên cùng trang sale — không báo thành công, không lộ mã đơn, nút trở lại; tài khoản sau đăng nhập thấy nút mua theo đơn của mình, tổng 1 POST, server có đúng 1 đơn cho người mua.
+- Offline (chặn mọi `https://*`): ba route không tải tài nguyên ngoài, Figtree và Be Vietnam Pro `loaded`, ảnh sản phẩm giải mã. Không có lỗi console.
+
+Chạy lại harness Task 1 trên bản build cuối (fixture cùng lượt, user0001–0004): **22/22 PASS** — mọi mã nghiệp vụ (SOLD_OUT, ALREADY_BOUGHT, SALE_NOT_ACTIVE, STOCK_NOT_LOADED thật/tiêm, 500 và phản hồi mất), reset mở mua lại, token hỏng. Kiểm tra thêm bằng cách sửa JSON sale trong trang: V0 `remaining=-3` hiện “Tồn kho âm: -3 sản phẩm (đã bán vượt)” màu `rgb(163,33,33)` và khóa mua; `stockLoaded=false, remaining=42` hiện “Kho chưa sẵn sàng” và khóa mua.
+
+`/admin` chưa có route (thuộc 04-09): trong app hiện tại mở `/admin` ra “Không tìm thấy trang”; API `/api/admin/sales/:id/stats` trả 403 FORBIDDEN cho user thường. Guard dùng chung được gắn tạm vào một trang Vite dev gitignored (`MemoryRouter` `/admin`, đã xóa sau khi chạy): khách → `/login`, user → “Không đủ quyền” + câu hướng dẫn của UI-SPEC, admin → nội dung. Kiểm tra route thật vẫn thuộc 04-09.
+
+**Sửa trong Task 2 (app CSS, không sửa kit):** (1) link điều hướng desktop của kit cao 36px và logo 22–26px, trái UI-SPEC “link điều hướng tối thiểu 44px” — đặt `.nav__links .nav__link` 44px và logo `min-height: 44px`; menu mobile mở vẫn 56px. (2) Kit cố định `main > section` một màn hình từ 1280px nên 12 đơn ở 1440 tràn tới y=2457 trong khi section kết thúc ở 900 (đè footer; lượt trước sửa FAIL, lượt sau PASS) — `.task-screen` giữ tối thiểu một màn hình nhưng giãn theo nội dung. (3) “Thông tin sản phẩm” chỉ vài dòng bị kéo thành một màn hình (91% trống) — để chiều cao theo nội dung.
+
+**Skill thiết kế** (`CHROME_PATH` = Edge, chạy tuần tự, kết quả trong `.taste-skill/`):
+
+```text
+node <skill>/scripts/consistency.mjs http://localhost:5174/login --profile .taste-skill/chrome-consistency-0405-login --page product --category giày --primary "Đăng nhập" --widths 1440,1024,820,768,390 --rhythm-widths 1440,820,768,390 --out .taste-skill/consistency-0405-login
+node <skill>/scripts/consistency.mjs http://localhost:5174/sales/<id> --profile .taste-skill/chrome-consistency-0405-sale --page product --category giày --primary "Mua ngay" --widths 1440,1024,820,768,390 --rhythm-widths 1440,820,768,390 --out .taste-skill/consistency-0405-sale
+node <skill>/scripts/consistency.mjs http://localhost:5174/sales/<id> --quick ... --widths 1440,390 --out .taste-skill/consistency-0405-sale-quick
+node <skill>/assets/layout/check.mjs --url <route> --profile <dir> --sizes 1440x900,1024x768,820x1180,768x1024,390x844,320x640 --shots .taste-skill/layout-0405-<route> --json
+node <skill>/scripts/shoot.mjs --url <route> --w 1440|390 --out .taste-skill/shoot-0405/<route>-<w>.png --profile <dir> --no-tiles
+node <skill>/scripts/perf.mjs <route> --profile .taste-skill/chrome-perf-0405-<route> --json .taste-skill/perf-0405-<route>.json
+node <skill>/scripts/copy-lint.mjs <rendered.html> --kind product
+```
+
+- Consistency `/login`: **32 FAIL / 11 WARN**, exit 1; sweep 1280/1152/896 và đi 320px 0 FAIL; tap-size, collide, focus-ring, field-label, contrast, reduced-motion, font-load PASS.
+- Consistency `/sales/:id` trước sửa specs: **42 FAIL / 13 WARN** (5 width); quick sau sửa (1440, 390): **15 FAIL / 12 WARN**. Sửa làm mất empty-area/no-visual/section-air FAIL của “Thông tin sản phẩm” nhưng đổi sang section-height/one-section/one-heading/text-only vì section ngắn hơn một màn hình. Hai lượt khác bề rộng, không so số tổng như một cải thiện.
+- Consistency `/orders`: **ERROR — không chạy được ở trạng thái đã đăng nhập** vì script tạo hồ sơ trình duyệt mới mỗi lượt nên route chuyển về `/login`. Thay bằng `check.mjs`/`shoot.mjs` với hồ sơ đã có phiên (xác nhận có “Cập nhật lúc…” và 1 đơn), harness CDP và copy-lint trên HTML đã render.
+- Layout `check.mjs`: `/login` 0 finding ở cả 6 kích thước; sale 10/9/9/9/3/4 finding (edge-left/edge-right/one-sided của cột mua bên phải ảnh, screen-short/screen-height/sparse/neighbour của “Thông tin sản phẩm”, hero-fold ở 320); `/orders` 1 finding edge-left (“Cập nhật lúc…” cạnh nút làm mới) ở 1440/1024/820/768, 0 ở 390, hero-fold ở 320. `overflowX=false` mọi kích thước. Đã nhìn ảnh first-screen và ảnh toàn trang 1440/390/320.
+- Perf: `/login` **0 FAIL / 2 WARN** (font 191,7 KiB), 382 KiB; sale **0 FAIL / 4 WARN** (font, ảnh 1920px cho khung 749/342px), 556 KiB, CLS 0, broken 0. Ảnh responsive vẫn là giới hạn mở từ 04-03.
+- Copy-lint: `/login` 41 từ, sale 105 từ, `/orders` 69 từ — đều 0 FAIL / 0 WARN.
+
+**Ngoại lệ D-04 cho màn hình tác vụ** (không quy đổi thành PASS): `/login` và `/orders` là tác vụ — no-visual, copy-headline/copy-fact (“Đăng nhập” không phải tên hàng), product-shown, container-edges của form 28rem ở giữa, empty-area dưới form ngắn, moment-none; sale giữ bố cục UI-SPEC “ảnh bên trái, cụm mua bên phải” nên split-pair/container-edges/edge-left/product-shown 58% chiều rộng là theo hợp đồng; “Thông tin sản phẩm” là dữ liệu thuộc tính, không phải section marketing (cta/text-only/section-height). loop-pause của countdown: đồng hồ đếm ngược là dữ liệu thật của D-08, `role="timer"` `aria-live="off"`, không phải chuyển động trang trí. Matcher copy-buttons/copy-headings/skip-link tiếng Anh không hiểu “Mua ngay”, “Thông tin sản phẩm”, “Đến nội dung” (skip link thật là Tab đầu tiên tới `#top`). form-fields WARN: form có `aria-busy`, lỗi dùng `role="alert"` cạnh trường.
+
+**OPEN còn lại:** footer empty-area/one-section (lịch sử 04-01/03), ảnh 1920px không có biến thể responsive (perf/photo-weight WARN), khoảng trống giữa hero một màn hình và “Thông tin sản phẩm” ở 1440, consistency `/orders` chưa chạy được khi đăng nhập, `/admin` thật chờ 04-09. Có vài tiến trình agent-browser/Edge headless cũ từ phiên trước (14:49–14:56), không do lượt này khởi động nên không dừng.
+
+## Tracer 04-05 Task 1 — đơn của tôi và kết quả mua (đã duyệt)
 
 `/orders` là màn hình tác vụ D-04: h1 “Đơn của tôi”, thời điểm cập nhật và “Làm mới đơn hàng” cạnh tiêu đề, danh sách `ol` dùng ảnh/tên trong DTO của API, giá đã trả, giờ `vi-VN`, trạng thái, mã đơn và “Xem đợt sale”. Không có hero, moment hay ảnh marketing. Trống thì “Bạn chưa có đơn hàng” và “Về trang chủ”. Nav thêm “Đơn của tôi” với `aria-current`. Trang sale giữ SaleHero; vùng phản hồi `role="status"` có câu riêng cho từng kết quả theo bảng copy của 04-UI-SPEC. Tồn âm V0 hiện “Tồn kho âm: {n} sản phẩm (đã bán vượt)” bằng chữ và màu đỏ.
 

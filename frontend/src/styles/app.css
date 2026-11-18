@@ -27,6 +27,9 @@
 .closing__cta h2 { font-size: var(--t-h1); max-width: 12ch; }
 .closing__cta .btn--xl { width: 100%; min-height: 96px; }
 .nav__toggle { flex-shrink: 0; padding: 0; }
+/* 04-UI-SPEC: link điều hướng tối thiểu 44px. Kit để chữ nav desktop 36px và logo cao bằng chữ; menu mobile mở vẫn 56px. */
+.nav__bar > .nav__logo { min-height: 44px; }
+.nav__links .nav__link { height: 44px; }
 .statement h2 { margin-bottom: var(--s-7); }
 .statement .mo-wh__text { font-size: clamp(36px, 5.5vw, 80px); }
 .statement .btn { margin-top: var(--s-6); }
@@ -45,6 +48,11 @@
 .hero--product .hero__stage img { object-position: center; }
 .nav-signout { border: 0; background: none; font: inherit; cursor: pointer; }
 .task-screen { padding-block: clamp(var(--s-7), 9vw, var(--s-10)); }
+/* Kit cố định main > section đúng một màn hình từ 1280px: danh sách đơn dài (tối đa 100) đè lên footer.
+   Màn hình tác vụ (D-04) giữ tối thiểu một màn hình nhưng giãn theo nội dung ở mọi bề rộng. */
+main#top > section.task-screen { height: auto; min-height: calc(var(--h, 1) * 100vh); min-height: calc(var(--h, 1) * 100svh); }
+/* Thông tin sản phẩm chỉ vài dòng thuộc tính: không kéo thành một màn hình trống dưới vùng mua. */
+main#top > section.sale-specs { height: auto; min-height: 0; }
 .auth-panel { width: min(100%, 28rem); margin-inline: auto; display: grid; gap: var(--s-6); }
 .auth-panel h1 { margin: 0; }
 .auth-form, .auth-field { display: grid; gap: var(--s-4); }

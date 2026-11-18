@@ -3,6 +3,29 @@ Deal: hero product; palette mint-pink-accounts; Figtree; nav-split; footer-dark;
 
 Nền #f8f8f8 giữ ảnh và giá dễ đọc; xanh #1f6b3a dành cho hành động xem sale. Giữ nguyên token do dealer xuất.
 
+## Tracer 04-05 Task 1 — đơn của tôi và kết quả mua (chờ duyệt)
+
+`/orders` là màn hình tác vụ D-04: h1 “Đơn của tôi”, thời điểm cập nhật và “Làm mới đơn hàng” cạnh tiêu đề, danh sách `ol` dùng ảnh/tên trong DTO của API, giá đã trả, giờ `vi-VN`, trạng thái, mã đơn và “Xem đợt sale”. Không có hero, moment hay ảnh marketing. Trống thì “Bạn chưa có đơn hàng” và “Về trang chủ”. Nav thêm “Đơn của tôi” với `aria-current`. Trang sale giữ SaleHero; vùng phản hồi `role="status"` có câu riêng cho từng kết quả theo bảng copy của 04-UI-SPEC. Tồn âm V0 hiện “Tồn kho âm: {n} sản phẩm (đã bán vượt)” bằng chữ và màu đỏ.
+
+Sửa lỗi bố cục có từ trước: từ 1024px rule hero product của kit (specificity 0,5,0) đặt h1 chồng lên vùng mua của `/sales/:id`. App CSS thêm selector cùng điều kiện `:has` cho `.sale-detail` để h1, lead, giá, đồng hồ và nút nằm một cột bên phải ảnh. Đã đo: h1 x=852 y=120 ở 1440, offer bắt đầu dưới h1 ở 1024. Không sửa kit.
+
+Kiểm chứng trình duyệt thật: Edge headless qua CDP (`scripts/test/ui-browser/purchase-orders.mjs`), bản build `vite preview` 5174, API fixture `scripts/test/ui-api-fixture.mjs` với dữ liệu seed riêng. Lỗi nghiệp vụ SOLD_OUT, SALE_NOT_ACTIVE, STOCK_NOT_LOADED và 500 được tiêm trong trang bằng hook fetch. ALREADY_BOUGHT và SOLD_OUT còn được tạo thật bằng API fixture (mua ở “tab khác”, reset totalQty=1 rồi người khác mua hết). Phản hồi bị mất được giả lập bằng cách gửi POST thật rồi trả lỗi mạng cho trang. Hai lượt cuối trên hai fixture mới đều 22/22 PASS:
+
+- Khách bấm mua về `/login?returnTo=/sales/<id>`. Sai mật khẩu báo trên form, không xóa phiên.
+- Sau đăng nhập trang đọc `/orders/me`; nút mua chờ lần đọc đầu tiên.
+- Mất phản hồi: đúng 1 POST, “Chưa xác nhận được kết quả mua…”, khóa mua, link “Xem đơn của tôi”; bấm thêm không tạo POST thứ hai. “Làm mới tồn kho” đọc lại đơn và báo “Đơn của bạn đã được ghi nhận. Mã đơn …”. Server có đúng 1 đơn.
+- Reload biết đã mua nhờ đọc đơn; localStorage chỉ có `flashsale.session`.
+- user0001 thấy đơn của mình trên `/orders`. Đăng xuất ở `/orders` rồi đăng nhập user0002: trạng thái trống, không có mã đơn của user0001.
+- SOLD_OUT, SALE_NOT_ACTIVE, STOCK_NOT_LOADED: mỗi mã một câu, mỗi lần đúng 1 POST. 500: chưa rõ và khóa; sau khi đọc đơn không thấy đơn, nút mở và lần mua người dùng tự bấm thành công thật.
+- ALREADY_BOUGHT thật 409 và SOLD_OUT thật 409 hiện câu riêng, khóa mua; SOLD_OUT đọc lại “Còn 0 sản phẩm”.
+- Reset qua API admin (startAt mới) làm trang đọc lại đơn và mở mua lại cho tài khoản đã mua ở lượt trước.
+- Token hỏng: lần đọc đơn nhận 401, phiên bị xóa, bấm mua về `/login` có “Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.”
+- Không có lỗi console.
+
+Lượt thứ ba (trước khi sửa) bắt được lỗi thật: khung hình đầu sau khi sale tải bật nút mua trước khi effect đọc đơn chạy, nên một cú bấm có thể rơi vào lúc nút vừa bị khóa. Đã sửa bằng `awaitingMembership` (chờ lần đọc thành công hoặc lỗi của đúng phiên + lượt sale) và thêm test.
+
+`npm.cmd --prefix frontend test` 48/48, `npm.cmd --prefix frontend run build` (gồm `tsc -b`) đạt. Kiểm tra checker/layout/perf của skill trên `/login`, `/sales/:id`, `/orders` thuộc Task 2 và chưa chạy. Route `/admin` thuộc 04-09 nên ca tài khoản thường mở `/admin` chưa kiểm tra được trên trình duyệt; ProtectedRoute đã dùng câu của 04-UI-SPEC. `GATE: OFF (no build active)` giữ nguyên.
+
 ## Thiết kế trước route 04-04
 
 Giữ product/other, palette/type/buttons/nav/footer đã duyệt. `/login` là tác vụ xác thực D-04/D-10: waiver cụ thể cho hero dealer, moment, ảnh và screen-height marketing; một form ngắn có label/48px field/44px controls, chuyển đăng nhập/đăng ký thủ công, dùng endpoint auth thật. Không tạo mailto.example hoặc lời hứa gửi thư vì đây là form tài khoản đã có API. Không thêm khoảng trống/moment để làm chậm thao tác.

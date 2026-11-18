@@ -2,11 +2,11 @@
 gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Web App & Dev Scripts
-status: paused
-stopped_at: Paused by user during 04-04 Task 1; draft session/clock helpers untested, routes not wired
-last_updated: "2026-11-17T16:52:20.187Z"
-last_activity: 2026-11-17
-last_activity_desc: Paused by user during 04-04 Task 1; 04-01 through 04-03 complete, new session helpers untested
+status: awaiting_human_verify
+stopped_at: 04-04 Task 1 verified in Edge and awaiting user review
+last_updated: "2026-11-18T08:08:46.661Z"
+last_activity: 2026-11-18
+last_activity_desc: 04-04 Task 1 passed browser and automated checks
 state_head: 215b3eefd9044753f3aa8ecc2dbdfdfe6a981e0f
 progress:
   total_phases: 5
@@ -27,12 +27,12 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 
 ## Current Position
 
-Phase: 04 (Web App & Dev Scripts) — PAUSED BY USER
-Plan: 04-04 Task 1 partially drafted; 04-01/04-02/04-03 complete (3/9)
-Status: Paused on explicit $gsd-pause-work; new helpers are untested and routes are not wired
-Last activity: 2026-11-17 — 04-03 audit 575d515/SUMMARY 215b3ee; 04-04 draft auth/store/clock/guard files remain uncommitted
+Phase: 04 (Web App & Dev Scripts)
+Plan: 04-04 Task 1 chờ duyệt, 04-01 đến 04-03 đã hoàn tất (3/9)
+Status: Luồng đăng nhập và mua đã kiểm chứng. Chờ người dùng duyệt để tiếp tục Task 2.
+Last activity: 2026-11-18 — 30 test đạt, Edge mua V2 trả 201 và tồn kho từ 100 xuống 99.
 
-Progress: [██████░░░░] 60% (3/5 phases); 24/30 plans hoàn tất, 04-04 mới có bản nháp chưa kiểm tra nên không tính complete; Phase 05 chưa lập kế hoạch.
+Progress: [██████░░░░] 60% (3/5 phases); 24/30 plans hoàn tất, 04-04 đang chờ duyệt Task 1; Phase 05 chưa lập kế hoạch.
 
 ## Performance Metrics
 
@@ -77,7 +77,8 @@ None yet.
 - Code freeze 2026-12-06: Phase 01–03 verification passed; Phase 03 đóng ngày 2026-11-16 với 6/6 SUMMARY, 51/51 must-haves và CSV chính thức E1–E4. Phase 04 có 9 plans/8 waves đã kiểm tra; Phase 05 chưa lập kế hoạch.
 - [Phase 3] Regression 2026-11-13 đạt: 289 loadtest, 172 unit backend, 200 integration; backend/loadtest typecheck và backend build đạt. Báo cáo: `03-REGRESSION.md`, `03-VERIFICATION.md`.
 - [Phase 4] Nghiên cứu dev scripts đã hoàn tất trong 04-RESEARCH.md (PowerShell 5.1, bash 3.2, tiến trình nền, ownership và kiểm tra cổng). Kế hoạch có checkpoint xác minh package trước cài đặt và UAT Windows thật ở 04-07; macOS phải ghi rõ nếu chỉ kiểm tra cú pháp.
-- [Phase 4] 04-01/02/03 đã duyệt và complete, SUMMARY mới nhất215b3ee. 04-03 có21tests/typecheck/build đạt trước khi viết bản nháp04-04; không coi đó là test cho draft mới. Browser offline6width đủ6hàng/7img, không tràn ngang, empty/error/retry và3vòng moment cleanup đạt. Raw consistency26FAIL/27WARN, layout3finding, perf2FAIL/4WARN (ảnh lớn hơn frame), mạng chậm còn ảnh muộn; xem DESIGN/SUMMARY. Gate OFF/lịch sửOPEN3, không reset/rerun. 04-04Task1 mới viết4file helper/provider/guard và ghi thiết kế, chưa nối route/form/buy/test, không SUMMARY. Người dùng yêu cầu pause; các draft để nguyên chưa commit. Fixture Mongo flashsale_test_ui_39704/Redis14,5173/5174 vẫn chạy; giữ dữ liệu fixture cũ Redis15. Handoff có danh sách dirty đo thực tế; không stage config/state.json/agents/skills-lock hoặc sửa worktree cũ.
+- [Phase 4] 04-01/02/03 đã duyệt và hoàn tất. 04-03 còn các phát hiện về bố cục, ảnh lớn và ảnh đến muộn khi mạng chậm. Gate OFF, lịch sử OPEN3. Xem frontend/DESIGN.md và 04-03-SUMMARY.md.
+- [Phase 4] 04-04 Task 1 đã kiểm chứng thực tế. Fixture riêng dùng MongoDB flashsale_test_ui_13440 và Redis DB 13. Xem checkpoint để duyệt tại 5173. Còn Task 2 trước khi viết SUMMARY. Giữ các thay đổi có sẵn ngoài phạm vi commit và các fixture cũ ở Redis DB 14/15.
 - Port 27017 is the Windows MongoDB service; always use `127.0.0.1:27018`
 - [Phase 2] Rủi ro đã chấp nhận ở UAT, phải ghi vào tài liệu rủi ro Phase 5: WR-01 (hoàn kho sau lỗi ghi đơn mơ hồ không phải E11000 có thể ra `totalQty+1`), WR-02 (ioredis `autoResendUnfulfilledCommands` mặc định bật; E4 PASS không loại bỏ rủi ro gửi lại lệnh), WR-04 (`?mode=` khác `sale.mode` vượt `totalQty` qua hai kho; báo cáo nêu điều kiện "mọi lượt mua dùng đúng mode của đợt sale")
 - [Review 2026-11-12] Các cảnh báo còn mở trong 02-REVIEW.md: WR-03 (reset chồng với lượt mua đang chạy), WR-06 (reset lỗi muộn giữ cache cũ), WR-07 (E1 nhận số user vượt ngân sách cổng); chưa sửa mã nguồn hay chấp nhận thay người dùng
@@ -94,6 +95,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-17T16:52:19.037Z
-Stopped at: Paused by user during 04-04 Task 1; draft session/clock helpers untested, routes not wired
+Last session: 2026-11-18T08:08:46.661Z
+Stopped at: 04-04 Task 1 sẵn sàng để duyệt. Tiếp theo là Task 2.
 Resume file: .planning/phases/04-web-app-dev-scripts/.continue-here.md

@@ -78,8 +78,8 @@ try {
   const requireBackend = createRequire(new URL("backend/package.json", pathToFileURL(root + "/")));
   mongoose = requireBackend("mongoose");
   const moduleAt = path => import(pathToFileURL(join(root, "backend/dist", path)).href);
-  const [{ createApp }, { connectMongo }, { createRedis, connectRedis }, { loadBaseConfig }, { seedDatabase }, { FlashSale }] = await Promise.all([
-    moduleAt("app.js"), moduleAt("config/db.js"), moduleAt("config/redis.js"), moduleAt("config/env.js"), moduleAt("services/seed.service.js"), moduleAt("models/index.js"),
+  const [{ createApp }, { connectMongo }, { createRedis, connectRedis }, { loadBaseConfig }, { seedDatabase }, { FlashSale }, { registerBuyScript }] = await Promise.all([
+    moduleAt("app.js"), moduleAt("config/db.js"), moduleAt("config/redis.js"), moduleAt("config/env.js"), moduleAt("services/seed.service.js"), moduleAt("models/index.js"), moduleAt("services/lua.js"),
   ]);
   let redisDb;
   for (const candidate of [15, 14, 13]) {
@@ -94,6 +94,7 @@ try {
     } finally { if (redis !== client) client.disconnect(); }
   }
   if (!redis || redisDb === undefined) throw new Error("Không có Redis DB 13..15 trống và chưa phân công; dừng fixture.");
+  registerBuyScript(redis);
   const cfg = loadBaseConfig({ PORT: "5000", MONGODB_URI: `mongodb://127.0.0.1:27018/${databaseName}`, REDIS_URL: `redis://127.0.0.1:6379/${redisDb}`, NODE_ENV: "test", MONGO_MAX_POOL_SIZE: "10", CLIENT_ORIGIN: "http://localhost:5173" });
   await connectMongo(cfg.mongoUri, cfg.mongoMaxPoolSize);
   if (mongoose.connection.db?.databaseName !== databaseName || (await mongoose.connection.db.listCollections().toArray()).length !== 0) throw new Error("MongoDB fixture không trống hoặc sai tên; dừng trước seed.");

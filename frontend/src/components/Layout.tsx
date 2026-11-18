@@ -96,15 +96,15 @@ export function Layout({ children, sessionLinks }: PropsWithChildren<{ sessionLi
 }
 
 export function SaleHero({ sale, detail = false, children }: PropsWithChildren<{ sale: SaleDto; detail?: boolean }>) {
-  return <section className="hero hero--product" data-enter aria-labelledby="hero-h">
+  return <section className={detail ? "hero hero--product sale-detail" : "hero hero--product"} data-enter aria-labelledby="hero-h">
     <div className="wrap"><div className="hero-text hero__in">
       <div className="hero__head">
-        <div><h1 id="hero-h">{sale.product.name}</h1><p className="hero__lead">Xem giá sale và số còn lại của sản phẩm. Mỗi tài khoản mua tối đa một sản phẩm trong đợt sale.</p></div>
+        <div><h1 id="hero-h">{sale.product.name}</h1><p className="hero__lead">{detail ? "Mỗi tài khoản mua tối đa một sản phẩm." : "Xem giá sale và số còn lại của sản phẩm. Mỗi tài khoản mua tối đa một sản phẩm trong đợt sale."}</p></div>
         <div className="btn-row sale-offer">
           <p className="sale-price">{sale.product.price > sale.salePrice && <del>{currency(sale.product.price)}</del>}<span>{currency(sale.salePrice)}</span></p>
           <p className={sale.remaining < 0 ? "stock stock--negative" : "stock"}>{sale.stockLoaded ? `Còn ${sale.remaining} sản phẩm` : "Kho chưa sẵn sàng"}</p>
           {children}
-          {detail ? <Link className="btn btn--secondary" to="/#products">Xem danh sách</Link> : <Link className="btn btn--primary" to={`/sales/${encodeURIComponent(sale.id)}`}>Xem đợt sale</Link>}
+          {!detail && <Link className="btn btn--primary" to={`/sales/${encodeURIComponent(sale.id)}`}>Xem đợt sale</Link>}
         </div>
       </div>
       {sale.product.images[0] && <div className="hero__stage"><img src={sale.product.images[0]} alt={sale.product.name} width="1920" height="1080" fetchPriority="high" data-source="stand-in" data-subject="product" /></div>}

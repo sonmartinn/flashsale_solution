@@ -3,6 +3,22 @@ Deal: hero product; palette mint-pink-accounts; Figtree; nav-split; footer-dark;
 
 Nền #f8f8f8 giữ ảnh và giá dễ đọc; xanh #1f6b3a dành cho hành động xem sale. Giữ nguyên token do dealer xuất.
 
+## Thiết kế trước route 04-04
+
+Giữ product/other, palette/type/buttons/nav/footer đã duyệt. `/login` là tác vụ xác thực D-04/D-10: waiver cụ thể cho hero dealer, moment, ảnh và screen-height marketing; một form ngắn có label/48px field/44px controls, chuyển đăng nhập/đăng ký thủ công, dùng endpoint auth thật. Không tạo mailto.example hoặc lời hứa gửi thư vì đây là form tài khoản đã có API. Không thêm khoảng trống/moment để làm chậm thao tác.
+
+`/sales/:id` tiếp tục SaleHero product đã duyệt và cùng ảnh của đúng sale. Waiver route dealer riêng để giữ sự liên tục home→sale của cùng sản phẩm; không deal góc chụp giả/film thiếu. Bổ sung vùng mua/countdown và thuộc tính semantic ngay trong luồng D-04/D-08/D-12; waiver moment riêng trên tác vụ mua vì cuộn một màn hình marketing mới sẽ tách nút mua khỏi trạng thái kho. Hero data-enter và hover/reduced-motion giữ từ kit, usePageKit init/cleanup theo route. Countdown thật không phải count-up trang trí; không thêm mode/size picker. Footer chung không thay hoặc rearm gate. Full auth/customer-route checker của04-05/09 còn chờ; không lấy audit home làm PASS cho route mới.
+
+## Kiểm thử luồng mua 04-04 — Task 1
+
+`npm.cmd --prefix frontend test` đạt 30/30. Typecheck và build của frontend và backend đều đạt. `node --check scripts/test/ui-api-fixture.mjs` cũng đạt.
+
+Edge đi từ trang chủ tới sale, bấm mua khi chưa đăng nhập, nhận lỗi với mật khẩu sai rồi đăng nhập thành công và quay lại đúng sale. Hai lần nhấp liên tiếp phát sinh một POST có Bearer, `mode=v2` và `qty: 1`. API trả 201, xác nhận mua giữ trên trang và tồn kho hiển thị giảm từ 100 xuống 99. Lượt đầu trả 500 do fixture chưa gọi `registerBuyScript`. Fixture đã được sửa theo cách khởi tạo của server và lượt chạy lại xác nhận kết quả 201.
+
+Sau reload, localStorage giữ `token` và `user` với bốn trường. Đăng xuất xóa phiên. Đăng ký ở 320px lưu phiên mới và quay lại đúng đợt sale. Các trường có label và cao ít nhất 48px. Trang sale ở 390px có nút mua cao ít nhất 44px. Ở 1440px, ảnh và vùng mua nằm cạnh nhau. Ba kích thước đã thử đều không tràn ngang.
+
+Ảnh kiểm tra sale và form đăng ký lưu trong `.taste-skill/shots/04-04-sale-phone.png` và `.taste-skill/shots/04-04-register-phone.png`. Kiểm tra toàn bộ giao diện khách hàng nằm ở 04-05/09. Sau reload, phiên vẫn còn và API tiếp tục chặn mua trùng. Đọc đơn để khôi phục trạng thái đã mua trên giao diện thuộc 04-05.
+
 ## Audit storefront 04-03 — Task 2
 
 **`GATE: OFF (no build active)`**; giữ lịch sử OPEN3, không reset/rearm hoặc chạy lại gate sau OFF. Người dùng đã duyệt “Duyệt storefront 04-03, tiếp tục Task 2”. Các đoạn chờ duyệt bên dưới là lịch sử Task1, được mục này thay thế.

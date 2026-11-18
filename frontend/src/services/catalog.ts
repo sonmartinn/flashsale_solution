@@ -17,6 +17,10 @@ export function getProducts(signal?: AbortSignal): Promise<{ products: ProductDt
   return requestJson<{ products: ProductDto[] }>("/products", { signal });
 }
 
+export function getProduct(id: string, signal?: AbortSignal): Promise<{ product: ProductDto }> {
+  return requestJson<{ product: ProductDto }>(`/products/${encodeURIComponent(id)}`, { signal });
+}
+
 export async function getHome(signal?: AbortSignal): Promise<HomeData> {
   const [sales, products] = await Promise.all([getActiveSales(signal), getProducts(signal)]);
   if (!Array.isArray(sales.sales) || typeof sales.now !== "string" || !Array.isArray(products.products)) {

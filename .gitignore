@@ -20,3 +20,6 @@ loadtest/results/*
 
 # Hồ sơ trình duyệt, ảnh kiểm tra và lịch sử dealer cục bộ của skill thiết kế.
 .taste-skill/
+
+# PID, khóa vòng đời và log của script dev.
+.dev/

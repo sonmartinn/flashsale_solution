@@ -1,23 +1,22 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { useAuth } from "../auth/AuthProvider.tsx";
 import { ErrorPanel, SaleHero, usePageKit } from "../components/Layout.tsx";
 import { ApiError } from "../services/api.ts";
 import { loginPath, StaleSessionError } from "../services/auth.ts";
 import { getProduct, getSale, productAttributes } from "../services/catalog.ts";
-import { buyUnavailable, createSingleFlight, remainingSeconds, serverTime, synchronizeClock, type ServerClock } from "../services/sale-state.ts";
+import { findSaleOrder, listMyOrders } from "../services/orders.ts";
+import {
+  buyUnavailable, classifyPurchaseError, createSingleFlight, PURCHASE_COPY, remainingSeconds, resolvePurchase, saleEpoch,
+  serverTime, synchronizeClock, type MembershipRecord, type PurchaseRecord, type ServerClock,
+} from "../services/sale-state.ts";
 import type { ProductDto, SaleDto } from "../services/types.ts";
 
 interface SaleSnapshot {
   sale: SaleDto;
   clock: ServerClock;
   revision: number;
-}
-
-interface PurchaseResult {
-  generation: number;
-  state: "success" | "error" | "uncertain" | "already-bought";
-  message: string;
+  updatedAt: Date;
 }
 
 function Countdown({ endAt, seconds }: { endAt: string; seconds: number }) {
@@ -59,20 +58,28 @@ function ProductDetails({ id }: { id: string }) {
   </section>;
 }
 
+/** 404 hoặc mã sai định dạng: đợt sale không tồn tại, thử đọc lại không giúp được. */
+const isMissingSale = (cause: unknown) => cause instanceof ApiError && ((cause.status === 404 && cause.code === "NOT_FOUND") || cause.code === "INVALID_ID");
+
 function SaleDetail({ id }: { id: string }) {
-  const { generation, store } = useAuth();
+  const { generation, session, store } = useAuth();
   const navigate = useNavigate();
   const returnTo = `/sales/${id}`;
   const nextRevision = useRef(0);
   const [revision, setRevision] = useState(0);
   const [snapshot, setSnapshot] = useState<SaleSnapshot>();
   const [readError, setReadError] = useState("");
+  const [missing, setMissing] = useState(false);
   const [tick, setTick] = useState(0);
   const [pending, setPending] = useState(false);
-  const [purchase, setPurchase] = useState<PurchaseResult>();
-  const blockedGeneration = useRef<number>(-1);
+  const [purchase, setPurchase] = useState<PurchaseRecord>();
+  const [membership, setMembership] = useState<MembershipRecord>();
+  const [membershipRead, setMembershipRead] = useState<{ generation: number; epoch: string; revision: number }>();
+  const [membershipRevision, setMembershipRevision] = useState(0);
+  // Một bộ đếm cho cả lần mua lẫn lần đọc đơn: biết lần đọc nào bắt đầu SAU kết quả chưa rõ.
+  const sequence = useRef(0);
   const [flight] = useState(createSingleFlight);
-  const active = useRef(false);
+  const active = useRef(true);
   const root = usePageKit(snapshot !== undefined);
 
   useEffect(() => {
@@ -87,12 +94,37 @@ function SaleDetail({ id }: { id: string }) {
       const monotonic = performance.now();
       const clock = synchronizeClock(now, monotonic);
       setTick(monotonic);
-      setSnapshot({ sale, clock, revision });
+      setSnapshot({ sale, clock, revision, updatedAt: new Date() });
     }).catch((cause: unknown) => {
-      if (!controller.signal.aborted) setReadError(cause instanceof ApiError ? cause.message : "Không đọc được đợt sale.");
+      if (controller.signal.aborted) return;
+      if (isMissingSale(cause)) setMissing(true);
+      setReadError("Không đọc được đợt sale.");
     });
     return () => controller.abort();
   }, [id, revision]);
+
+  const epoch = snapshot ? saleEpoch(snapshot.sale) : "";
+  const saleId = snapshot?.sale.id;
+  const userId = session?.user.id;
+
+  // Đọc lại đơn khi vào trang, đổi phiên, thấy lượt sale mới (reset) hoặc người dùng làm mới; không lưu cờ đã mua.
+  useEffect(() => {
+    if (!epoch || !saleId || !userId) return;
+    const controller = new AbortController();
+    const seq = ++sequence.current;
+    const read = { generation, epoch, revision: membershipRevision };
+    setMembershipRead(read);
+    void listMyOrders(store, controller.signal).then(orders => {
+      if (controller.signal.aborted || !store.isCurrent(generation)) return;
+      setMembership({ generation, epoch, seq, orderId: findSaleOrder(orders, saleId)?.id });
+    }).catch((cause: unknown) => {
+      // Lỗi đọc đơn không mở khóa gì: chỉ kết thúc trạng thái đang kiểm tra; API vẫn chặn mua trùng.
+      if (controller.signal.aborted || cause instanceof StaleSessionError) return;
+    }).finally(() => {
+      if (!controller.signal.aborted) setMembershipRead(current => current === read ? undefined : current);
+    });
+    return () => controller.abort();
+  }, [store, generation, userId, epoch, saleId, membershipRevision]);
 
   const clock = snapshot?.clock;
   const endAt = snapshot?.sale.endAt;
@@ -114,55 +146,59 @@ function SaleDetail({ id }: { id: string }) {
     nextRevision.current += 1;
     setReadError("");
     setRevision(nextRevision.current);
+    setMembershipRevision(value => value + 1);
   }
 
-  const outcome = purchase?.generation === generation ? purchase : undefined;
+  // Quay lại tab: đọc lại sale (phát hiện reset) và đơn (có thể đã mua ở tab khác). Polling định kỳ thuộc 04-08.
+  const refreshRef = useRef(refresh);
+  useEffect(() => { refreshRef.current = refresh; });
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === "visible") refreshRef.current(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
 
   function buy() {
     if (!snapshot || snapshot.revision !== nextRevision.current) return;
-    if (buyUnavailable(snapshot.sale, serverTime(snapshot.clock, performance.now()))) return;
+    const sent = { sale: snapshot.sale, epoch: saleEpoch(snapshot.sale) };
+    if (buyUnavailable(sent.sale, serverTime(snapshot.clock, performance.now()))) return;
 
-    const session = store.getSnapshot();
-    if (!session.session) {
+    const current = store.getSnapshot();
+    if (!current.session) {
       void navigate(loginPath(returnTo));
       return;
     }
-    if (blockedGeneration.current === session.generation) return;
+    const view = resolvePurchase({ generation: current.generation, epoch: sent.epoch }, purchase, membership);
+    if (view.bought || view.locked) return;
 
     void flight.run(async () => {
+      const record = (fields: Pick<PurchaseRecord, "kind" | "message" | "orderId">): PurchaseRecord =>
+        ({ generation: current.generation, epoch: sent.epoch, seq: ++sequence.current, ...fields });
       setPurchase(undefined);
       setPending(true);
       try {
-        const { order } = await store.request<{ order: { id: string } }>(`/sales/${snapshot.sale.id}/buy?mode=${snapshot.sale.mode}`, {
+        // Đúng một POST, mode lấy từ sale đã đọc, không có retry tự động ở bất kỳ nhánh nào.
+        const { order } = await store.request<{ order: { id: string } }>(`/sales/${encodeURIComponent(sent.sale.id)}/buy?mode=${sent.sale.mode}`, {
           method: "POST",
           body: { qty: 1 },
         });
-        if (!active.current || !store.isCurrent(session.generation)) return;
-        blockedGeneration.current = session.generation;
-        setPurchase({ generation: session.generation, state: "success", message: `Mua thành công. Mã đơn ${order.id}.` });
+        if (!active.current || !store.isCurrent(current.generation)) return;
+        if (!order || typeof order.id !== "string") throw new ApiError(201, "Máy chủ trả đơn không hợp lệ.", "INVALID_RESPONSE");
+        setPurchase(record({ kind: "success", message: PURCHASE_COPY.success(order.id), orderId: order.id }));
         refresh();
       } catch (cause) {
-        if (!active.current || cause instanceof StaleSessionError) return;
-        const current = store.getSnapshot();
+        if (!active.current) return;
         if (cause instanceof ApiError && cause.status === 401 && cause.code === "UNAUTHORIZED") {
-          if (!current.session && current.generation === session.generation + 1) void navigate(loginPath(returnTo), { replace: true });
+          // store.request đã xóa phiên hết hạn; chỉ chuyển trang khi chính lần xóa đó là thay đổi phiên mới nhất.
+          const after = store.getSnapshot();
+          if (!after.session && after.expired && after.generation === current.generation + 1) void navigate(loginPath(returnTo), { replace: true });
           return;
         }
-        if (current.generation !== session.generation) return;
-
-        if (cause instanceof ApiError && cause.status >= 400 && (cause.status < 500 || cause.code === "STOCK_NOT_LOADED")) {
-          const state = cause.code === "ALREADY_BOUGHT" ? "already-bought" : "error";
-          if (state === "already-bought") blockedGeneration.current = session.generation;
-          setPurchase({ generation: session.generation, state, message: cause.message });
-          refresh();
-        } else {
-          blockedGeneration.current = session.generation;
-          setPurchase({
-            generation: session.generation,
-            state: "uncertain",
-            message: "Chưa xác nhận được kết quả mua. Vui lòng kiểm tra lại trước khi mua thêm.",
-          });
-        }
+        // Kết quả của phiên cũ (đăng xuất/đổi tài khoản trong lúc chờ) không bao giờ áp vào trang của phiên mới.
+        if (cause instanceof StaleSessionError || !store.isCurrent(current.generation)) return;
+        const outcome = classifyPurchaseError(cause);
+        setPurchase(record(outcome));
+        if (outcome.kind !== "uncertain") refresh();
       } finally {
         if (active.current) setPending(false);
       }
@@ -171,19 +207,28 @@ function SaleDetail({ id }: { id: string }) {
 
   if (!snapshot) return <main id="top" ref={root}>
     <section className="task-screen"><div className="wrap">
-      <h1>Thông tin đợt sale</h1>
-      {readError ? <ErrorPanel message={readError} retry={refresh} /> : <p role="status">Đang đọc đợt sale…</p>}
+      <h1>{missing ? PURCHASE_COPY.notFound : "Thông tin đợt sale"}</h1>
+      {missing
+        ? <p className="sale-missing">Đường dẫn này không trỏ tới đợt sale nào. <Link className="btn btn--primary" to="/#products">Xem sản phẩm</Link></p>
+        : readError ? <ErrorPanel message={readError} retry={refresh} /> : <p role="status">Đang đọc đợt sale…</p>}
     </div></section>
   </main>;
 
   const { sale } = snapshot;
   const now = serverTime(snapshot.clock, tick);
   const reading = snapshot.revision !== revision && !readError;
+  const view = resolvePurchase({ generation, epoch }, purchase, membership);
+  // Lần đọc đơn ĐẦU TIÊN cho phiên + lượt sale này đang chạy: chờ để không bật nút mua trước khi biết đã mua chưa.
+  const known = membership?.generation === generation && membership.epoch === epoch;
+  const checking = Boolean(session) && !known && membershipRead?.generation === generation && membershipRead.epoch === epoch;
   const unavailable = buyUnavailable(sale, now, {
-    purchased: outcome?.state === "success" || outcome?.state === "already-bought",
+    purchased: view.bought,
     pending,
-    stale: snapshot.revision !== revision || outcome?.state === "uncertain",
+    stale: snapshot.revision !== revision || view.locked,
+    checking,
   });
+  const message = view.message || unavailable;
+  const showOrdersLink = view.bought || view.kind === "uncertain" || view.kind === "cleared";
 
   return <main id="top" ref={root}>
     <SaleHero sale={sale} detail>
@@ -196,10 +241,11 @@ function SaleDetail({ id }: { id: string }) {
           {reading ? "Đang đọc tồn kho…" : "Làm mới tồn kho"}
         </button>
       </div>
-      <div className="sale-feedback" role="status">
-        {outcome?.message || unavailable}
+      <div className={view.kind ? `sale-feedback sale-feedback--${view.kind}` : "sale-feedback"} role="status" data-outcome={view.kind ?? ""}>
+        {message && <p>{message}</p>}
+        {showOrdersLink && <Link to="/orders">Xem đơn của tôi</Link>}
       </div>
-      {readError && <p className="field__error" role="alert">Tồn kho chưa được cập nhật. {readError}</p>}
+      {readError && <p className="field__error" role="alert">Dữ liệu đã cũ. {readError} Cập nhật lúc {snapshot.updatedAt.toLocaleTimeString("vi-VN")}.</p>}
     </SaleHero>
     <ProductDetails key={sale.productId} id={sale.productId} />
   </main>;

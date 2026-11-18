@@ -86,6 +86,55 @@ it("trả 401 muộn của token cũ không xóa tài khoản mới", async () =
   assert.equal(store.getSnapshot().session, null);
 });
 
+it("401 của token hiện tại đánh dấu phiên hết hạn, đăng xuất thường thì không; đăng nhập lại xóa dấu", async () => {
+  const store = createSessionStore();
+  store.accept(first);
+  store.logout();
+  assert.equal(store.getSnapshot().expired, false);
+  store.accept(first);
+  mock.method(globalThis, "fetch", async () => unauthorized());
+  await assert.rejects(store.request("/orders/me"), error => error instanceof ApiError && error.code === "UNAUTHORIZED");
+  assert.deepEqual({ session: store.getSnapshot().session, expired: store.getSnapshot().expired }, { session: null, expired: true });
+  store.accept(second);
+  assert.equal(store.getSnapshot().expired, false);
+});
+
+it("hết hạn vẫn được báo khi trình duyệt chặn storage", async () => {
+  const unavailable = () => { throw new Error("Bị chặn"); };
+  const store = createSessionStore({ getItem: unavailable, setItem: unavailable, removeItem: unavailable });
+  store.accept(first);
+  mock.method(globalThis, "fetch", async () => unauthorized());
+  await assert.rejects(store.request("/orders/me"), error => error instanceof ApiError);
+  assert.deepEqual({ session: store.getSnapshot().session, expired: store.getSnapshot().expired, persistent: store.getSnapshot().persistent },
+    { session: null, expired: true, persistent: false });
+});
+
+it("POST mua thành công đến sau khi đổi tài khoản không áp vào phiên mới và không gửi lại", async () => {
+  const store = createSessionStore();
+  store.accept(first);
+  let finish!: (response: Response) => void;
+  const stub = mock.method(globalThis, "fetch", (_url: string, init: RequestInit) => {
+    assert.equal(init.method, "POST");
+    assert.equal(new Headers(init.headers).get("Authorization"), "Bearer first-token");
+    return new Promise<Response>(resolve => { finish = resolve; });
+  });
+  const pending = store.request("/sales/0123456789abcdef01234567/buy?mode=v2", { method: "POST", body: { qty: 1 } });
+  store.accept(second);
+  finish(Response.json({ order: { id: "late-order" } }, { status: 201 }));
+  await assert.rejects(pending, StaleSessionError);
+  assert.equal(stub.mock.callCount(), 1);
+  assert.deepEqual(store.getSnapshot().session, second);
+});
+
+it("lỗi mạng của POST mua không tự gửi lại và giữ phiên", async () => {
+  const store = createSessionStore();
+  store.accept(first);
+  const stub = mock.method(globalThis, "fetch", async () => { throw new TypeError("Failed to fetch"); });
+  await assert.rejects(store.request("/sales/0123456789abcdef01234567/buy?mode=v1", { method: "POST", body: { qty: 1 } }), TypeError);
+  assert.equal(stub.mock.callCount(), 1);
+  assert.deepEqual(store.getSnapshot().session, first);
+});
+
 it("bỏ dữ liệu cá nhân đến muộn sau đăng xuất", async () => {
   const store = createSessionStore();
   store.accept(first);

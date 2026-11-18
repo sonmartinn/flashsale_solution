@@ -6,7 +6,8 @@ export interface Session {
 }
 export const SESSION_KEY = "flashsale.session";
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
-export interface SessionSnapshot { session: Session | null; generation: number; persistent: boolean }
+/** expired=true khi phiên vừa bị xóa vì API báo 401 UNAUTHORIZED (token hết hạn/không hợp lệ), không phải do người dùng đăng xuất. */
+export interface SessionSnapshot { session: Session | null; generation: number; persistent: boolean; expired: boolean }
 
 /** Lấy đúng dữ liệu phiên cần dùng; tuyệt đối không sao chép password hoặc khóa lạ. */
 export function parseSession(value: unknown): Session | null {
@@ -49,21 +50,21 @@ export function createSessionStore(storage?: StorageLike) {
       else storage?.removeItem(SESSION_KEY);
     }
   } catch { persistent = false; }
-  let snapshot: SessionSnapshot = { session, generation: 0, persistent };
+  let snapshot: SessionSnapshot = { session, generation: 0, persistent, expired: false };
   const listeners = new Set<() => void>();
   const current = (generation: number) => snapshot.generation === generation;
-  const replace = (next: Session | null) => {
+  const replace = (next: Session | null, expired = false) => {
     let saved = storage !== undefined;
     try {
       if (next) storage?.setItem(SESSION_KEY, JSON.stringify(next));
       else storage?.removeItem(SESSION_KEY);
     } catch { saved = false; }
-    snapshot = { session: next, generation: snapshot.generation + 1, persistent: saved };
+    snapshot = { session: next, generation: snapshot.generation + 1, persistent: saved, expired: next === null && expired };
     listeners.forEach(listener => listener());
   };
-  const logout = (expectedGeneration?: number) => {
+  const logout = (expectedGeneration?: number, reason: "user" | "expired" = "user") => {
     if (expectedGeneration !== undefined && !current(expectedGeneration)) return false;
-    replace(null); return true;
+    replace(null, reason === "expired"); return true;
   };
   return {
     getSnapshot: () => snapshot,
@@ -86,7 +87,7 @@ export function createSessionStore(storage?: StorageLike) {
         return payload;
       } catch (error) {
         if (!current(sent.generation)) throw new StaleSessionError();
-        if (error instanceof ApiError && error.status === 401 && error.code === "UNAUTHORIZED") logout(sent.generation);
+        if (error instanceof ApiError && error.status === 401 && error.code === "UNAUTHORIZED") logout(sent.generation, "expired");
         throw error;
       }
     },

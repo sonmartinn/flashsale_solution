@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it, mock } from "node:test";
 import { ApiError, requestJson } from "../src/services/api.ts";
+import { createSessionStore, StaleSessionError } from "../src/services/auth.ts";
 import { getHome, getSale, productAttributes } from "../src/services/catalog.ts";
+import { findSaleOrder, listMyOrders, orderStatusLabel, parseMyOrder } from "../src/services/orders.ts";
 
 afterEach(() => mock.restoreAll());
 
@@ -116,5 +118,64 @@ describe("Dữ liệu catalog", () => {
       [["Kích thước (cm)", "Rộng: 38; Cao: 42; Sâu: 10"], ["Dung tích (lít)", "15"]]);
     assert.deepEqual(productAttributes({ waistSizes: [28, 30], euSizes: [38, 39] }),
       [["Cỡ vòng eo", "28, 30"], ["Cỡ giày EU", "38, 39"]]);
+  });
+});
+
+describe("Đơn của tôi", () => {
+  const order = {
+    id: "a".repeat(24), saleId: "b".repeat(24), productId: "c".repeat(24), qty: 1, price: 449500,
+    status: "success", mode: "v2", createdAt: "2026-11-18T01:02:03.000Z",
+    product: { id: "c".repeat(24), name: "Giày sneaker trắng", slug: "giay-sneaker-trang", images: ["/images/products/giay-sneaker-trang.jpg"] },
+  };
+  const session = { token: "orders-token", user: { id: "0123456789abcdef01234567", name: "Người mua", email: "buyer@example.test", role: "user" } };
+
+  it("đọc /api/orders/me bằng Bearer của phiên hiện tại và giữ sản phẩm do API trả", async () => {
+    const store = createSessionStore();
+    store.accept(session);
+    const stub = mock.method(globalThis, "fetch", async (url: RequestInfo | URL, init?: RequestInit) => {
+      assert.equal(url, "/api/orders/me");
+      assert.equal(new Headers(init?.headers).get("Authorization"), "Bearer orders-token");
+      assert.equal(init?.method, undefined);
+      return Response.json({ orders: [order, { ...order, id: "d".repeat(24), status: "cancelled" }] });
+    });
+    const orders = await listMyOrders(store);
+    assert.equal(stub.mock.callCount(), 1);
+    assert.deepEqual(orders[0], order);
+    assert.equal(orders[0].product.name, "Giày sneaker trắng");
+    assert.equal(findSaleOrder(orders, "b".repeat(24))?.id, "a".repeat(24));
+    assert.equal(findSaleOrder([orders[1]], "b".repeat(24)), undefined, "Đơn đã hủy không tính là đã mua");
+    assert.equal(orderStatusLabel("success"), "Thành công");
+    assert.equal(orderStatusLabel("cancelled"), "Đã hủy");
+  });
+
+  it("danh sách trống giữ trống, envelope sai hoặc đơn thiếu sản phẩm bị từ chối", async () => {
+    const store = createSessionStore();
+    store.accept(session);
+    mock.method(globalThis, "fetch", async () => Response.json({ orders: [] }));
+    assert.deepEqual(await listMyOrders(store), []);
+    mock.restoreAll();
+    for (const body of [{ orders: "bad" }, {}, { orders: [{ ...order, product: undefined }] }, { orders: [{ ...order, price: "1" }] }]) {
+      mock.method(globalThis, "fetch", async () => Response.json(body));
+      await assert.rejects(listMyOrders(store), (error: unknown) => error instanceof ApiError && error.code === "INVALID_RESPONSE");
+      mock.restoreAll();
+    }
+    assert.equal(parseMyOrder({ ...order, status: "pending" }), null);
+  });
+
+  it("phản hồi đơn đến muộn của tài khoản cũ bị bỏ, không hiện cho tài khoản mới", async () => {
+    const store = createSessionStore();
+    store.accept(session);
+    let finish!: (response: Response) => void;
+    mock.method(globalThis, "fetch", () => new Promise<Response>(resolve => { finish = resolve; }));
+    const pending = listMyOrders(store);
+    store.accept({ ...session, token: "other-token", user: { ...session.user, id: "1123456789abcdef01234567", email: "other@example.test" } });
+    finish(Response.json({ orders: [order] }));
+    await assert.rejects(pending, StaleSessionError);
+  });
+
+  it("không gọi API khi chưa đăng nhập", async () => {
+    const stub = mock.method(globalThis, "fetch", async () => Response.json({ orders: [] }));
+    await assert.rejects(listMyOrders(createSessionStore()), (error: unknown) => error instanceof ApiError && error.code === "UNAUTHORIZED");
+    assert.equal(stub.mock.callCount(), 0);
   });
 });

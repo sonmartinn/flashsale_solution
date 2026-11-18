@@ -5,8 +5,10 @@ import { usePageKit } from "../components/Layout.tsx";
 import { ApiError } from "../services/api.ts";
 import { authenticate, safeReturnPath } from "../services/auth.ts";
 
+const networkFailure = "Chưa hoàn tất được yêu cầu. Kiểm tra kết nối rồi gửi lại biểu mẫu.";
+
 export default function LoginPage() {
-  const { session, store } = useAuth();
+  const { session, expired, store } = useAuth();
   const [searchParams] = useSearchParams();
   const returnTo = safeReturnPath(searchParams.get("returnTo"));
   const [register, setRegister] = useState(false);
@@ -38,7 +40,7 @@ export default function LoginPage() {
       if (!controller.signal.aborted && store.isCurrent(generation)) store.accept(next);
     } catch (cause) {
       if (!controller.signal.aborted && store.isCurrent(generation)) {
-        setError(cause instanceof ApiError ? cause : new Error("Không kết nối được máy chủ. Vui lòng thử lại."));
+        setError(cause instanceof ApiError && cause.status < 500 ? cause : new Error(networkFailure));
       }
     } finally {
       request.current = null;
@@ -54,6 +56,7 @@ export default function LoginPage() {
       <div className="wrap">
         <div className="auth-panel">
           <h1 id="auth-heading">{title}</h1>
+          {expired && <p className="auth-notice" role="status">Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.</p>}
           <form className="auth-form" aria-busy={pending} onSubmit={submit}>
             {register && <div className="auth-field">
               <label htmlFor="auth-name">Họ và tên</label>
@@ -71,7 +74,7 @@ export default function LoginPage() {
               <input key={title} id="auth-password" name="password" type="password"
                 autoComplete={register ? "new-password" : "current-password"} required readOnly={pending}
                 aria-invalid={credentialsError || undefined} aria-describedby={credentialsError ? "auth-error" : undefined} />
-              {credentialsError && <p id="auth-error" className="field__error" role="alert">{error.message}</p>}
+              {credentialsError && <p id="auth-error" className="field__error" role="alert">Email hoặc mật khẩu không đúng</p>}
             </div>
             {error && !emailError && !credentialsError && <p className="field__error" role="alert">{error.message}</p>}
             <button type="submit" className="btn btn--primary" disabled={pending}>{pending ? "Đang gửi…" : title}</button>

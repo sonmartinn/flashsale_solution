@@ -18,15 +18,18 @@ if (tool === "docker") {
       console.log(settings.composeVersion ?? "2.39.0");
       break;
     case "info":
-      process.exitCode = settings.daemonDown ? 1 : 0;
+      process.exitCode = settings.daemonDown &&
+        !(settings.daemonReadyAfterDesktop && existsSync(join(root, "desktop-started"))) ? 1 : 0;
       break;
     case "compose up -d --wait":
       if (settings.upDelay) await new Promise((resolve) => setTimeout(resolve, settings.upDelay));
       if (!settings.composeFail) writeFileSync(running, "yes");
+      else console.error("Bind for 127.0.0.1:27018 failed: port is already allocated");
       process.exitCode = settings.composeFail ? 86 : 0;
       break;
     case "exec flashsale-mongo mongosh flashsale --quiet --eval db.users.countDocuments()":
       console.log(settings.count ?? "0");
+      if (settings.countFail) console.error("fake mongosh query failed");
       process.exitCode = settings.countFail ? 4 : 0;
       break;
     case "compose ps --status running -q":
@@ -57,6 +60,7 @@ if (tool === "docker") {
     console.log("fake dev stdout " + cwd);
     console.error("fake dev stderr " + cwd);
     if (settings.exitEarly === cwd) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
       process.exitCode = 17;
     } else {
       const server = join(process.cwd(), "child-server.mjs");

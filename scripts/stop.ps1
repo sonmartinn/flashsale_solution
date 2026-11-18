@@ -44,11 +44,11 @@ try {
         Write-Host 'Giữ MongoDB và Redis đang chạy.'
     } else {
         $docker = Find-DevTool 'docker'
-        $running = & $docker compose ps --status running -q 2>$null
+        $running = Invoke-DevCommand $docker @('compose', 'ps', '--status', 'running', '-q')
         if ($LASTEXITCODE -ne 0) {
             throw 'Không đọc được trạng thái container. Kiểm tra Docker Desktop hoặc chạy stop -KeepDb.'
         }
-        & $docker compose stop *> $null
+        Invoke-DevCommand $docker @('compose', 'stop') | Out-Null
         if ($LASTEXITCODE -ne 0) { throw 'Không dừng được container. Kiểm tra docker compose ps rồi thử lại.' }
         if ($running) { $stopped = $true }
     }

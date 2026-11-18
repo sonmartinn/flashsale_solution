@@ -15,7 +15,8 @@ writeFileSync(join(root, "processes", process.pid + ".json"), JSON.stringify(rec
 if (mode === "idle") {
   setInterval(() => {}, 1000);
 } else {
-  const child = spawn(process.execPath, [process.argv[1], "idle"], { stdio: "ignore", windowsHide: true });
+  const child = mode === "foreign" ? null :
+    spawn(process.execPath, [process.argv[1], "idle"], { stdio: "ignore", windowsHide: true });
   if (mode === "unready") {
     setInterval(() => {}, 1000);
   } else {
@@ -25,7 +26,7 @@ if (mode === "idle") {
       response.end("controlled fixture");
     });
     server.on("error", () => {
-      child.kill();
+      child?.kill();
       process.exitCode = 1;
     });
     server.listen(port, "127.0.0.1", () => {

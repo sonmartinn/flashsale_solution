@@ -6,6 +6,7 @@
 
 . (Join-Path $PSScriptRoot 'dev-common.ps1')
 $ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 $logPath = Join-Path $LogRoot "$Service.log"
 $writer = [IO.StreamWriter]::new($logPath, $false, [Text.UTF8Encoding]::new($false))
 $writer.AutoFlush = $true

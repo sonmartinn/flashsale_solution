@@ -27,9 +27,15 @@ function Find-DevTool([string]$Name) {
     return $command.Source
 }
 
+function Invoke-DevCommand([string]$Executable, [string[]]$CommandArgs) {
+    # 5.1 có thể ném lỗi ngay khi lệnh ngoài ghi stderr. Đọc mã thoát ở nơi gọi.
+    $ErrorActionPreference = 'Continue'
+    & $Executable @CommandArgs 2>$null
+}
+
 function Get-DevListeners {
     # Địa chỉ remote wildcard, cổng 0 nhận diện socket chờ kết nối, kể cả netstat bản địa hóa.
-    $rows = & netstat.exe -ano
+    $rows = Invoke-DevCommand 'netstat.exe' @('-ano')
     if ($LASTEXITCODE -ne 0) { throw 'Không kiểm tra được cổng TCP bằng netstat. Hãy thử lại.' }
     $ports = $DevServices.Values -join '|'
     foreach ($row in $rows) {
@@ -41,7 +47,11 @@ function Get-DevListeners {
 
 function Get-DevProcess([int]$Id) {
     if ($Id -le 0) { return }
-    Get-CimInstance -ClassName Win32_Process -Filter "ProcessId = $Id" -ErrorAction Stop
+    try {
+        Get-CimInstance -ClassName Win32_Process -Filter "ProcessId = $Id" -ErrorAction Stop
+    } catch [Microsoft.Management.Infrastructure.CimException] {
+        throw "Không đọc được Win32_Process cho PID $Id. Kiểm tra quyền CIM của terminal rồi thử lại."
+    }
 }
 
 function Get-DevCreation($ProcessInfo) {
@@ -116,13 +126,23 @@ function Test-DevDescendant([int]$Id, $Root) {
 }
 
 function Test-ProjectNode($ProcessInfo, [string]$Service) {
-    if (-not $ProcessInfo -or $ProcessInfo.Name -ne 'node.exe') { return $false }
+    if (-not $ProcessInfo -or $ProcessInfo.Name -ne 'node.exe' -or -not $ProcessInfo.CommandLine) { return $false }
     $folder = 'frontend'
     if ($Service -eq 'api') { $folder = 'backend' }
-    $normalized = $ProcessInfo.CommandLine -replace '/', '\'
-    $packagePath = [regex]::Escape((Join-Path $ProjectRoot $folder))
-    # Biên đối số và dấu phân cách thư mục loại các checkout có tiền tố giống nhau.
-    return $normalized -match ('(?:^|[\s"=])' + $packagePath + '\\')
+    $packagePath = (Join-Path $ProjectRoot $folder) + '\'
+    # Chuẩn hóa từng đối số đường dẫn để loại checkout cùng tiền tố và đoạn .. đi ra ngoài.
+    foreach ($argument in [regex]::Matches($ProcessInfo.CommandLine, '"([^"]+)"|([^\s"]+)')) {
+        $path = $argument.Groups[1].Value + $argument.Groups[2].Value
+        if ($path -notmatch '^[a-z]:[/\\]') { continue }
+        try {
+            if ([IO.Path]::GetFullPath($path).StartsWith($packagePath, [StringComparison]::OrdinalIgnoreCase)) {
+                return $true
+            }
+        } catch [System.ArgumentException] {
+            # Đối số này không phải đường dẫn Windows.
+        }
+    }
+    return $false
 }
 
 function Stop-VerifiedTree($ProcessInfo) {
@@ -130,7 +150,7 @@ function Stop-VerifiedTree($ProcessInfo) {
     $fresh = Get-DevProcess $ProcessInfo.ProcessId
     if (-not $fresh -or (Get-DevCreation $fresh) -ne (Get-DevCreation $ProcessInfo) -or
         $fresh.CommandLine -cne $ProcessInfo.CommandLine) { return $false }
-    & taskkill.exe /PID $fresh.ProcessId /T /F 2>&1 | Out-Null
+    Invoke-DevCommand 'taskkill.exe' @('/PID', $fresh.ProcessId, '/T', '/F') | Out-Null
     if ($LASTEXITCODE -ne 0) {
         if (-not (Get-DevProcess $fresh.ProcessId)) { return $true }
         throw "Không dừng được cây tiến trình PID $($fresh.ProcessId). Kiểm tra quyền của terminal rồi chạy stop lại."

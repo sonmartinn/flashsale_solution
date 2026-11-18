@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
-import { copyFile, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { spawn, spawnSync } from "node:child_process";
+import { access, copyFile, mkdir, mkdtemp, readdir, readFile, rm, unlink, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { delimiter, join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -31,6 +31,17 @@ try {
 
 function Start-Process {
     param($FilePath, $ArgumentList, $WorkingDirectory, $RedirectStandardOutput, $RedirectStandardError, $WindowStyle, [switch]$PassThru)
+    $desktopLocations = @(
+        (Join-Path $env:LOCALAPPDATA "Programs\DockerDesktop\Docker Desktop.exe"),
+        (Join-Path $env:ProgramFiles "Docker\Docker\Docker Desktop.exe")
+    )
+    foreach ($desktopFile in $desktopLocations) {
+        if ($FilePath -eq [WildcardPattern]::Escape($desktopFile)) {
+            if (-not [IO.File]::Exists($desktopFile) -or $WindowStyle -ne "Hidden" -or $PassThru) { throw "Unexpected Docker Desktop invocation" }
+            [IO.File]::WriteAllText((Join-Path $fixtureRoot "desktop-started"), $desktopFile)
+            return
+        }
+    }
     if ($FilePath -ne (Join-Path $PSHOME "powershell.exe") -or $WindowStyle -ne "Hidden" -or -not $PassThru -or
         $ArgumentList -notmatch " -Owner ([a-f0-9]{32}) ") { throw "Unexpected fixture process" }
     $owner = $Matches[1]
@@ -65,6 +76,11 @@ function Get-CimInstance {
         $record = $null
         if ([IO.File]::Exists($recordPath)) {
             $record = [IO.File]::ReadAllText($recordPath) | ConvertFrom-Json
+            if ($record.creation -and $record.creation -ne $creation.Ticks.ToString()) { return }
+            if ($record.startedAt) {
+                $age = $record.startedAt - ([DateTimeOffset]$creation).ToUnixTimeMilliseconds()
+                if ($age -lt 0 -or $age -gt 5000) { return }
+            }
         }
         $parentId = $record.parent
         if ($record.owner -and $p.ProcessName -eq "node") {
@@ -110,6 +126,7 @@ function netstat.exe {
 
 function taskkill.exe {
     $idValue = [int]$args[1]
+    if (-not [IO.File]::Exists((Join-Path $fixtureRoot "processes\$idValue.json"))) { throw "Unexpected fixture PID" }
     $before = @()
     if (-not $realCim) {
         $before = @(Get-ChildItem -LiteralPath (Join-Path $fixtureRoot "processes") -Filter "*.json" |
@@ -266,9 +283,17 @@ async function fixture(t, initial = {}) {
   });
   return {
     env, path, run, processRecords,
+    runProbe: (probe) => runPowerShell(env, bootstrap.slice(0, bootstrap.lastIndexOf("$entry = ")) + probe),
+    settings: (settings) => writeFile(path("settings.json"), JSON.stringify(settings)),
     calls: async () => (await readFile(path("calls.txt"), "utf8")).trim().split(/\r?\n/).filter(Boolean),
     read: (...parts) => readFile(path(...parts), "utf8"),
   };
+}
+
+function assertFailure(result, reason) {
+  assert.equal(result.code, 1, result.output);
+  assert.match(result.output, reason);
+  return result.output;
 }
 
 function assertOk(result) {
@@ -284,7 +309,7 @@ async function assertTreeStopped(f) {
 }
 
 test("Windows start -> idempotent start -> stop -> restart skips install and seed", { skip: process.platform !== "win32", timeout: 120_000 }, async (t) => {
-  const f = await fixture(t);
+  const f = await fixture(t, { composeVersion: "5.4.0" });
   const started = assertOk(await f.run("start"));
   assert.deepEqual([...started.matchAll(/\[(\d+)\/10]/g)].map((match) => Number(match[1])), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
   assert.match(started, /http:\/\/localhost:5173/);
@@ -311,11 +336,19 @@ test("Windows start -> idempotent start -> stop -> restart skips install and see
   assert.deepEqual(await Promise.all(["api", "web"].map((service) => f.read(".dev", service + ".pid"))), roots);
   assert.equal((await f.calls()).filter((call) => call.endsWith("run dev")).length, 2);
 
+  const staleOwners = await Promise.all(["api", "web"].map((service) => f.read(".dev", service + ".owner.json")));
   const stopped = assertOk(await f.run("stop"));
   assert.deepEqual([...stopped.matchAll(/\[(\d+)\/4]/g)].map((match) => Number(match[1])), [1, 2, 3, 4]);
   await assertTreeStopped(f);
   assert.equal(await f.read("db-running"), "no");
+  for (const [index, service] of ["api", "web"].entries()) {
+    await writeFile(f.path(".dev", service + ".pid"), roots[index]);
+    await writeFile(f.path(".dev", service + ".owner.json"), staleOwners[index]);
+  }
   assertOk(await f.run("start"));
+  for (const [index, service] of ["api", "web"].entries()) {
+    assert.notEqual(await f.read(".dev", service + ".owner.json"), staleOwners[index], "dead PID record must be replaced");
+  }
   const calls = await f.calls();
   assert.equal(calls.filter((call) => call.endsWith(" ci")).length, 2);
   assert.equal(calls.filter((call) => call.endsWith("run seed")).length, 1);
@@ -338,5 +371,229 @@ test("one lifecycle lock excludes two starts and a stop racing the owner", { ski
   assert.equal((await f.calls()).filter((call) => call.endsWith("run dev")).length, 2);
   assert.equal((await f.calls()).includes("compose stop"), false);
   assertOk(await f.run("stop"));
+  await assertTreeStopped(f);
+});
+
+const windows = { skip: process.platform !== "win32", timeout: 180_000 };
+
+test("Windows PowerShell 5.1 parses UTF-8 BOM/CRLF scripts and Git resolves dev file policies", windows, async () => {
+  for (const file of psFiles) {
+    const bytes = await readFile(join(scripts, file));
+    assert.deepEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf], file + " UTF-8 BOM");
+    const body = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    assert.doesNotMatch(body.replaceAll("\r\n", ""), /[\r\n]/, file + " CRLF");
+  }
+  const locals = { ...process.env, DEV_FIXTURE_SCRIPT_DIR: scripts };
+  const parser = await runPowerShell(locals, String.raw`
+$ErrorActionPreference = "Stop"
+if ($PSVersionTable.PSVersion.Major -ne 5 -or $PSVersionTable.PSVersion.Minor -ne 1) { throw "Windows PowerShell 5.1 required" }
+foreach ($file in "start.ps1","stop.ps1","dev-common.ps1","dev-runner.ps1") {
+    $parseErrors = $null
+    $tokens = $null
+    [void][System.Management.Automation.Language.Parser]::ParseFile((Join-Path $env:DEV_FIXTURE_SCRIPT_DIR $file), [ref]$tokens, [ref]$parseErrors)
+    if ($parseErrors.Count -gt 0) { throw "$file has parse errors: $($parseErrors -join ', ')" }
+    Write-Output "$file PASS"
+}
+`);
+  assert.equal(parser.code, 0, parser.output);
+  for (const file of psFiles) assert.ok(parser.output.includes(file + " PASS"), parser.output);
+
+  const attrs = await readFile(join(repo, ".gitattributes"), "utf8");
+  for (const rule of ["loadtest/results/*.csv text eol=lf", "*.sh text eol=lf", "*.ps1 text eol=crlf"]) {
+    assert.ok(attrs.split(/\r?\n/).includes(rule));
+  }
+  const git = spawnSync("git", ["check-ignore", "--", ".dev/api.pid"], { cwd: repo, encoding: "utf8", windowsHide: true });
+  assert.equal(git.status, 0, git.stderr);
+  assert.equal(git.stdout.trim(), ".dev/api.pid");
+});
+
+test("help has no side effects and missing tools stop before Docker or config", windows, async (t) => {
+  const f = await fixture(t);
+  assert.match(assertOk(await f.run("start", "Help")), /-Seed.*xóa dữ liệu/);
+  assert.match(assertOk(await f.run("stop", "Help")), /-KeepDb.*giữ/);
+  await assert.rejects(access(f.path(".dev")), { code: "ENOENT" });
+  assert.deepEqual(await f.calls(), []);
+  for (const [file, display] of [["node.cmd", "node"], ["npm.cmd", "npm.cmd"], ["docker.cmd", "docker"]]) {
+    const executable = await readFile(f.path("bin", file));
+    await unlink(f.path("bin", file));
+    assertFailure(await f.run("start"), new RegExp("Thiếu " + display));
+    await writeFile(f.path("bin", file), executable);
+  }
+  await assert.rejects(access(f.path("backend", ".env")), { code: "ENOENT" });
+  assert.deepEqual(await f.calls(), []);
+});
+
+test("Node 20.18/21/22.11 are rejected, 20.19/22.12/24 reach Docker, Compose v1 is refused", windows, async (t) => {
+  const f = await fixture(t);
+  for (const version of ["v20.18.3", "v21.9.0", "v22.11.9"]) {
+    assertFailure(await f.run("start", "", { DEV_FIXTURE_VERSION: version }), /Node\.js .*không tương thích/);
+  }
+  assert.deepEqual(await f.calls(), []);
+  await f.settings({ daemonDown: true });
+  for (const version of ["v20.19.0", "v22.12.0", "v24.0.0"]) {
+    assertFailure(await f.run("start", "", { DEV_FIXTURE_VERSION: version }), /không tìm thấy Docker Desktop/);
+  }
+  await f.settings({ composeVersion: "1.29.2" });
+  assertFailure(await f.run("start"), /Cần Docker Compose v2/);
+  assert.equal((await f.calls()).includes("compose up -d --wait"), false);
+});
+
+test("daemon off: try both Docker Desktop locations and respect the 120-second timeout", { ...windows, timeout: 240_000 }, async (t) => {
+  const f = await fixture(t, { daemonDown: true, daemonReadyAfterDesktop: true, composeFail: true });
+  assertFailure(await f.run("start"), /không tìm thấy Docker Desktop/);
+  const paths = [
+    f.path("local-app", "Programs", "DockerDesktop", "Docker Desktop.exe"),
+    f.path("program-files", "Docker", "Docker", "Docker Desktop.exe"),
+  ];
+  for (const path of paths) {
+    await mkdir(resolve(path, ".."), { recursive: true });
+    await writeFile(path, "fixture placeholder");
+    assertFailure(await f.run("start"), /cổng MongoDB 27018, Redis 6379/);
+    assert.equal(await f.read("desktop-started"), path);
+    await unlink(path);
+    await unlink(f.path("desktop-started"));
+  }
+  await writeFile(paths[1], "fixture placeholder");
+  await f.settings({ daemonDown: true });
+  const started = performance.now();
+  assertFailure(await f.run("start"), /Hết thời gian chờ Docker Desktop/);
+  assert.ok(performance.now() - started >= 119_000, "daemon must be given its specified readiness window");
+  await assert.rejects(access(f.path("backend", ".env")), { code: "ENOENT" });
+});
+
+test("changed lock reinstalls only that package and failed install leaves no success marker", windows, async (t) => {
+  const f = await fixture(t, { count: "12" });
+  assertOk(await f.run("start"));
+  assertOk(await f.run("stop", "KeepDb"));
+  assert.equal(await f.read("db-running"), "yes");
+  assert.equal((await f.calls()).includes("compose stop"), false);
+
+  await writeFile(f.path("frontend", "package-lock.json"), '{"changed":true}');
+  await f.settings({ count: "12", installFail: "frontend" });
+  assertFailure(await f.run("start"), /npm ci thất bại ở frontend.*91/);
+  await assert.rejects(access(f.path(".dev", "frontend.lock.sha256")), { code: "ENOENT" });
+  const calls = await f.calls();
+  assert.equal(calls.filter((line) => line === "backend ci").length, 1);
+  assert.equal(calls.filter((line) => line === "frontend ci").length, 2);
+  assert.equal(calls.filter((line) => line.endsWith("run dev")).length, 2);
+  await f.settings({ count: "12" });
+  assertOk(await f.run("start"));
+  assert.match(await f.read(".dev", "frontend.lock.sha256"), /^[a-f0-9]{64}$/i);
+  assertOk(await f.run("stop"));
+  assert.match(assertOk(await f.run("stop")), /Không có gì để dừng/);
+  assert.equal((await f.calls()).filter((line) => line === "frontend ci").length, 3);
+  await assertTreeStopped(f);
+});
+
+test("failed, malformed or unsafe DB count never seeds, explicit -Seed warns and runs", windows, async (t) => {
+  const f = await fixture(t);
+  for (const settings of [{ count: "0", countFail: true }, { count: "1.2" }, { count: "-1" }, { count: "0\n17" }, { count: "" }]) {
+    await f.settings(settings);
+    assertFailure(await f.run("start"), /Không đếm được người dùng/);
+  }
+  await f.settings({ count: "0" });
+  const fakeEnv = Buffer.from("MONGODB_URI=mongodb://127.0.0.1:27018/fixture_other\r\nREDIS_URL=redis://127.0.0.1:6379\r\nJWT_SECRET=fixture-existing-secret\r\n");
+  await writeFile(f.path("backend", ".env"), fakeEnv);
+  const output = assertFailure(await f.run("start"), /Cấu hình MongoDB hoặc Redis khác/);
+  assert.equal(output.includes("fixture-existing-secret"), false);
+  assert.equal((await f.calls()).some((call) => call.endsWith("run seed")), false);
+
+  await f.settings({ count: "1001" });
+  assert.match(assertOk(await f.run("start", "Seed")), /CẢNH BÁO.*-Seed sẽ xóa dữ liệu/);
+  assert.equal((await f.calls()).filter((call) => call.endsWith("run seed")).length, 1);
+  assert.equal((await readFile(f.path("backend", ".env"))).equals(fakeEnv), true);
+  assertOk(await f.run("stop"));
+  await assertTreeStopped(f);
+});
+
+test("a stale or reused PID and similar-root listener survive start and stop", windows, async (t) => {
+  const f = await fixture(t);
+  const similar = f.path("..", "Dữ liệu [dev] (thử)-khác", "backend");
+  await mkdir(similar, { recursive: true });
+  const server = join(similar, "child-server.mjs");
+  await copyFile(join(scripts, "test", "fixtures", "child-server.mjs"), server);
+  const foreign = spawn(process.execPath, [server, "foreign"], { env: f.env, stdio: "ignore", windowsHide: true });
+  const foreignExited = new Promise((resolveExit) => foreign.once("exit", resolveExit));
+  try {
+    await until(async () => {
+      try { await access(f.path("port-5000-" + foreign.pid + ".json")); return true; }
+      catch (error) { if (error.code === "ENOENT") return false; throw error; }
+    }, "foreign controlled node did not listen");
+    await mkdir(f.path(".dev"), { recursive: true });
+    for (const service of ["api", "web"]) {
+      await writeFile(f.path(".dev", service + ".pid"), String(foreign.pid));
+      await writeFile(f.path(".dev", service + ".owner.json"), JSON.stringify({
+        Id: foreign.pid, Creation: "1", Token: "f".repeat(32),
+      }));
+    }
+    const expected = new RegExp("Cổng 5000.*PID " + foreign.pid + " \\(node\\)");
+    assertFailure(await f.run("start"), expected);
+    assertFailure(await f.run("stop", "KeepDb"), expected);
+    assert.ok(alive(foreign.pid), "foreign Node must survive mismatched root and stale sidecar");
+    assert.equal((await f.calls()).includes("compose up -d --wait"), false);
+  } finally {
+    foreign.kill();
+    await foreignExited;
+  }
+  assertOk(await f.run("start"));
+  assertOk(await f.run("stop"));
+  await assertPortsFree();
+});
+
+test("a damaged owner identity cannot claim a live pair, and missing PID/sidecar fallback frees both trees", windows, async (t) => {
+  const f = await fixture(t, { count: "4" });
+  assertOk(await f.run("start"));
+  const apiOwner = JSON.parse(await f.read(".dev", "api.owner.json"));
+  const webOwner = JSON.parse(await f.read(".dev", "web.owner.json"));
+  await writeFile(f.path(".dev", "api.owner.json"), JSON.stringify({ ...apiOwner, Creation: "1" }));
+  await writeFile(f.path(".dev", "web.owner.json"), JSON.stringify({ ...webOwner, Token: "b".repeat(32) }));
+  const badStart = assertFailure(await f.run("start"), /Cổng dev đang bận|chỉ đang chạy một phần/);
+  assert.doesNotMatch(badStart, /Backend và frontend đang chạy/);
+  assert.equal((await f.calls()).filter((call) => call.endsWith("run dev")).length, 2);
+  for (const service of ["api", "web"]) {
+    await unlink(f.path(".dev", service + ".pid"));
+    await unlink(f.path(".dev", service + ".owner.json"));
+  }
+  assertOk(await f.run("stop"));
+  await assertTreeStopped(f);
+});
+
+test("a partial already-owned run is diagnosed and its live backend is preserved", windows, async (t) => {
+  const f = await fixture(t, { count: "4" });
+  assertOk(await f.run("start"));
+  const apiPid = Number(await f.read(".dev", "api.pid"));
+  assertOk(await f.runProbe(String.raw`
+. (Join-Path $fixtureRoot "scripts\dev-common.ps1")
+$webRoot = Get-OwnedRunner (Get-DevRecord "web") "web"
+if (-not (Stop-VerifiedTree $webRoot)) { exit 1 }
+exit 0
+`));
+  assertFailure(await f.run("start"), /chỉ đang chạy một phần/);
+  assert.ok(alive(apiPid), "startup error must preserve the pre-existing backend");
+  assert.equal((await f.calls()).filter((call) => call.endsWith("run dev")).length, 2);
+  assertOk(await f.run("stop"));
+  await assertTreeStopped(f);
+});
+
+for (const [packageName, service] of [["backend", "api"], ["frontend", "web"]]) {
+  test(packageName + " exits early and only newly launched processes are cleaned up", windows, async (t) => {
+    const f = await fixture(t, { count: "3", exitEarly: packageName });
+    const out = assertFailure(await f.run("start"), new RegExp("tiến trình " + service, "i"));
+    assert.match(out, /fake dev stderr/);
+    assert.match(out, /mã 17/);
+    await assertPortsFree();
+    assert.equal(await f.read("db-running"), "yes");
+    assert.equal((await f.calls()).includes("compose stop"), false);
+  });
+}
+
+test("readiness timeout prints canonical logs and cleans the full startup trees", windows, async (t) => {
+  const f = await fixture(t, { count: "3", unready: "frontend" });
+  const started = performance.now();
+  const out = assertFailure(await f.run("start"), /Hết thời gian chờ dịch vụ .*web/);
+  assert.ok(performance.now() - started >= 29_000);
+  assert.match(out, /web\.log/);
+  assert.match(out, /fake dev stderr frontend/);
+  assert.doesNotMatch(out, /Frontend: http/);
   await assertTreeStopped(f);
 });

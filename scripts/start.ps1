@@ -10,7 +10,7 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'dev-common.ps1')
 
 function Wait-Docker([string]$Docker, [int]$TimeoutSeconds = 120) {
-    & $Docker info 2>$null | Out-Null
+    Invoke-DevCommand $Docker @('info') | Out-Null
     if ($LASTEXITCODE -eq 0) { return }
 
     $desktop = @(
@@ -24,7 +24,7 @@ function Wait-Docker([string]$Docker, [int]$TimeoutSeconds = 120) {
     $timer = [Diagnostics.Stopwatch]::StartNew()
     while ($timer.Elapsed.TotalSeconds -lt $TimeoutSeconds) {
         Start-Sleep -Seconds 2
-        & $Docker info 2>$null | Out-Null
+        Invoke-DevCommand $Docker @('info') | Out-Null
         if ($LASTEXITCODE -eq 0) { return }
     }
     throw 'Hết thời gian chờ Docker Desktop. Kiểm tra Docker daemon đã sẵn sàng rồi thử lại.'
@@ -38,7 +38,7 @@ function Initialize-DevEnv([string]$Node) {
     Push-Location -LiteralPath (Join-Path $ProjectRoot 'backend')
     try {
         $code = "const fs=require('node:fs');try{const t=fs.readFileSync('.env.example','utf8');if(!/^JWT_SECRET=[^\r\n]*/m.test(t))process.exit(1);fs.writeFileSync('.env',t.replace(/^JWT_SECRET=[^\r\n]*/m,'JWT_SECRET='+require('node:crypto').randomBytes(32).toString('hex')),{flag:'wx'});}catch(e){if(e.code!=='EEXIST')process.exit(1);}"
-        & $Node -e $code 2>$null | Out-Null
+        Invoke-DevCommand $Node @('-e', $code) | Out-Null
         if ($LASTEXITCODE -ne 0) { throw 'Không tạo được backend/.env. Kiểm tra .env.example và quyền ghi thư mục backend.' }
     } finally {
         Pop-Location
@@ -58,7 +58,7 @@ function Install-DevDependencies([string]$Npm, [string]$Package) {
             return
         }
         [IO.File]::Delete($marker)
-        & $Npm ci *> $null
+        Invoke-DevCommand $Npm @('ci') | Out-Null
         $code = $LASTEXITCODE
         if ($code -ne 0) { throw "npm ci thất bại ở $Package (mã $code). Kiểm tra mạng và package-lock.json, rồi thử lại." }
         if ((Get-FileHash -LiteralPath $lockPath -Algorithm SHA256).Hash -ne $hash) {
@@ -72,7 +72,7 @@ function Install-DevDependencies([string]$Npm, [string]$Package) {
 
 function Invoke-DevSeed([string]$Docker, [string]$Npm, [string]$Node) {
     if (-not $Seed) {
-        $count = & $Docker exec flashsale-mongo mongosh flashsale --quiet --eval 'db.users.countDocuments()' 2>$null
+        $count = Invoke-DevCommand $Docker @('exec', 'flashsale-mongo', 'mongosh', 'flashsale', '--quiet', '--eval', 'db.users.countDocuments()')
         if ($LASTEXITCODE -ne 0 -or @($count).Count -ne 1 -or "$count".Trim() -notmatch '^[0-9]+$') {
             throw 'Không đếm được người dùng trong MongoDB. Kiểm tra flashsale-mongo và chạy start lại.'
         }
@@ -88,13 +88,13 @@ function Invoke-DevSeed([string]$Docker, [string]$Npm, [string]$Node) {
             Write-Host '[CẢNH BÁO] -Seed sẽ xóa dữ liệu MongoDB và Redis đã cấu hình rồi tạo lại dữ liệu mẫu.'
         } else {
             # Dùng cùng cách nạp cấu hình với seed. Chỉ tự seed đúng database vừa đếm và Redis dev.
-            $check = "require('dotenv/config');const e=process.env;const m=(e.MONGODB_URI||'').trim(),r=(e.REDIS_URL||'').trim();if(m!=='mongodb://127.0.0.1:27018/flashsale'||!['redis://127.0.0.1:6379','redis://127.0.0.1:6379/','redis://127.0.0.1:6379/0'].includes(r))process.exit(1);"
-            & $Node -e $check 2>$null | Out-Null
+            $check = "require('dotenv/config');const e=process.env;const m=e.MONGODB_URI?.trim(),r=e.REDIS_URL?.trim();if(m!=='mongodb://127.0.0.1:27018/flashsale')process.exit(1);if(!['redis://127.0.0.1:6379','redis://127.0.0.1:6379/','redis://127.0.0.1:6379/0'].includes(r))process.exit(1);"
+            Invoke-DevCommand $Node @('-e', $check) | Out-Null
             if ($LASTEXITCODE -ne 0) {
                 throw 'Cấu hình MongoDB hoặc Redis khác môi trường dev mặc định. Kiểm tra đích dữ liệu trước khi yêu cầu -Seed.'
             }
         }
-        & $Npm run seed *> $null
+        Invoke-DevCommand $Npm @('run', 'seed') | Out-Null
         $code = $LASTEXITCODE
         if ($code -ne 0) { throw "Seed thất bại (mã $code). Kiểm tra cấu hình MongoDB và Redis trước khi thử lại." }
     } finally {
@@ -128,12 +128,13 @@ function Start-DevService([string]$Service, [string]$Npm, [string]$Folder) {
     }
     $process = Start-Process @options
     try {
+        $record = [pscustomobject]@{ Id = $process.Id; Creation = $null; Token = $token }
+        $newRecords[$Service] = $record
         $info = Get-DevProcess $process.Id
         if (-not $info -or (Get-RunnerToken $info $Service) -ne $token -or -not (Get-DevCreation $info)) {
             throw "Không xác nhận được tiến trình $Service. Xem .dev/logs/$Service.log rồi thử lại."
         }
-        $record = [pscustomobject]@{ Id = $process.Id; Creation = Get-DevCreation $info; Token = $token }
-        $newRecords[$Service] = $record
+        $record.Creation = Get-DevCreation $info
         Write-DevRecord $Service $record
     } finally {
         $process.Dispose()
@@ -163,11 +164,11 @@ Write-Host '[1/10] Về thư mục gốc dự án.'
 Push-Location -LiteralPath $ProjectRoot
 try {
     $lock = Enter-DevLock
-    Write-Host '[2/10] Kiểm tra Node.js, npm, Docker và Docker Compose v2.'
+    Write-Host '[2/10] Kiểm tra Node.js, npm, Docker và Docker Compose.'
     $node = Find-DevTool 'node'
     $npm = Find-DevTool 'npm.cmd'
     $docker = Find-DevTool 'docker'
-    $nodeVersion = & $node --version 2>$null
+    $nodeVersion = Invoke-DevCommand $node @('--version')
     if ($LASTEXITCODE -ne 0 -or $nodeVersion -notmatch '^v([0-9]+)\.([0-9]+)\.[0-9]+$') {
         throw 'Không đọc được phiên bản Node.js. Hãy cài Node.js LTS rồi thử lại.'
     }
@@ -176,11 +177,11 @@ try {
     if (-not (($major -eq 20 -and $minor -ge 19) -or ($major -eq 22 -and $minor -ge 12) -or $major -gt 22)) {
         throw "Node.js $nodeVersion không tương thích. Hãy dùng Node 20.19+ (nhánh 20) hoặc 22.12+."
     }
-    & $npm --version 2>$null | Out-Null
+    Invoke-DevCommand $npm @('--version') | Out-Null
     if ($LASTEXITCODE -ne 0) { throw 'npm.cmd không chạy được. Kiểm tra bản cài Node.js.' }
-    $composeVersion = & $docker compose version --short 2>$null
-    if ($LASTEXITCODE -ne 0 -or $composeVersion -notmatch '^v?2\.') {
-        throw 'Cần Docker Compose v2. Kiểm tra bản cài Docker Desktop.'
+    $composeVersion = Invoke-DevCommand $docker @('compose', 'version', '--short')
+    if ($LASTEXITCODE -ne 0 -or $composeVersion -notmatch '^v?([0-9]+)\.' -or [int]$Matches[1] -lt 2) {
+        throw 'Cần Docker Compose v2 hoặc mới hơn. Kiểm tra bản cài Docker Desktop.'
     }
     Write-Host '[3/10] Kiểm tra Docker daemon.'
     Wait-Docker $docker
@@ -219,9 +220,10 @@ try {
     foreach ($service in $DevServices.Keys) { Clear-DevRecord $service }
 
     Write-Host '[5/10] Khởi động MongoDB và Redis bằng Docker Compose.'
-    & $docker compose up -d --wait *> $null
-    if ($LASTEXITCODE -ne 0) {
-        throw 'Docker Compose không khởi động được. Kiểm tra docker compose ps, docker compose logs và cổng MongoDB 27018, Redis 6379.'
+    Invoke-DevCommand $docker @('compose', 'up', '-d', '--wait') | Out-Null
+    $composeExit = $LASTEXITCODE
+    if ($composeExit -ne 0) {
+        throw "Docker Compose không khởi động được (mã $composeExit). Kiểm tra docker compose ps, docker compose logs và cổng MongoDB 27018, Redis 6379."
     }
 
     Write-Host '[6/10] Kiểm tra cấu hình backend.'
@@ -248,7 +250,8 @@ try {
     foreach ($service in $newRecords.Keys) {
         try {
             $log = Join-Path $LogRoot "$service.log"
-            if (Test-Path -LiteralPath $log) {
+            if (-not [IO.File]::Exists($log)) { $log = Join-Path $LogRoot "$service.runner.err.log" }
+            if ([IO.File]::Exists($log)) {
                 Write-Host "Log gần nhất của $service ($log)"
                 Get-Content -LiteralPath $log -Encoding UTF8 -Tail 20 | ForEach-Object { Write-Host $_ }
             }
@@ -256,7 +259,14 @@ try {
             Write-Host "Không đọc được log $service. Hãy xem file log sau khi dừng."
         }
         try {
-            $root = Get-OwnedRunner $newRecords[$service] $service
+            $record = $newRecords[$service]
+            if (-not $record.Creation) {
+                $info = Get-DevProcess $record.Id
+                if ((Get-RunnerToken $info $service) -eq $record.Token) {
+                    $record.Creation = Get-DevCreation $info
+                }
+            }
+            $root = Get-OwnedRunner $record $service
             if (-not $root -or (Stop-VerifiedTree $root)) { Clear-DevRecord $service }
         } catch {
             Write-Host "[LỖI] $($_.Exception.Message)"

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  buyUnavailable, classifyPurchaseError, createSingleFlight, PURCHASE_COPY, remainingSeconds, resolvePurchase, saleEpoch, serverTime,
+  awaitingMembership, buyUnavailable, classifyPurchaseError, createSingleFlight, PURCHASE_COPY, remainingSeconds, resolvePurchase, saleEpoch, serverTime,
   stockLabel, synchronizeClock, type PurchaseKind, type PurchaseRecord,
 } from "../src/services/sale-state.ts";
 import type { SaleDto } from "../src/services/types.ts";
@@ -99,6 +99,16 @@ it("tồn âm V0 hiện nguyên số và kho chưa nạp thắng số dương su
   assert.deepEqual(stockLabel({ remaining: -3, stockLoaded: true }), { text: "Tồn kho âm: -3 sản phẩm (đã bán vượt)", negative: true });
   assert.deepEqual(stockLabel({ remaining: 0, stockLoaded: true }), { text: "Còn 0 sản phẩm", negative: false });
   assert.deepEqual(stockLabel({ remaining: 42, stockLoaded: false }), { text: "Kho chưa sẵn sàng", negative: false });
+});
+
+it("nút mua chờ lần đọc đơn đầu tiên của đúng phiên + lượt sale; lỗi đọc đơn kết thúc trạng thái chờ", () => {
+  const epoch = saleEpoch(sale);
+  assert.equal(awaitingMembership({ generation: 2, epoch, signedIn: false }), false, "Khách không cần đọc đơn");
+  assert.equal(awaitingMembership({ generation: 2, epoch, signedIn: true }), true, "Khung hình đầu trước khi đọc");
+  assert.equal(awaitingMembership({ generation: 2, epoch, signedIn: true }, { generation: 2, epoch }), false);
+  assert.equal(awaitingMembership({ generation: 2, epoch, signedIn: true }, undefined, { generation: 2, epoch }), false);
+  assert.equal(awaitingMembership({ generation: 3, epoch, signedIn: true }, { generation: 2, epoch }), true, "Phiên mới phải đọc lại");
+  assert.equal(awaitingMembership({ generation: 2, epoch: "reset", signedIn: true }, { generation: 2, epoch }), true, "Lượt sale mới phải đọc lại");
 });
 
 it("đang kiểm tra đơn chỉ khóa khi sale thực sự mua được", () => {

@@ -99,6 +99,15 @@ export interface PurchaseView {
 }
 
 /**
+ * Phiên đã đăng nhập nhưng chưa có lần đọc đơn nào thành công (và chưa báo lỗi) cho đúng phiên + lượt sale:
+ * nút mua chờ, kể cả khung hình đầu tiên trước khi lần đọc kịp bắt đầu.
+ */
+export function awaitingMembership(current: { generation: number; epoch: string; signedIn: boolean }, membership?: { generation: number; epoch: string }, failed?: { generation: number; epoch: string }): boolean {
+  const same = (record?: { generation: number; epoch: string }) => record?.generation === current.generation && record.epoch === current.epoch;
+  return current.signedIn && !same(membership) && !same(failed);
+}
+
+/**
  * Gộp kết quả mua và lần đọc đơn gần nhất cho đúng phiên + lượt sale đang hiển thị.
  * Dữ liệu của phiên cũ hoặc của lượt trước reset bị bỏ qua; không có cờ "đã mua" lưu lâu dài.
  */

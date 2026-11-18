@@ -7,7 +7,7 @@ import { loginPath, StaleSessionError } from "../services/auth.ts";
 import { getProduct, getSale, productAttributes } from "../services/catalog.ts";
 import { findSaleOrder, listMyOrders } from "../services/orders.ts";
 import {
-  buyUnavailable, classifyPurchaseError, createSingleFlight, PURCHASE_COPY, remainingSeconds, resolvePurchase, saleEpoch,
+  awaitingMembership, buyUnavailable, classifyPurchaseError, createSingleFlight, PURCHASE_COPY, remainingSeconds, resolvePurchase, saleEpoch,
   serverTime, synchronizeClock, type MembershipRecord, type PurchaseRecord, type ServerClock,
 } from "../services/sale-state.ts";
 import type { ProductDto, SaleDto } from "../services/types.ts";
@@ -74,7 +74,7 @@ function SaleDetail({ id }: { id: string }) {
   const [pending, setPending] = useState(false);
   const [purchase, setPurchase] = useState<PurchaseRecord>();
   const [membership, setMembership] = useState<MembershipRecord>();
-  const [membershipRead, setMembershipRead] = useState<{ generation: number; epoch: string; revision: number }>();
+  const [membershipFailed, setMembershipFailed] = useState<{ generation: number; epoch: string }>();
   const [membershipRevision, setMembershipRevision] = useState(0);
   // Một bộ đếm cho cả lần mua lẫn lần đọc đơn: biết lần đọc nào bắt đầu SAU kết quả chưa rõ.
   const sequence = useRef(0);
@@ -112,16 +112,13 @@ function SaleDetail({ id }: { id: string }) {
     if (!epoch || !saleId || !userId) return;
     const controller = new AbortController();
     const seq = ++sequence.current;
-    const read = { generation, epoch, revision: membershipRevision };
-    setMembershipRead(read);
     void listMyOrders(store, controller.signal).then(orders => {
       if (controller.signal.aborted || !store.isCurrent(generation)) return;
       setMembership({ generation, epoch, seq, orderId: findSaleOrder(orders, saleId)?.id });
     }).catch((cause: unknown) => {
-      // Lỗi đọc đơn không mở khóa gì: chỉ kết thúc trạng thái đang kiểm tra; API vẫn chặn mua trùng.
+      // Lỗi đọc đơn chỉ kết thúc trạng thái "đang kiểm tra" của lần đầu; không mở khóa kết quả chưa rõ. API vẫn chặn mua trùng.
       if (controller.signal.aborted || cause instanceof StaleSessionError) return;
-    }).finally(() => {
-      if (!controller.signal.aborted) setMembershipRead(current => current === read ? undefined : current);
+      setMembershipFailed({ generation, epoch });
     });
     return () => controller.abort();
   }, [store, generation, userId, epoch, saleId, membershipRevision]);
@@ -170,6 +167,7 @@ function SaleDetail({ id }: { id: string }) {
     }
     const view = resolvePurchase({ generation: current.generation, epoch: sent.epoch }, purchase, membership);
     if (view.bought || view.locked) return;
+    if (awaitingMembership({ generation: current.generation, epoch: sent.epoch, signedIn: true }, membership, membershipFailed)) return;
 
     void flight.run(async () => {
       const record = (fields: Pick<PurchaseRecord, "kind" | "message" | "orderId">): PurchaseRecord =>
@@ -218,9 +216,9 @@ function SaleDetail({ id }: { id: string }) {
   const now = serverTime(snapshot.clock, tick);
   const reading = snapshot.revision !== revision && !readError;
   const view = resolvePurchase({ generation, epoch }, purchase, membership);
-  // Lần đọc đơn ĐẦU TIÊN cho phiên + lượt sale này đang chạy: chờ để không bật nút mua trước khi biết đã mua chưa.
-  const known = membership?.generation === generation && membership.epoch === epoch;
-  const checking = Boolean(session) && !known && membershipRead?.generation === generation && membershipRead.epoch === epoch;
+  // Chưa có lần đọc đơn nào thành công cho phiên + lượt sale này (và lần đọc chưa báo lỗi): chưa bật nút mua,
+  // kể cả khung hình đầu trước khi effect đọc đơn kịp chạy.
+  const checking = awaitingMembership({ generation, epoch, signedIn: Boolean(session) }, membership, membershipFailed);
   const unavailable = buyUnavailable(sale, now, {
     purchased: view.bought,
     pending,

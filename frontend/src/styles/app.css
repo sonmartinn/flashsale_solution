@@ -67,6 +67,11 @@
 .sale-detail .hero__stage:has(> img:not(.is-cutout)) {
   aspect-ratio: 4 / 3; min-height: 0; border-radius: var(--r-lg); margin: 0;
 }
+/* Kit đặt h1 hero product chồng 2 hàng cột 1-7 từ 1024px (specificity 0,5,0); trang sale chỉ có cột phải nên xếp lại một cột. */
+.hero--product.sale-detail:has(.hero__stage > :is([data-product], img, picture)) .hero__head { grid-template: none / minmax(0, 1fr); }
+.hero--product.sale-detail:has(.hero__stage > :is([data-product], img, picture)) .hero__head > :first-child { display: block; grid-column: 1 / -1; }
+.hero--product.sale-detail:has(.hero__stage > :is([data-product], img, picture)) .hero__head .hero__lead { margin-top: var(--s-3); }
+.hero--product.sale-detail:has(.hero__stage > :is([data-product], img, picture)) .hero__head :is(h1, .hero__lead), .hero--product.sale-detail:has(.hero__stage > :is([data-product], img, picture)) .hero__head > .btn-row { grid-column: 1 / -1; grid-row: auto; align-self: start; }
 .sale-countdown p { margin: 0; }
 .sale-countdown [role="timer"] { font-size: var(--t-lead); font-variant-numeric: tabular-nums; }
 .sale-actions { display: flex; flex-wrap: wrap; gap: var(--s-3); }

@@ -784,3 +784,48 @@ test("POSIX runtime lifecycle: real job-control groups, nohup, lsof and ps on an
   assert.match(result.output, /# fail 0/);
   t.diagnostic(result.output.match(/# pass \d+/)?.[0] + " trên " + (process.platform === "win32" ? "WSL" : process.platform) + " (không phải bằng chứng macOS)");
 });
+
+// ---------------- Tài liệu và checklist nghiệm thu ----------------
+
+test("script guide and README disclose macOS status; DEV-UAT rows carry evidence before PASS", async () => {
+  const guide = await readFile(join(scripts, "README.md"), "utf8");
+  for (const text of ["scripts\\start.ps1", "scripts\\stop.ps1", "./scripts/start.sh", "./scripts/stop.sh", "-Seed", "--seed",
+    "-KeepDb", "--keep-db", "-Help", "--help", "xóa sạch", "[CẢNH BÁO]", "Get-Content", "tail -f", ".dev/", "logs/api.log",
+    "Cổng bận", "lsof -nP -iTCP:5000 -sTCP:LISTEN", "Get-NetTCPConnection", "npm run start:test", "Không đo tải",
+    "chưa chạy thử trên macOS", "Chưa chạy thử trên macOS", "shellcheck", "DEV_POSIX_FIXTURE=wsl", "04-DEV-UAT.md"]) {
+    assert.ok(guide.includes(text), "scripts/README.md thiếu: " + text);
+  }
+  const readme = await readFile(join(repo, "README.md"), "utf8");
+  assert.match(readme, /\]\(scripts\/README\.md\)/);
+  assert.match(readme, /chưa chạy thử trên macOS/);
+  assert.match(readme, /scripts\\start\.ps1/);
+  assert.match(readme, /\.\/scripts\/start\.sh/);
+  assert.match(readme, /Phase 5/);
+
+  const uat = await readFile(join(repo, ".planning", "phases", "04-web-app-dev-scripts", "04-DEV-UAT.md"), "utf8");
+  const rows = uat.split(/\r?\n/).filter((line) => /^\| W\d\d \|/.test(line)).map((line) => line.split("|").slice(1, -1).map((cell) => cell.trim()));
+  const ids = rows.map((row) => row[0]);
+  for (let index = 1; index <= 10; index += 1) assert.ok(ids.includes("W" + String(index).padStart(2, "0")), "thiếu ca W" + index);
+  assert.equal(new Set(ids).size, ids.length, "ID ca bị trùng");
+  for (const row of rows) {
+    assert.equal(row.length, 8, row[0] + " phải có 8 cột");
+    assert.ok(["OPEN", "PASS", "FAIL", "ERROR"].includes(row[7]), row[0] + " trạng thái không hợp lệ: " + row[7]);
+    assert.ok(row[3].length > 0 && row[4].length > 0, row[0] + " thiếu lệnh hoặc mong đợi");
+    if (row[7] === "PASS") {
+      assert.notEqual(row[5], "—", row[0] + " PASS nhưng chưa ghi mã thoát");
+      assert.notEqual(row[6], "—", row[0] + " PASS nhưng chưa có bằng chứng");
+    }
+  }
+  for (const text of ["COMPOSE_PROJECT_NAME", "dùng một lần", "Không dán nội dung `backend/.env`", "-Quiet", "docker compose down",
+    "Không chạy `docker compose down -v`", "UNTESTED", "PowerShell 5.1", "$LASTEXITCODE"]) {
+    assert.ok(uat.includes(text), "04-DEV-UAT.md thiếu: " + text);
+  }
+  // Không có lệnh nào in nội dung file secret.
+  assert.doesNotMatch(uat, /(Get-Content|\bgc\b|\btype\b|\bcat\b|\bmore\b)\s+[^\n|]*backend[\\/]\.env\b/i);
+  assert.doesNotMatch(guide + readme, /(Get-Content|\btype\b|\bcat\b)\s+[^\n|]*backend[\\/]\.env\b/i);
+
+  for (const path of [".dev/api.owner", ".dev/web.owner.json", ".dev/lifecycle.lock.d/owner", ".dev/logs/api.log", ".dev/backend.lock.sha256"]) {
+    const ignored = spawnSync("git", ["check-ignore", "--no-index", "-q", "--", path], { cwd: repo, windowsHide: true });
+    assert.equal(ignored.status, 0, path + " phải bị Git bỏ qua");
+  }
+});

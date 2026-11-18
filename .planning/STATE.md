@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Web App & Dev Scripts
-status: awaiting_human_verify
-stopped_at: 04-04 Task 1 verified in Edge and awaiting user review
-last_updated: "2026-11-18T08:08:46.661Z"
+status: executing
+stopped_at: 04-04 complete after user approval and Task 2 verification. Next plan is 04-06.
+last_updated: "2026-11-18T08:54:59.522Z"
 last_activity: 2026-11-18
-last_activity_desc: 04-04 Task 1 passed browser and automated checks
-state_head: 215b3eefd9044753f3aa8ecc2dbdfdfe6a981e0f
+last_activity_desc: 04-04 complete; Task 2 verified approved purchase flow on the built frontend
+state_head: 45af9594a481f75e7a428c774bc09b2cd045b3f4
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 30
-  completed_plans: 24
+  completed_plans: 25
   percent: 60
 ---
 
@@ -28,16 +28,16 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 ## Current Position
 
 Phase: 04 (Web App & Dev Scripts)
-Plan: 04-04 Task 1 chờ duyệt, 04-01 đến 04-03 đã hoàn tất (3/9)
-Status: Luồng đăng nhập và mua đã kiểm chứng. Chờ người dùng duyệt để tiếp tục Task 2.
-Last activity: 2026-11-18 — 30 test đạt, Edge mua V2 trả 201 và tồn kho từ 100 xuống 99.
+Plan: 04-01 đến 04-04 đã hoàn tất (4/9). Kế tiếp 04-06.
+Status: Người dùng đã duyệt Task 1 và Task 2 đã kiểm chứng trên bản build.
+Last activity: 2026-11-18 — 30 test đạt. Bản build mua V2 trả 201 và giữ phiên qua reload.
 
-Progress: [██████░░░░] 60% (3/5 phases); 24/30 plans hoàn tất, 04-04 đang chờ duyệt Task 1; Phase 05 chưa lập kế hoạch.
+Progress: [██████░░░░] 60% (3/5 phases), 25/30 plans hoàn tất. Phase 05 chưa lập kế hoạch.
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 24
+- Total plans completed: 25
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -78,7 +78,7 @@ None yet.
 - [Phase 3] Regression 2026-11-13 đạt: 289 loadtest, 172 unit backend, 200 integration; backend/loadtest typecheck và backend build đạt. Báo cáo: `03-REGRESSION.md`, `03-VERIFICATION.md`.
 - [Phase 4] Nghiên cứu dev scripts đã hoàn tất trong 04-RESEARCH.md (PowerShell 5.1, bash 3.2, tiến trình nền, ownership và kiểm tra cổng). Kế hoạch có checkpoint xác minh package trước cài đặt và UAT Windows thật ở 04-07; macOS phải ghi rõ nếu chỉ kiểm tra cú pháp.
 - [Phase 4] 04-01/02/03 đã duyệt và hoàn tất. 04-03 còn các phát hiện về bố cục, ảnh lớn và ảnh đến muộn khi mạng chậm. Gate OFF, lịch sử OPEN3. Xem frontend/DESIGN.md và 04-03-SUMMARY.md.
-- [Phase 4] 04-04 Task 1 đã kiểm chứng thực tế. Fixture riêng dùng MongoDB flashsale_test_ui_13440 và Redis DB 13. Xem checkpoint để duyệt tại 5173. Còn Task 2 trước khi viết SUMMARY. Giữ các thay đổi có sẵn ngoài phạm vi commit và các fixture cũ ở Redis DB 14/15.
+- [Phase 4] 04-04 hoàn tất. 04-05 còn xác nhận phần đọc đơn, các kết quả nghiệp vụ và audit các route khách hàng. 04-06 là kế hoạch tiếp theo của Wave 4. Fixture 5173/5000 dùng MongoDB flashsale_test_ui_13440 và Redis DB 13.
 - Port 27017 is the Windows MongoDB service; always use `127.0.0.1:27018`
 - [Phase 2] Rủi ro đã chấp nhận ở UAT, phải ghi vào tài liệu rủi ro Phase 5: WR-01 (hoàn kho sau lỗi ghi đơn mơ hồ không phải E11000 có thể ra `totalQty+1`), WR-02 (ioredis `autoResendUnfulfilledCommands` mặc định bật; E4 PASS không loại bỏ rủi ro gửi lại lệnh), WR-04 (`?mode=` khác `sale.mode` vượt `totalQty` qua hai kho; báo cáo nêu điều kiện "mọi lượt mua dùng đúng mode của đợt sale")
 - [Review 2026-11-12] Các cảnh báo còn mở trong 02-REVIEW.md: WR-03 (reset chồng với lượt mua đang chạy), WR-06 (reset lỗi muộn giữ cache cũ), WR-07 (E1 nhận số user vượt ngân sách cổng); chưa sửa mã nguồn hay chấp nhận thay người dùng
@@ -95,6 +95,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-18T08:08:46.661Z
-Stopped at: 04-04 Task 1 sẵn sàng để duyệt. Tiếp theo là Task 2.
-Resume file: .planning/phases/04-web-app-dev-scripts/.continue-here.md
+Last session: 2026-11-18T08:54:59.522Z
+Stopped at: 04-04 hoàn tất. Kế hoạch tiếp theo là 04-06.
+Resume file: None

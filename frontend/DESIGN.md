@@ -19,6 +19,12 @@ Sau reload, localStorage giữ `token` và `user` với bốn trường. Đăng 
 
 Ảnh kiểm tra sale và form đăng ký lưu trong `.taste-skill/shots/04-04-sale-phone.png` và `.taste-skill/shots/04-04-register-phone.png`. Kiểm tra toàn bộ giao diện khách hàng nằm ở 04-05/09. Sau reload, phiên vẫn còn và API tiếp tục chặn mua trùng. Đọc đơn để khôi phục trạng thái đã mua trên giao diện thuộc 04-05.
 
+## Kiểm thử luồng mua 04-04 — Task 2
+
+Người dùng duyệt Task 1. Edge trên bản build 5174 ở 390 px và chế độ giảm chuyển động đăng ký bằng Enter, quay lại đúng sale và mua V2 bằng một POST Bearer dù nhấp hai lần. API trả 201, tồn kho giảm từ 98 xuống 97 và xác nhận vẫn hiện. Khi tải thẳng trang đăng nhập, lần Tab đầu đi tới link bỏ qua nội dung.
+
+Phiên còn sau reload. JSON phiên hỏng được xóa. Giả lập phản hồi sale trong Edge cho thấy đồng hồ về 0 và khóa mua khi hết hạn hoặc chưa nạp kho. Hai lần làm mới thủ công tương ứng hai GET. 30 test frontend, typecheck và build đạt.
+
 ## Audit storefront 04-03 — Task 2
 
 **`GATE: OFF (no build active)`**; giữ lịch sử OPEN3, không reset/rearm hoặc chạy lại gate sau OFF. Người dùng đã duyệt “Duyệt storefront 04-03, tiếp tục Task 2”. Các đoạn chờ duyệt bên dưới là lịch sử Task1, được mục này thay thế.

@@ -597,3 +597,235 @@ test("readiness timeout prints canonical logs and cleans the full startup trees"
   assert.doesNotMatch(out, /Frontend: http/);
   await assertTreeStopped(f);
 });
+
+// ---------------- Cặp script macOS (bash 3.2) ----------------
+// Các kiểm tra dưới đây chứng minh cú pháp, tương thích bash 3.2 theo quét tĩnh, logic sở hữu
+// nhóm tiến trình với ps/lsof/kill giả và (trên máy POSIX) vòng đời thật. Không ca nào là
+// bằng chứng runtime macOS: máy dự án là Windows, macOS ghi là UNTESTED trong README.
+
+const shFiles = ["start.sh", "stop.sh", "dev-common.sh"];
+const shEntries = ["start.sh", "stop.sh"];
+const shFixtures = ["shell-guards.sh", "posix-lifecycle.sh"];
+const gitBash = "C:\\Program Files\\Git\\bin\\bash.exe";
+
+function findBash() {
+  if (process.platform !== "win32") return "bash";
+  return spawnSync(gitBash, ["--version"], { windowsHide: true }).status === 0 ? gitBash : null;
+}
+
+function runShell(command, args, options = {}) {
+  return new Promise((resolveRun, reject) => {
+    const child = spawn(command, args, { cwd: repo, windowsHide: true, stdio: ["ignore", "pipe", "pipe"], ...options });
+    let output = "";
+    child.stdout.setEncoding("utf8").on("data", (chunk) => { output += chunk; });
+    child.stderr.setEncoding("utf8").on("data", (chunk) => { output += chunk; });
+    child.once("error", reject);
+    child.once("close", (code) => resolveRun({ code, output }));
+  });
+}
+
+// Bỏ chú thích và chuỗi trong nháy đơn trước khi quét cú pháp cấm.
+function shellCode(text) {
+  return text.split("\n").map((line) => line.replace(/'[^']*'/g, "''").replace(/(^|\s)#.*$/, "$1")).join("\n");
+}
+
+function functionBody(text, name) {
+  const start = text.indexOf("\n" + name + "() {\n");
+  assert.notEqual(start, -1, "missing function " + name);
+  return text.slice(start, text.indexOf("\n}\n", start));
+}
+
+test("shell scripts: LF, shebang, strict mode, bash 3.2 constructs, Git modes and attributes", async () => {
+  const forbidden = [
+    [/\b(declare|local|typeset)\s+-[a-zA-Z]*A/, "mảng kết hợp"],
+    [/\b(mapfile|readarray|coproc)\b/, "mapfile/readarray/coproc"],
+    [/\$\{[#!]?[A-Za-z_][A-Za-z0-9_]*(\[[^\]]*\])?(,,?|\^\^?)\}/, "${var,,} / ${var^^}"],
+    [/\bsetsid\b/, "setsid (macOS không có)"],
+    [/\bsed\s+(-[a-zA-Z]*\s+)*-i\b/, "sed -i"],
+    [/&>>|\|&/, "&>> hoặc |&"],
+    [/\b(declare|local)\s+-n\b/, "nameref"],
+    [/\bwait\s+-n\b/, "wait -n"],
+    [/\b(EPOCHSECONDS|EPOCHREALTIME|BASHPID)\b/, "biến của bash 4/5"],
+    [/@[QEPAa]\}/, "${var@Q}"],
+    [/\[\[\s+-v\b|\btest\s+-v\b/, "-v"],
+    [/;;&|;&\s*$/m, "case ;& / ;;&"],
+    [/\b(readlink|realpath)\s+-[a-zA-Z]*[fem]\b|\brealpath\b/, "readlink -f / realpath"],
+    [/\bstat\s+-c\b|\bdate\s+-d\b|\bgrep\s+-[a-zA-Z]*P\b|\btimeout\s+\d/, "công cụ GNU riêng"],
+    [/\{[A-Za-z_][A-Za-z0-9_]*\}[<>]/, "fd có tên {fd}>"],
+    [/printf\s+['"]?%\(/, "printf %(...)T"],
+  ];
+  for (const file of shFiles) {
+    const bytes = await readFile(join(scripts, file));
+    assert.notDeepEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf], file + " không được có BOM");
+    const text = bytes.toString("utf8");
+    assert.equal(text.includes("\r"), false, file + " phải dùng LF");
+    const code = shellCode(text);
+    for (const [pattern, label] of forbidden) assert.doesNotMatch(code, pattern, file + ": " + label);
+  }
+  for (const file of shEntries) {
+    const text = await readFile(join(scripts, file), "utf8");
+    assert.equal(text.split("\n")[0], "#!/usr/bin/env bash", file + " shebang");
+    assert.ok(text.split("\n").includes("set -euo pipefail"), file + " set -euo pipefail");
+    assert.match(text, /^for arg in \$\{1\+"\$@"\}; do$/m, file + " lặp tham số an toàn với set -u của bash 3.2");
+  }
+  const staged = spawnSync("git", ["ls-files", "-s", "--", ...shFiles.map((file) => "scripts/" + file)], { cwd: repo, encoding: "utf8", windowsHide: true });
+  assert.equal(staged.status, 0, staged.stderr);
+  const modes = Object.fromEntries(staged.stdout.trim().split(/\r?\n/).map((line) => [line.split("\t")[1], line.split(" ")[0]]));
+  for (const file of shEntries) assert.equal(modes["scripts/" + file], "100755", file + " phải có quyền thực thi trong Git");
+  assert.ok(modes["scripts/dev-common.sh"], "dev-common.sh phải được Git theo dõi");
+  const attrs = spawnSync("git", ["check-attr", "eol", "--", "scripts/start.sh", "scripts/stop.sh", "scripts/dev-common.sh", "scripts/start.ps1"], { cwd: repo, encoding: "utf8", windowsHide: true });
+  assert.equal(attrs.status, 0, attrs.stderr);
+  for (const file of shFiles) assert.match(attrs.stdout, new RegExp("scripts/" + file.replace(".", "\\.") + ": eol: lf"));
+  assert.match(attrs.stdout, /scripts\/start\.ps1: eol: crlf/);
+});
+
+test("bash -n parses each shell file; shellcheck only if already installed", async (t) => {
+  const bash = findBash();
+  if (!bash) {
+    t.skip("không có bash (Git Bash) trên máy Windows này");
+    return;
+  }
+  const version = spawnSync(bash, ["-c", "echo $BASH_VERSION"], { encoding: "utf8", windowsHide: true }).stdout.trim();
+  t.diagnostic("bash " + version + ": bằng chứng cú pháp, không phải runtime bash 3.2 của macOS");
+  for (const file of [...shFiles.map((name) => join(scripts, name)), ...shFixtures.map((name) => join(scripts, "test", "fixtures", name))]) {
+    const parsed = spawnSync(bash, ["-n", file], { encoding: "utf8", windowsHide: true });
+    assert.equal(parsed.status, 0, file + "\n" + parsed.stderr);
+  }
+  const shellcheck = spawnSync("shellcheck", ["--version"], { encoding: "utf8", windowsHide: true });
+  if (shellcheck.error) {
+    t.diagnostic("shellcheck không có trên máy: không chạy và không tự cài");
+    return;
+  }
+  const linted = spawnSync("shellcheck", ["-s", "bash", "-x", ...shFiles.map((name) => join(scripts, name))], { cwd: repo, encoding: "utf8", windowsHide: true });
+  assert.equal(linted.status, 0, linted.stdout + linted.stderr);
+});
+
+test("start/stop shell steps, flags, files and messages mirror the Windows pair", async () => {
+  const read = (file) => readFile(join(scripts, file), "utf8");
+  const [startPs, stopPs, commonPs, startSh, stopSh, commonSh] = await Promise.all(
+    ["start.ps1", "stop.ps1", "dev-common.ps1", "start.sh", "stop.sh", "dev-common.sh"].map(read),
+  );
+  const steps = (text, total, call) => [...text.matchAll(new RegExp(call + " '(\\[\\d+\\/" + total + "\\][^']*)'", "g"))].map((match) => match[1]);
+  const startSteps = steps(startSh, 10, "say");
+  assert.deepEqual(startSteps.map((line) => Number(line.match(/\d+/)[0])), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  assert.deepEqual(startSteps, steps(startPs, 10, "Write-Host"));
+  assert.deepEqual(steps(stopSh, 4, "say"), steps(stopPs, 4, "Write-Host"));
+  // Thứ tự lệnh thực sự trong start.sh khớp mười bước.
+  const order = ["init_caller", "check_tools", "wait_docker", "check_running", '"$DOCKER" compose up -d --wait', "init_env", "install_deps backend", "seed_if_needed", "launch_service api", "wait_services"];
+  const main = startSh.slice(startSh.indexOf("say '[1/10]"));
+  const positions = order.map((call) => main.indexOf(call));
+  assert.ok(positions.every((position) => position > 0), "start.sh main is missing a step call");
+  assert.deepEqual([...positions].sort((a, b) => a - b), positions, "start.sh step calls are out of order");
+
+  assert.match(startSh, /--seed\) SEED=1/);
+  assert.match(stopSh, /--keep-db\) KEEP_DB=1/);
+  for (const text of [startSh, stopSh]) assert.match(text, /--help \| -h\)/);
+  assert.match(startSh, /--seed xóa dữ liệu/);
+  assert.match(stopSh, /--keep-db giữ MongoDB và Redis/);
+  assert.match(commonSh, /api\) printf '5000'/);
+  assert.match(commonSh, /web\) printf '5173'/);
+  assert.match(commonPs, /api = 5000; web = 5173/);
+  assert.match(commonSh, /DEV_ROOT="\$PROJECT_ROOT\/\.dev"/);
+  assert.match(commonSh, /LOG_ROOT="\$DEV_ROOT\/logs"/);
+  assert.match(commonSh, /"\$DEV_ROOT\/\$service\.pid"/);
+  assert.match(startSh, /LOG_ROOT\/\$service\.log/);
+  assert.match(commonSh, /tail -f /);
+  for (const text of [startPs + stopPs + commonPs, startSh + stopSh + commonSh]) {
+    for (const message of ["Cổng dev đang bận", "chỉ đang chạy một phần", "Không có gì để dừng.", "Hai cổng dev đã trống.",
+      "Một lệnh start/stop đang chạy", "Không đếm được người dùng", "Đã có người dùng, bỏ qua seed.", "Giữ nguyên backend/.env.",
+      "Hết thời gian chờ Docker Desktop", "cổng MongoDB 27018, Redis 6379", "không tương thích", "Cần Docker Compose v2"]) {
+      assert.ok(text.includes(message), "missing parity message: " + message);
+    }
+    assert.doesNotMatch(text, /down\s+-v/);
+  }
+  assert.match(startSh, /"\$DOCKER" exec flashsale-mongo mongosh flashsale --quiet --eval 'db\.users\.countDocuments\(\)'/);
+  assert.match(startSh, /open -a Docker/);
+  assert.match(startSh, /SECONDS \+ 120/);
+  assert.match(startSh, /SECONDS \+ 30/);
+  assert.match(startSh, /nohup "\$BASH" -c "\$RUNNER_JS" "\$label" "\$PROJECT_ROOT\/\$folder" "\$NPM" <\/dev\/null >"\$log" 2>&1 &/);
+  assert.match(startSh, /set -m\n\s+nohup/);
+  // Mọi tín hiệu theo nhóm chỉ được gửi sau khi đã từ chối nhóm của lệnh gọi.
+  for (const name of ["stop_group", "stop_listener"]) {
+    const body = functionBody(commonSh, name);
+    assert.ok(body.indexOf("safe_group") >= 0 && body.indexOf("safe_group") < body.indexOf("kill -"), name + " phải gọi safe_group trước kill");
+  }
+  const launch = functionBody(startSh, "launch_service");
+  assert.ok(launch.indexOf("safe_group") < launch.indexOf('kill -TERM -- "-$pgid"'), "launch_service phải kiểm tra nhóm trước kill nhóm");
+  assert.match(functionBody(commonSh, "safe_group"), /\[ "\$1" != "\$CALLER_PGID" \] \|\| return 1/);
+  assert.match(functionBody(commonSh, "safe_group"), /\[ "\$1" -gt 1 \] \|\| return 1/);
+});
+
+test("shell ownership guards: caller/foreign groups are never signalled (stubbed ps/lsof/kill)", { timeout: 600_000 }, async (t) => {
+  const bash = findBash();
+  if (!bash) {
+    t.skip("không có bash (Git Bash) trên máy Windows này");
+    return;
+  }
+  const result = await runShell(bash, [join(scripts, "test", "fixtures", "shell-guards.sh"), scripts]);
+  assert.equal(result.code, 0, result.output);
+  assert.match(result.output, /# fail 0/);
+  t.diagnostic(result.output.match(/# pass \d+/)?.[0] + " (logic shell với công cụ giả, không phải runtime macOS)");
+});
+
+const posixReason = process.platform === "win32" && process.env.DEV_POSIX_FIXTURE !== "wsl"
+  ? "vòng đời POSIX thật cần macOS/Linux; trên Windows đặt DEV_POSIX_FIXTURE=wsl để chạy trong WSL (vẫn không phải bằng chứng macOS)"
+  : false;
+
+test("POSIX runtime lifecycle: real job-control groups, nohup, lsof and ps on an accented path", { skip: posixReason, timeout: 600_000 }, async (t) => {
+  const fixtureScript = "scripts/test/fixtures/posix-lifecycle.sh";
+  const result = process.platform === "win32"
+    ? await runShell("wsl.exe", ["-d", process.env.DEV_WSL_DISTRO ?? "Ubuntu", "--cd", repo, "--", "bash", fixtureScript, "scripts"])
+    : await runShell("bash", [fixtureScript, "scripts"]);
+  if (result.code === 77) {
+    t.skip(result.output.trim());
+    return;
+  }
+  assert.equal(result.code, 0, result.output);
+  assert.match(result.output, /# fail 0/);
+  t.diagnostic(result.output.match(/# pass \d+/)?.[0] + " trên " + (process.platform === "win32" ? "WSL" : process.platform) + " (không phải bằng chứng macOS)");
+});
+
+// ---------------- Tài liệu và checklist nghiệm thu ----------------
+
+test("script guide and README disclose macOS status; DEV-UAT rows carry evidence before PASS", async () => {
+  const guide = await readFile(join(scripts, "README.md"), "utf8");
+  for (const text of ["scripts\\start.ps1", "scripts\\stop.ps1", "./scripts/start.sh", "./scripts/stop.sh", "-Seed", "--seed",
+    "-KeepDb", "--keep-db", "-Help", "--help", "xóa sạch", "[CẢNH BÁO]", "Get-Content", "tail -f", ".dev/", "logs/api.log",
+    "Cổng bận", "lsof -nP -iTCP:5000 -sTCP:LISTEN", "Get-NetTCPConnection", "npm run start:test", "Không đo tải",
+    "chưa chạy thử trên macOS", "Chưa chạy thử trên macOS", "shellcheck", "DEV_POSIX_FIXTURE=wsl", "04-DEV-UAT.md"]) {
+    assert.ok(guide.includes(text), "scripts/README.md thiếu: " + text);
+  }
+  const readme = await readFile(join(repo, "README.md"), "utf8");
+  assert.match(readme, /\]\(scripts\/README\.md\)/);
+  assert.match(readme, /chưa chạy thử trên macOS/);
+  assert.match(readme, /scripts\\start\.ps1/);
+  assert.match(readme, /\.\/scripts\/start\.sh/);
+  assert.match(readme, /Phase 5/);
+
+  const uat = await readFile(join(repo, ".planning", "phases", "04-web-app-dev-scripts", "04-DEV-UAT.md"), "utf8");
+  const rows = uat.split(/\r?\n/).filter((line) => /^\| W\d\d \|/.test(line)).map((line) => line.split("|").slice(1, -1).map((cell) => cell.trim()));
+  const ids = rows.map((row) => row[0]);
+  for (let index = 1; index <= 10; index += 1) assert.ok(ids.includes("W" + String(index).padStart(2, "0")), "thiếu ca W" + index);
+  assert.equal(new Set(ids).size, ids.length, "ID ca bị trùng");
+  for (const row of rows) {
+    assert.equal(row.length, 8, row[0] + " phải có 8 cột");
+    assert.ok(["OPEN", "PASS", "FAIL", "ERROR"].includes(row[7]), row[0] + " trạng thái không hợp lệ: " + row[7]);
+    assert.ok(row[3].length > 0 && row[4].length > 0, row[0] + " thiếu lệnh hoặc mong đợi");
+    if (row[7] === "PASS") {
+      assert.notEqual(row[5], "—", row[0] + " PASS nhưng chưa ghi mã thoát");
+      assert.notEqual(row[6], "—", row[0] + " PASS nhưng chưa có bằng chứng");
+    }
+  }
+  for (const text of ["COMPOSE_PROJECT_NAME", "dùng một lần", "Không dán nội dung `backend/.env`", "-Quiet", "docker compose down",
+    "Không chạy `docker compose down -v`", "UNTESTED", "PowerShell 5.1", "$LASTEXITCODE"]) {
+    assert.ok(uat.includes(text), "04-DEV-UAT.md thiếu: " + text);
+  }
+  // Không có lệnh nào in nội dung file secret.
+  assert.doesNotMatch(uat, /(Get-Content|\bgc\b|\btype\b|\bcat\b|\bmore\b)\s+[^\n|]*backend[\\/]\.env\b/i);
+  assert.doesNotMatch(guide + readme, /(Get-Content|\btype\b|\bcat\b)\s+[^\n|]*backend[\\/]\.env\b/i);
+
+  for (const path of [".dev/api.owner", ".dev/web.owner.json", ".dev/lifecycle.lock.d/owner", ".dev/logs/api.log", ".dev/backend.lock.sha256"]) {
+    const ignored = spawnSync("git", ["check-ignore", "--no-index", "-q", "--", path], { cwd: repo, windowsHide: true });
+    assert.equal(ignored.status, 0, path + " phải bị Git bỏ qua");
+  }
+});

@@ -85,12 +85,12 @@ status: complete
 
 | Kiểm tra | Kết quả |
 |---|---|
-| `node --test --test-reporter=tap scripts/test/dev-scripts.test.mjs` | 14/14 đạt trên Windows PowerShell 5.1. Fixture khởi tạo ở đường dẫn có dấu tiếng Việt, dấu cách, ngoặc vuông và ngoặc tròn. |
+| `node --test --test-reporter=tap` trên `scripts/test/dev-scripts.test.mjs` | 14/14 đạt trên Windows PowerShell 5.1. Fixture khởi tạo ở đường dẫn có dấu tiếng Việt, dấu cách, ngoặc vuông và ngoặc tròn. |
 | Tool và timeout | Help, thiếu Node/npm/Docker, các mốc Node, Compose v2, hai đường dẫn Desktop, daemon chờ 120 giây, cổng DB bận và readiness chờ 30 giây. |
 | Compose trên máy dự án | `docker compose version --short` trả 5.4.0 và `docker compose up -d --wait` xác nhận hai container healthy. Sau khi mở điều kiện cho plugin từ v2 trở lên, chạy lại 3/3 ca ngoài sandbox gồm vòng đời với fixture báo 5.4.0, các mốc Node và từ chối Compose v1, cùng AST/encoding. |
 | Dữ liệu | Cấu hình giả giữ nguyên từng byte. Khóa tạo mới mã hóa 32 byte ngẫu nhiên. npm ci chỉ ghi marker sau thành công, số user lỗi hoặc không hợp lệ dừng trước seed, số dương bỏ qua seed, và `-Seed` cảnh báo trước khi chạy. |
 | Tiến trình | PID chết, PID bị tái sử dụng, token/thời điểm tạo sai, thiếu metadata, tiến trình cùng tiền tố thư mục, khởi động một phần, tiến trình thoát sớm, `-KeepDb` và stop lặp. Các cây fixture được thu dọn. |
-| Build | Backend và frontend đều đạt `npm.cmd run typecheck` và `npm.cmd run build` trong package tương ứng. Bản build backend có Lua và frontend có `dist/index.html`. |
+| Build | Backend và frontend đều đạt `npm.cmd run typecheck` và `npm.cmd run build` trong package tương ứng. Bản build backend có Lua và bản build frontend có trang index.html. |
 | Regression bổ sung | 30 test frontend và 7 test build backend đạt với preload tạm để xử lý lỗi `os.userInfo()` của sandbox khi tsx nạp. |
 | Git và encoding | `git diff --check`, `git check-attr` và `git check-ignore .dev/api.pid` đạt. AST PowerShell 5.1 phân tích đủ bốn file, byte đầu là UTF-8 BOM và toàn bộ dòng dùng CRLF. |
 

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useAuth } from "../auth/AuthProvider.tsx";
 import { ErrorPanel, SaleHero, usePageKit } from "../components/Layout.tsx";
+import { usePolling } from "../hooks/usePolling.ts";
 import { ApiError } from "../services/api.ts";
 import { loginPath, StaleSessionError } from "../services/auth.ts";
 import { getProduct, getSale, productAttributes } from "../services/catalog.ts";
@@ -15,7 +16,6 @@ import type { ProductDto, SaleDto } from "../services/types.ts";
 interface SaleSnapshot {
   sale: SaleDto;
   clock: ServerClock;
-  revision: number;
   updatedAt: Date;
 }
 
@@ -65,8 +65,8 @@ function SaleDetail({ id }: { id: string }) {
   const { generation, session, store } = useAuth();
   const navigate = useNavigate();
   const returnTo = `/sales/${id}`;
-  const nextRevision = useRef(0);
-  const [revision, setRevision] = useState(0);
+  const stockReady = useRef(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [snapshot, setSnapshot] = useState<SaleSnapshot>();
   const [readError, setReadError] = useState("");
   const [missing, setMissing] = useState(false);
@@ -87,21 +87,27 @@ function SaleDetail({ id }: { id: string }) {
     return () => { active.current = false; };
   }, []);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    void getSale(id, controller.signal).then(({ sale, now }) => {
-      if (controller.signal.aborted) return;
+  const polling = usePolling({
+    key: missing ? null : `${id}:${generation}`,
+    read: signal => getSale(id, signal),
+    onData({ sale, now }) {
+      if (!store.isCurrent(generation)) return;
       const monotonic = performance.now();
       const clock = synchronizeClock(now, monotonic);
+      stockReady.current = true;
       setTick(monotonic);
-      setSnapshot({ sale, clock, revision, updatedAt: new Date() });
-    }).catch((cause: unknown) => {
-      if (controller.signal.aborted) return;
+      setSnapshot({ sale, clock, updatedAt: new Date() });
+      setRefreshing(false);
+      setReadError("");
+    },
+    onError(cause) {
+      if (!store.isCurrent(generation)) return;
+      stockReady.current = false;
       if (isMissingSale(cause)) setMissing(true);
+      setRefreshing(false);
       setReadError("Không đọc được đợt sale.");
-    });
-    return () => controller.abort();
-  }, [id, revision]);
+    },
+  });
 
   const epoch = snapshot ? saleEpoch(snapshot.sale) : "";
   const saleId = snapshot?.sale.id;
@@ -139,24 +145,20 @@ function SaleDetail({ id }: { id: string }) {
     };
   }, [clock, endAt]);
 
-  function refresh() {
-    nextRevision.current += 1;
+  function refreshStock(replace = false) {
+    stockReady.current = false;
+    setRefreshing(true);
     setReadError("");
-    setRevision(nextRevision.current);
+    polling.refresh(replace);
+  }
+
+  function refresh() {
+    refreshStock();
     setMembershipRevision(value => value + 1);
   }
 
-  // Quay lại tab: đọc lại sale (phát hiện reset) và đơn (có thể đã mua ở tab khác). Polling định kỳ thuộc 04-08.
-  const refreshRef = useRef(refresh);
-  useEffect(() => { refreshRef.current = refresh; });
-  useEffect(() => {
-    const onVisible = () => { if (document.visibilityState === "visible") refreshRef.current(); };
-    document.addEventListener("visibilitychange", onVisible);
-    return () => document.removeEventListener("visibilitychange", onVisible);
-  }, []);
-
   function buy() {
-    if (!snapshot || snapshot.revision !== nextRevision.current) return;
+    if (!snapshot || !stockReady.current || missing) return;
     const sent = { sale: snapshot.sale, epoch: saleEpoch(snapshot.sale) };
     if (buyUnavailable(sent.sale, serverTime(snapshot.clock, performance.now()))) return;
 
@@ -183,7 +185,7 @@ function SaleDetail({ id }: { id: string }) {
         if (!active.current || !store.isCurrent(current.generation)) return;
         if (!order || typeof order.id !== "string") throw new ApiError(201, "Máy chủ trả đơn không hợp lệ.", "INVALID_RESPONSE");
         setPurchase(record({ kind: "success", message: PURCHASE_COPY.success(order.id), orderId: order.id }));
-        refresh();
+        refreshStock(true);
       } catch (cause) {
         if (!active.current) return;
         if (cause instanceof ApiError && cause.status === 401 && cause.code === "UNAUTHORIZED") {
@@ -196,14 +198,14 @@ function SaleDetail({ id }: { id: string }) {
         if (cause instanceof StaleSessionError || !store.isCurrent(current.generation)) return;
         const outcome = classifyPurchaseError(cause);
         setPurchase(record(outcome));
-        if (outcome.kind !== "uncertain") refresh();
+        if (outcome.kind !== "uncertain") refreshStock(true);
       } finally {
         if (active.current) setPending(false);
       }
     });
   }
 
-  if (!snapshot) return <main id="top" ref={root}>
+  if (!snapshot || missing) return <main id="top" ref={root}>
     <section className="task-screen"><div className="wrap">
       <h1>{missing ? PURCHASE_COPY.notFound : "Thông tin đợt sale"}</h1>
       {missing
@@ -214,7 +216,6 @@ function SaleDetail({ id }: { id: string }) {
 
   const { sale } = snapshot;
   const now = serverTime(snapshot.clock, tick);
-  const reading = snapshot.revision !== revision && !readError;
   const view = resolvePurchase({ generation, epoch }, purchase, membership);
   // Chưa có lần đọc đơn nào thành công cho phiên + lượt sale này (và lần đọc chưa báo lỗi): chưa bật nút mua,
   // kể cả khung hình đầu trước khi effect đọc đơn kịp chạy.
@@ -222,7 +223,7 @@ function SaleDetail({ id }: { id: string }) {
   const unavailable = buyUnavailable(sale, now, {
     purchased: view.bought,
     pending,
-    stale: snapshot.revision !== revision || view.locked,
+    stale: refreshing || Boolean(readError) || view.locked,
     checking,
   });
   const message = view.message || unavailable;
@@ -235,8 +236,8 @@ function SaleDetail({ id }: { id: string }) {
         <button className="btn btn--primary" type="button" disabled={Boolean(unavailable)} onClick={buy}>
           {pending ? "Đang mua…" : "Mua ngay"}
         </button>
-        <button className="btn btn--secondary" type="button" disabled={reading || pending} onClick={refresh}>
-          {reading ? "Đang đọc tồn kho…" : "Làm mới tồn kho"}
+        <button className="btn btn--secondary" type="button" disabled={refreshing || pending} onClick={refresh}>
+          {refreshing ? "Đang đọc tồn kho…" : "Làm mới tồn kho"}
         </button>
       </div>
       <div className={view.kind ? `sale-feedback sale-feedback--${view.kind}` : "sale-feedback"} role="status" data-outcome={view.kind ?? ""}>

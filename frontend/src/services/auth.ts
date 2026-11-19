@@ -23,7 +23,7 @@ export function parseSession(value: unknown): Session | null {
 export function safeReturnPath(value: unknown): string {
   if (typeof value !== "string" || /[\\\u0000-\u0020\u007f%]/.test(value)) return "/";
   // Chỉ cho về các route của ứng dụng, không vòng lại login hay URL có thể được chuẩn hóa ra ngoài.
-  return /^(?:\/(?:sales\/[a-f\d]{24}|orders|admin)?|\/#products)$/i.test(value) ? value : "/";
+  return /^(?:\/(?:sales\/[a-f\d]{24}|orders|admin(?:\?saleId=[a-f\d]{24})?)?|\/#products)$/i.test(value) ? value : "/";
 }
 export const loginPath = (returnTo: string): string => `/login?returnTo=${encodeURIComponent(safeReturnPath(returnTo))}`;
 

@@ -64,6 +64,30 @@ main#top > section.sale-specs { height: auto; min-height: 0; }
 }
 .auth-field input[aria-invalid="true"] { border-color: #a32121; }
 .field__error { margin: 0; color: #a32121; }
+.admin-wrap { display: grid; gap: var(--s-5); }
+.admin-picker, .admin-updates, .admin-actions { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--s-3); }
+.admin-picker .auth-field { flex: 1 1 15rem; min-width: 0; max-width: 24rem; }
+.admin-updates { justify-content: space-between; }
+.admin-wrap p { margin: 0; }
+.admin-note { color: var(--muted); font-size: var(--t-small); }
+.admin-totals, .admin-details { display: grid; gap: var(--s-3); margin: 0; }
+.admin-totals { grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); }
+.admin-totals > div { padding: var(--s-4); border-radius: var(--r-sm); background: var(--p-surface); }
+.admin-totals dd { margin: var(--s-2) 0 0; font-size: var(--t-lead); font-variant-numeric: tabular-nums; }
+.admin-details { grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); }
+.admin-details > div { padding-block: var(--s-2); border-bottom: 1px solid var(--line); }
+.admin-details dd { margin: 0; overflow-wrap: anywhere; }
+.admin-sync { display: inline-block; padding: 0 var(--s-2); border-radius: var(--r-sm); background: var(--p-surface); }
+.admin-sale-link { width: fit-content; display: inline-flex; align-items: center; min-height: 44px; }
+.admin-reset { display: grid; gap: var(--s-4); padding-top: var(--s-5); border-top: 1px solid var(--line); }
+.admin-reset h2 { font-size: var(--t-lead); }
+.admin-reset select { min-height: 48px; padding-inline: var(--s-4); font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--muted); border-radius: var(--r-sm); }
+#reset-confirmation:not([hidden]) { display: grid; gap: var(--s-3); }
+.admin-destructive { --action: #a32121; }
+.admin-wrap :is(button, select):disabled { opacity: .6; cursor: default; }
+@media (max-width: 480px) {
+  .admin-picker .btn, .admin-actions, .admin-actions .btn { width: 100%; }
+}
 .sale-detail { height: auto; }
 .sale-detail .hero__in { gap: var(--s-6); }
 .sale-detail .hero__head:has(> .sale-offer) { display: grid; grid-template: none / minmax(0, 1fr); align-content: center; justify-items: start; }

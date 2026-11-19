@@ -226,7 +226,7 @@ function SaleDetail({ id }: { id: string }) {
     stale: refreshing || Boolean(readError) || view.locked,
     checking,
   });
-  const message = view.message || unavailable;
+  const message = view.kind === "cleared" && unavailable ? unavailable : view.message || unavailable;
   const showOrdersLink = view.bought || view.kind === "uncertain" || view.kind === "cleared";
 
   return <main id="top" ref={root}>

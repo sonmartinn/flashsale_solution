@@ -114,8 +114,18 @@ try {
   await b.js(`window.__faults.push({ method: "POST", match: "/buy", status: 500, body: { code: "INTERNAL_ERROR", message: "Lỗi" }, once: true }); window.__click("Mua ngay"); return 1;`);
   await b.waitFor(`window.__feedback()?.includes("Chưa xác nhận")`);
   check("500 là kết quả chưa rõ và khóa mua", await b.js(`return window.__btn("Mua ngay").disabled;`));
-  await b.js(`window.__click("Làm mới tồn kho"); return 1;`);
-  await b.waitFor(`window.__feedback()?.includes("Chưa thấy đơn")`);
+  const beforeOrders = await b.js(`return window.__gets("/orders/me");`);
+  await b.js(`
+    Object.defineProperty(document, "visibilityState", {configurable: true, value: "hidden"});
+    document.dispatchEvent(new Event("visibilitychange"));
+    window.__faults.push({ method: "GET", match: "/api/sales/${saleId}", kind: "passthrough-delayed", delay: 2200, once: true });
+    delete document.visibilityState;
+    document.dispatchEvent(new Event("visibilitychange"));
+    window.__click("Làm mới tồn kho");
+  `);
+  await b.waitFor(`window.__log.filter(e => e.url.includes("/orders/me") && e.status === 200).length > ${beforeOrders}`);
+  check("Đã đọc đơn nhưng tồn còn đang tải: khóa mua và chưa mời bấm lại", await b.js(`return window.__btn("Mua ngay").disabled && !window.__feedback().includes("Bạn có thể bấm Mua ngay");`));
+  await b.waitFor(`window.__feedback()?.includes("Chưa thấy đơn") && window.__btn("Mua ngay")?.disabled === false`);
   check("Sau khi kiểm tra đơn hiện tại, mua lại chỉ mở bằng quyết định của người dùng", await enabled("Mua ngay"));
   const beforeReal = await b.js(`return window.__posts();`);
   await b.js(`window.__click("Mua ngay"); return 1;`);
@@ -143,11 +153,14 @@ try {
   await b.js(`window.__click("Làm mới tồn kho"); return 1;`);
   await b.waitFor(`document.querySelector(".stock").textContent === "Còn 1 sản phẩm" && window.__btn("Mua ngay")?.disabled === false`);
   check("Reset (startAt mới) làm mới trạng thái đã mua: user3 mua được lại", reset.status === 200, await b.js(`return { feedback: window.__feedback(), orders: window.__gets("/orders/me") };`));
+  // Giữ snapshot của khách trong lúc tài khoản khác mua sản phẩm cuối để kiểm chứng phản hồi 409.
+  await b.js(`Object.defineProperty(document, "visibilityState", {configurable: true, value: "hidden"}); document.dispatchEvent(new Event("visibilitychange"));`);
   const user4 = await login("user0004@flashsale.local");
   const take = await api(`/sales/${saleId}/buy?mode=v2`, { method: "POST", body: { qty: 1 } }, user4.token);
   const beforeSo = await b.js(`return window.__posts();`);
   await b.js(`window.__click("Mua ngay"); return 1;`);
   await b.waitFor(`window.__feedback()?.startsWith("Sản phẩm đã hết hàng.")`);
+  await b.js(`delete document.visibilityState; document.dispatchEvent(new Event("visibilitychange"));`);
   await b.waitFor(`document.querySelector(".stock").textContent === "Còn 0 sản phẩm"`);
   const so = await b.js(`return { posts: window.__posts() - ${beforeSo}, status: window.__log.filter(e => e.method === "POST").at(-1).status, disabled: window.__btn("Mua ngay").disabled, stock: document.querySelector(".stock").textContent };`);
   check("SOLD_OUT thật (409) hiện thông báo riêng, đọc lại tồn = 0 và khóa mua", take.status === 201 && so.status === 409 && so.disabled && so.posts === 1, so);

@@ -3,6 +3,12 @@ Deal: hero product; palette mint-pink-accounts; Figtree; nav-split; footer-dark;
 
 Nền #f8f8f8 giữ ảnh và giá dễ đọc; xanh #1f6b3a dành cho hành động xem sale. Giữ nguyên token do dealer xuất.
 
+## Polling tồn kho 04-08
+
+Nút “Làm mới tồn kho” giữ vị trí trong cụm mua. Khi lần đọc lỗi, cùng vùng thông báo giữ số tồn và giờ cập nhật cuối. Cụm mua khóa tới khi đọc lại thành công. Không kéo dài trang sale để thêm phần trình bày riêng cho polling.
+
+Kiểm chứng trên bản build Vite và API fixture thật (MongoDB `flashsale_test_ui_12328`, Redis DB 15). `agent-browser` mở được trang sale. Edge headless đạt 10/10 ca, gồm khoảng cách 2.005 ms giữa hai lần đọc, gộp nhấn tay, request chậm, giả lập tab ẩn/hiện, hủy khi rời route, lỗi rồi phục hồi, tồn sau mua và sau reset. Báo cáo cục bộ ở `.taste-skill/phase04-oVYisS/evidence.json`.
+
 ## Audit route khách hàng 04-05 — Task 2
 
 Người dùng đã duyệt tracer Task 1 (“approved”). Audit chạy trên bản build `vite preview --port 5174 --strictPort`, API thật qua `scripts/test/ui-api-fixture.mjs` (MongoDB `flashsale_test_ui_33640`, Redis DB 15, saleId `6afd8b8562f44dfa27c7b0ae`; fixture tự xóa DB/khóa khi dừng, đã kiểm tra DB 15 trống). agent-browser bị treo ở lượt trước nên dùng lại driver CDP Edge headless. **`GATE: OFF (no build active)`** khi gọi `gate.mjs` trong worktree; giữ lịch sử OPEN 3, không arm/reset vòng mới. Không chạy thí nghiệm tải.

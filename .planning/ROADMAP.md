@@ -122,7 +122,7 @@ Plans:
   3. The sale page's remaining count refreshes every 1–2 s and polling stops when the user leaves the page *(cut fourth: fall back to a refresh button)*. The `/admin` monitor *(cut third; the stats API stays)* shows live stats with oversold counts in red and a Redis–MongoDB sync badge, offers a reset with a mode picker, and can pause updates during E2
   4. On Windows PowerShell 5.1, in the real accented project path, `scripts/start.ps1` starts the dev environment in the background: it starts Docker Desktop if needed, refuses rather than kills on a busy port, creates `.env` with a random secret, runs `npm ci` only when needed, seeds only with `-Seed` or an empty DB, then prints URLs and log commands. `scripts/stop.ps1` kills the whole process tree, stops containers unless `-KeepDb`, and handles missing PID files. Every SPECS §12 Windows test case passes
   5. `scripts/start.sh` and `scripts/stop.sh` offer the same behavior and flags (`--seed`, `--keep-db`, `--help`) on bash 3.2 and pass `bash -n` (and `shellcheck` if available). `.gitattributes` enforces LF for `.sh` and CRLF for `.ps1`, the `.sh` files are executable in git, and `.dev/` is ignored
-**Plans**: 7/9 plans executed in 8 waves
+**Plans**: 8/9 plans executed in 8 waves
 **UI hint**: yes
 
 Plans:
@@ -146,7 +146,7 @@ Plans:
 - [x] 04-07-PLAN.md — Bash 3.2 parity, executable/EOL policy, script documentation and real Windows acceptance (wave 6)
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 04-08-PLAN.md — Sale polling at 2 seconds with visibility/cancellation cleanup and manual fallback (wave 7; cuttable)
+- [x] 04-08-PLAN.md — Sale polling at 2 seconds with visibility/cancellation cleanup and manual fallback (wave 7; cuttable)
 
 **Wave 8** *(blocked on Wave 7 completion)*
 - [ ] 04-09-PLAN.md — Admin stats/pause/reset, five-route design evidence and full phase regression gate (wave 8; cuttable)
@@ -179,5 +179,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 (Phase 4 depends only
 | 1. Foundation (Infra, Data, Auth) | 10/10 | Complete    | 2026-11-08 |
 | 2. Buy Pipeline & Admin APIs | 5/5 | Complete    | 2026-11-09 |
 | 3. Experiments (E1-E4) | 6/6 | Complete    | 2026-11-16 |
-| 4. Web App & Dev Scripts | 7/9 | Executing — next 04-08 | - |
+| 4. Web App & Dev Scripts | 8/9 | Executing — next 04-09 | - |
 | 5. Results Chart, README & Analysis | 0/TBD | Not started | - |

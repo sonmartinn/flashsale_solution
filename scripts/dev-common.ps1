@@ -33,14 +33,57 @@ function Invoke-DevCommand([string]$Executable, [string[]]$CommandArgs) {
     & $Executable @CommandArgs 2>$null
 }
 
-function Get-DevListeners {
-    # Địa chỉ remote wildcard, cổng 0 nhận diện socket chờ kết nối, kể cả netstat bản địa hóa.
+function Get-DevNetstatRows {
     $rows = Invoke-DevCommand 'netstat.exe' @('-ano')
     if ($LASTEXITCODE -ne 0) { throw 'Không kiểm tra được cổng TCP bằng netstat. Hãy thử lại.' }
+    return $rows
+}
+
+function Get-DevConnectionOwner([int]$Port, [Net.IPAddress]$Address) {
+    $client = [Net.Sockets.TcpClient]::new($Address.AddressFamily)
+    try {
+        try {
+            if (-not $client.ConnectAsync($Address, $Port).Wait(250)) { return }
+        } catch [AggregateException] {
+            if ($_.Exception.GetBaseException() -is [Net.Sockets.SocketException]) { return }
+            throw
+        }
+        # Đối chiếu cả hai đầu kết nối để lấy PID của server, kể cả khi thiếu dòng LISTEN.
+        $local = [regex]::Escape($client.Client.RemoteEndPoint.ToString())
+        $remote = [regex]::Escape($client.Client.LocalEndPoint.ToString())
+        foreach ($row in (Get-DevNetstatRows)) {
+            if ($row -match "^\s*TCP\s+$local\s+$remote\s+\S+\s+([1-9][0-9]*)\s*$") {
+                return [int]$Matches[1]
+            }
+        }
+        return 0
+    } finally {
+        $client.Dispose()
+    }
+}
+
+function Get-DevListeners {
+    # Địa chỉ remote wildcard, cổng 0 nhận diện socket chờ kết nối, kể cả netstat bản địa hóa.
+    $rows = Get-DevNetstatRows
     $ports = $DevServices.Values -join '|'
+    $owners = @{}
     foreach ($row in $rows) {
-        if ($row -match "^\s*TCP\s+\S+:($ports)\s+(?:0\.0\.0\.0|\[::\]):0\s+\S+\s+([1-9][0-9]*)\s*$") {
-            [pscustomobject]@{ Port = [int]$Matches[1]; Id = [int]$Matches[2] }
+        if ($row -match "^\s*TCP\s+\S+:($ports)\s+(?:0\.0\.0\.0|\[::\]):0\s+(?!(?:CLOSED|BOUND)\s)\S+\s+([1-9][0-9]*)\s*$") {
+            $port = [int]$Matches[1]
+            $owners[$port] += @([int]$Matches[2])
+        }
+    }
+    foreach ($port in $DevServices.Values) {
+        if (-not $owners.ContainsKey($port)) {
+            $owners[$port] = @(
+                Get-DevConnectionOwner $port ([Net.IPAddress]::Loopback)
+                if ([Net.Sockets.Socket]::OSSupportsIPv6) {
+                    Get-DevConnectionOwner $port ([Net.IPAddress]::IPv6Loopback)
+                }
+            )
+        }
+        foreach ($idValue in ($owners[$port] | Select-Object -Unique)) {
+            [pscustomobject]@{ Port = $port; Id = $idValue }
         }
     }
 }
@@ -159,6 +202,10 @@ function Stop-VerifiedTree($ProcessInfo) {
 }
 
 function Write-PortOwner($Listener) {
+    if ($Listener.Id -eq 0) {
+        Write-Host "Cổng $($Listener.Port) đang được giữ, nhưng không xác định được PID."
+        return
+    }
     $processName = (Get-Process -Id $Listener.Id -ErrorAction SilentlyContinue).ProcessName
     if (-not $processName) { $processName = 'không rõ tên' }
     Write-Host "Cổng $($Listener.Port) đang được giữ bởi PID $($Listener.Id) ($processName)."

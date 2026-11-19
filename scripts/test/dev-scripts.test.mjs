@@ -102,6 +102,15 @@ function Get-CimInstance {
 
 function netstat.exe {
     $rows = & (Join-Path $env:SystemRoot "System32\netstat.exe") @args
+    if ($env:DEV_FIXTURE_HIDE_LISTENERS) {
+        # Giữ kết nối thật, giấu dòng LISTEN giống trường hợp Windows bỏ sót socket.
+        $rows = $rows -notmatch '^\s*TCP\s+\S+:(5000|5173)\s+\S+:0\s+'
+        if ($env:DEV_FIXTURE_HIDE_LISTENERS -eq "all") {
+            $rows = $rows -notmatch '^\s*TCP\s+\S+:(5000|5173)\s+'
+        }
+        $rows
+        return
+    }
     $rows
     if ($realCim -or $LASTEXITCODE -ne 0) { return }
     # Một số runner giới hạn bỏ mục khỏi netstat. Chỉ bổ sung cổng fixture
@@ -554,8 +563,39 @@ test("a damaged owner identity cannot claim a live pair, and missing PID/sidecar
     await unlink(f.path(".dev", service + ".pid"));
     await unlink(f.path(".dev", service + ".owner.json"));
   }
-  assertOk(await f.run("stop"));
+  assertOk(await f.run("stop", "", { DEV_FIXTURE_HIDE_LISTENERS: "yes" }));
   await assertTreeStopped(f);
+});
+
+test("Windows blocks busy IPv4 and IPv6 ports at step 4 when netstat omits listeners", windows, async (t) => {
+  const f = await fixture(t);
+  const servers = [];
+  try {
+    for (const [host, port] of [["127.0.0.1", 5000], ["::1", 5173]]) {
+      const server = createServer((socket) => socket.on("error", () => {}));
+      await new Promise((resolveListen, reject) => {
+        server.once("error", reject);
+        server.listen({ host, port }, resolveListen);
+      });
+      servers.push(server);
+    }
+
+    for (const mode of ["yes", "all"]) {
+      const env = { DEV_FIXTURE_HIDE_LISTENERS: mode };
+      const output = assertFailure(await f.run("start", "", env), /Cổng dev đang bận/);
+      for (const port of ports) {
+        const owner = mode === "yes" ? `PID ${process.pid} \\(node\\)` : "không xác định được PID";
+        assert.match(output, new RegExp(`Cổng ${port} đang được giữ.*${owner}`));
+      }
+      assert.doesNotMatch(output, /\[5\/10\]/);
+      assertFailure(await f.run("stop", "KeepDb", env), /Cổng dev vẫn đang bận/);
+      assert.ok(servers.every((server) => server.listening));
+    }
+    assert.equal((await f.calls()).includes("compose up -d --wait"), false);
+    assert.deepEqual(await f.processRecords(), []);
+  } finally {
+    await Promise.all(servers.map((server) => new Promise((resolveClose) => server.close(resolveClose))));
+  }
 });
 
 test("a partial already-owned run is diagnosed and its live backend is preserved", windows, async (t) => {

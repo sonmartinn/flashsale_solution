@@ -99,12 +99,19 @@ export function Layout({ children, sessionLinks }: PropsWithChildren<{ sessionLi
 
 export function SaleHero({ sale, detail = false, children }: PropsWithChildren<{ sale: SaleDto; detail?: boolean }>) {
   const stock = stockLabel(sale);
+  const originalPrice = sale.product.price;
+  const hasDiscount = sale.salePrice >= 0 && originalPrice > sale.salePrice;
+  const discountPercent = hasDiscount ? Math.floor((originalPrice - sale.salePrice) * 100 / originalPrice) : 0;
   return <section className={detail ? "hero hero--product sale-detail" : "hero hero--product"} data-enter aria-labelledby="hero-h">
     <div className="wrap"><div className="hero-text hero__in">
       <div className="hero__head">
-        <div><h1 id="hero-h">{sale.product.name}</h1><p className="hero__lead">{detail ? "Mỗi tài khoản mua tối đa một sản phẩm." : "Xem giá sale và số còn lại của sản phẩm. Mỗi tài khoản mua tối đa một sản phẩm trong đợt sale."}</p></div>
+        <div><h1 id="hero-h">{sale.product.name}</h1><p className="hero__lead">Mỗi tài khoản mua tối đa một sản phẩm trong đợt sale.</p></div>
         <div className="btn-row sale-offer">
-          <p className="sale-price">{sale.product.price > sale.salePrice && <del>{currency(sale.product.price)}</del>}<span>{currency(sale.salePrice)}</span></p>
+          <p className="sale-price">
+            <span className="sale-price__current"><span className="sr-only">Giá sale </span>{currency(sale.salePrice)}</span>
+            {hasDiscount && <span className="sale-price__original"><span className="sr-only">Giá gốc </span><del>{currency(originalPrice)}</del></span>}
+            {discountPercent > 0 && <span className="sale-price__discount">Giảm {discountPercent}%</span>}
+          </p>
           <p className={stock.negative ? "stock stock--negative" : "stock"}>{stock.text}</p>
           {children}
           {!detail && <Link className="btn btn--primary" to={`/sales/${encodeURIComponent(sale.id)}`}>Xem đợt sale</Link>}

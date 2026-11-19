@@ -8,8 +8,20 @@
   --display-tracking-xl: -0.035em;
 }
 .sale-offer { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-3); }
-.sale-price { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-4); margin: 0; font-size: var(--t-lead); }
-.sale-price del { font-size: var(--t-small); color: var(--muted); }
+.sale-price {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-1) var(--s-3);
+  margin: 0; font-variant-numeric: tabular-nums;
+}
+.sale-price__current {
+  color: var(--accent); font-size: clamp(1.75rem, 1.4rem + 1.1vw, 2.25rem);
+  font-weight: 500; line-height: 1.2;
+}
+.sale-price__original { color: var(--muted); font-size: var(--t-small); }
+.sale-price__discount {
+  padding: var(--s-1) var(--s-2); border-radius: var(--r-sm);
+  color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--bg));
+  font-size: var(--t-small); font-weight: 500; line-height: 1.25;
+}
 .stock { margin: 0; font-size: var(--t-body); }
 .stock--negative { color: #a32121; }
 .catalog-meta { color: var(--muted); margin-block: var(--s-5); }
@@ -99,7 +111,9 @@ main#top > section.sale-specs { height: auto; min-height: 0; }
 .hero--product.sale-detail:has(.hero__stage > :is([data-product], img, picture)) .hero__head > :first-child { display: block; grid-column: 1 / -1; }
 .hero--product.sale-detail:has(.hero__stage > :is([data-product], img, picture)) .hero__head .hero__lead { margin-top: var(--s-3); }
 .hero--product.sale-detail:has(.hero__stage > :is([data-product], img, picture)) .hero__head :is(h1, .hero__lead), .hero--product.sale-detail:has(.hero__stage > :is([data-product], img, picture)) .hero__head > .btn-row { grid-column: 1 / -1; grid-row: auto; align-self: start; }
+.sale-countdown { border-inline-start: 2px solid var(--line-strong); padding-inline-start: var(--s-3); }
 .sale-countdown p { margin: 0; }
+.sale-countdown > p:first-child { color: var(--muted); font-size: var(--t-small); }
 .sale-countdown [role="timer"] { font-size: var(--t-lead); font-variant-numeric: tabular-nums; }
 .sale-actions { display: flex; flex-wrap: wrap; gap: var(--s-3); }
 .sale-actions .btn:disabled { opacity: .6; cursor: default; }

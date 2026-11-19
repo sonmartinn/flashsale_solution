@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Web App & Dev Scripts
 status: executing
-stopped_at: 04-07 dừng ở checkpoint Task 3 (UAT Windows thật). Task 1–2 đã merge vào develop (fd85e37). Đang chờ người dùng gửi kết quả 04-DEV-UAT.md
-last_updated: "2026-11-18T13:10:37.860Z"
-last_activity: 2026-11-18
-last_activity_desc: Phase 04 execution started
-state_head: fd85e371eaafa9aeee66b5a1905a37f6651ac7ee
+stopped_at: Hoàn tất 04-07, sẵn sàng cho 04-08
+last_updated: "2026-11-19T07:34:00.000Z"
+last_activity: 2026-11-19
+last_activity_desc: Hoàn tất nghiệm thu Windows và đóng 04-07
+state_head: 3bf23000420545f1832241d2375bfe1587bdbeb7
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 30
-  completed_plans: 27
+  completed_plans: 28
   percent: 60
 ---
 
@@ -28,16 +28,16 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 ## Current Position
 
 Phase: 04 (Web App & Dev Scripts) — EXECUTING
-Plan: 7 of 9
-Status: Chờ người dùng — checkpoint Task 3 của 04-07 (UAT Windows thật)
-Last activity: 2026-11-18 — Merge Task 1–2 của 04-07 vào develop (fd85e37), kiểm tra sau merge đạt
+Plan: 8 of 9
+Status: 04-07 hoàn tất, 04-08 sẵn sàng
+Last activity: 2026-11-19 — Hoàn tất nghiệm thu Windows cho script dev
 
-Progress: [██████░░░░] 60% (3/5 phases), 26/30 plans hoàn tất. Phase 05 chưa lập kế hoạch.
+Progress: [██████░░░░] 60% (3/5 phases), 28/30 plans hoàn tất. Phase 05 chưa lập kế hoạch.
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 26
+- Total plans completed: 28
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -79,7 +79,7 @@ None yet.
 - [Phase 4] Nghiên cứu dev scripts đã hoàn tất trong 04-RESEARCH.md (PowerShell 5.1, bash 3.2, tiến trình nền, ownership và kiểm tra cổng). Kế hoạch có checkpoint xác minh package trước cài đặt và UAT Windows thật ở 04-07; macOS phải ghi rõ nếu chỉ kiểm tra cú pháp.
 - [Phase 4] 04-01/02/03 đã duyệt và hoàn tất. 04-03 còn các phát hiện về bố cục, ảnh lớn và ảnh đến muộn khi mạng chậm. Gate OFF, lịch sử OPEN3. Xem frontend/DESIGN.md và 04-03-SUMMARY.md.
 - [Phase 4] 04-04, 04-05 và 04-06 hoàn tất. Lượt fixture UI cũ dùng MongoDB flashsale_test_ui_13440 và Redis DB 13. Lock đã được lưu riêng sau khi xác nhận PID cũ đã thoát và cổng 5000 trống.
-- [Phase 4] 04-07: Task 1–2 (script bash 3.2, hướng dẫn, `04-DEV-UAT.md`) đã merge ở `fd85e37`. Task 3 là checkpoint human-action chặn: người dùng tự chạy 10 ca Windows W01–W10, cùng P1 và P4. 04-08 và 04-09 chờ 04-07. Hai fixture Windows của 04-06 lỗi lặp lại vì `netstat` báo sai listener, nghi do WSL2 chuyển tiếp localhost. Xem `deferred-items.md` và ca P4.
+- [Phase 4] 04-07 hoàn tất với 10/10 ca Windows bắt buộc đạt. Bản sửa `3bf2300` xác định PID khi bảng TCP bỏ sót listener. W05/W11 chạy lại đạt ở đường dẫn dự án. macOS chưa được thử ở runtime và ca bổ sung W12 còn mở. Bằng chứng ở `04-DEV-UAT.md`.
 - Port 27017 is the Windows MongoDB service; always use `127.0.0.1:27018`
 - [Phase 2] Rủi ro đã chấp nhận ở UAT, phải ghi vào tài liệu rủi ro Phase 5: WR-01 (hoàn kho sau lỗi ghi đơn mơ hồ không phải E11000 có thể ra `totalQty+1`), WR-02 (ioredis `autoResendUnfulfilledCommands` mặc định bật; E4 PASS không loại bỏ rủi ro gửi lại lệnh), WR-04 (`?mode=` khác `sale.mode` vượt `totalQty` qua hai kho; báo cáo nêu điều kiện "mọi lượt mua dùng đúng mode của đợt sale")
 - [Review 2026-11-12] Các cảnh báo còn mở trong 02-REVIEW.md: WR-03 (reset chồng với lượt mua đang chạy), WR-06 (reset lỗi muộn giữ cache cũ), WR-07 (E1 nhận số user vượt ngân sách cổng); chưa sửa mã nguồn hay chấp nhận thay người dùng
@@ -96,6 +96,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-18T13:10:37.431Z
-Stopped at: 04-07 dừng ở checkpoint Task 3 (UAT Windows thật). Task 1–2 đã merge vào develop (fd85e37). Đang chờ người dùng gửi kết quả 04-DEV-UAT.md
+Last session: 2026-11-19T07:34:00.000Z
+Stopped at: Hoàn tất 04-07, sẵn sàng cho 04-08
 Resume file: None

@@ -84,9 +84,9 @@ Nguồn yêu cầu gốc: `docs/SPECS.md`. Chi tiết kỹ thuật (tên trườ
 
 - [x] **DEV-01**: `scripts/start.ps1` (Windows PowerShell 5.1, UTF-8 có BOM, không `&&`/`||`/`??`/ba ngôi) thực hiện đủ 10 bước SPECS mục 12: về thư mục gốc, kiểm tra công cụ và phiên bản Node, mở Docker Desktop và chờ tối đa ~120 giây, kiểm tra PID/cổng 5000 và 5173 (không tự kill), `docker compose up -d --wait`, tạo `.env` có `JWT_SECRET` ngẫu nhiên (không in ra), `npm ci` khi cần, seed khi có `-Seed` hoặc database trống (không bao giờ tự seed khi đã có dữ liệu), chạy nền backend/frontend ghi PID và log vào `.dev/`, chờ health và in URL
 - [x] **DEV-02**: `scripts/stop.ps1` dừng cả cây tiến trình theo PID (`taskkill /T /F`), xử lý trường hợp mất file PID (chỉ kill `node` có dòng lệnh chứa đường dẫn dự án), `docker compose stop` trừ khi `-KeepDb`, kiểm tra cổng đã giải phóng, báo "không có gì để dừng" khi không chạy gì; cả hai script có `-Help`
-- [ ] **DEV-03**: `scripts/start.sh` và `scripts/stop.sh` (bash 3.2, `set -euo pipefail`, `nohup`, nhóm tiến trình riêng, `</dev/null`) có cùng hành vi và tham số (`--seed`, `--keep-db`, `--help`)
-- [ ] **DEV-04**: `.gitattributes` (`*.sh` LF, `*.ps1` CRLF), quyền thực thi git cho `.sh`, `.dev/` trong `.gitignore`; script idempotent, không đổi cấu hình hệ thống, không động vào dịch vụ MongoDB cổng 27017, không `docker compose down -v`
-- [ ] **DEV-05**: Đạt danh sách kiểm thử Windows ở SPECS mục 12 trên đúng thư mục dự án (đường dẫn có dấu và khoảng trắng); macOS ít nhất `bash -n` (và `shellcheck` nếu có), README ghi rõ chưa chạy thử trên macOS nếu không có máy
+- [x] **DEV-03**: `scripts/start.sh` và `scripts/stop.sh` (bash 3.2, `set -euo pipefail`, `nohup`, nhóm tiến trình riêng, `</dev/null`) có cùng hành vi và tham số (`--seed`, `--keep-db`, `--help`)
+- [x] **DEV-04**: `.gitattributes` (`*.sh` LF, `*.ps1` CRLF), quyền thực thi git cho `.sh`, `.dev/` trong `.gitignore`; script idempotent, không đổi cấu hình hệ thống, không động vào dịch vụ MongoDB cổng 27017, không `docker compose down -v`
+- [x] **DEV-05**: Đạt danh sách kiểm thử Windows ở SPECS mục 12 trên đúng thư mục dự án (đường dẫn có dấu và khoảng trắng); macOS ít nhất `bash -n` (và `shellcheck` nếu có), README ghi rõ chưa chạy thử trên macOS nếu không có máy
 
 ### Tài liệu & báo cáo (DOC)
 
@@ -178,9 +178,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | WEB-08 | Phase 5 | Pending |
 | DEV-01 | Phase 4 | Complete |
 | DEV-02 | Phase 4 | Complete |
-| DEV-03 | Phase 4 | Pending |
-| DEV-04 | Phase 4 | Pending |
-| DEV-05 | Phase 4 | Pending |
+| DEV-03 | Phase 4 | Complete |
+| DEV-04 | Phase 4 | Complete |
+| DEV-05 | Phase 4 | Complete |
 | DOC-01 | Phase 5 | Pending |
 | DOC-02 | Phase 5 | Pending |
 | DOC-03 | Phase 5 | Pending |

@@ -13,6 +13,8 @@
 
 `-Seed`/`--seed` xóa và tạo lại dữ liệu mẫu, `-KeepDb`/`--keep-db` dừng ứng dụng nhưng giữ MongoDB và Redis. Hướng dẫn đầy đủ, file log và cách xử lý cổng bận: [scripts/README.md](scripts/README.md).
 
-**Trạng thái nền tảng:** script Windows có bộ kiểm thử fixture và nghiệm thu thật do người dùng thực hiện ([04-DEV-UAT.md](.planning/phases/04-web-app-dev-scripts/04-DEV-UAT.md)). **Script macOS chưa chạy thử trên macOS**: mới kiểm cú pháp bằng `bash -n`, quét tương thích bash 3.2 và chạy fixture vòng đời trên Linux (WSL). Nếu bạn dùng macOS, hãy báo lại kết quả.
+Script Windows đã chạy bộ kiểm thử fixture và nghiệm thu trên bản sao dùng một lần với Docker thật. [Kết quả nghiệm thu Windows](.planning/phases/04-web-app-dev-scripts/04-DEV-UAT.md)
+
+Script Bash đã qua `bash -n`, kiểm tra tương thích Bash 3.2 và fixture vòng đời trên Linux (WSL). Cặp script này vẫn chưa chạy thử trên macOS.
 
 Script dev không dùng để đo tải. Đo tải theo [loadtest/README.md](loadtest/README.md) với `npm run start:test`.

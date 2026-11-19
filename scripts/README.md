@@ -74,7 +74,7 @@ Nếu `start`/`stop` báo "Một lệnh start/stop đang chạy" mà chắc ch�
 
 Script không kill tiến trình lạ: một server cũ còn chạy sẽ âm thầm nhận request. Tìm tiến trình giữ cổng rồi tự quyết định:
 
-- Windows: `Get-NetTCPConnection -LocalPort 5000,5173 -State Listen | Select-Object LocalPort,OwningProcess`, rồi `Get-Process -Id <PID>`.
+- Windows: `Get-NetTCPConnection -LocalPort 5000,5173 -State Listen | Select-Object LocalPort,OwningProcess`, rồi `Get-Process -Id <PID>`. Khi bảng listener thiếu PID, script đối chiếu kết nối TCP loopback. Nếu vẫn chưa thấy PID nhưng cổng nhận kết nối, script báo cổng bận và yêu cầu kiểm tra thủ công.
 - macOS: `lsof -nP -iTCP:5000 -sTCP:LISTEN` (tương tự cho 5173).
 
 Nếu đó là backend/frontend của chính dự án do `start` trước để lại, chạy `stop` (`-KeepDb` nếu muốn giữ container). Cổng MongoDB 27018 hoặc Redis 6379 bận thì bước 5 báo lỗi kèm gợi ý; kiểm tra `docker compose ps` và `docker compose logs`. Cổng 27017 là dịch vụ MongoDB có sẵn của Windows, script không đụng tới.
@@ -87,7 +87,7 @@ Script chỉ dành cho dev: `npm run dev` chạy `tsx watch` và Vite. **Không 
 
 | Nền tảng | Đã kiểm | Chưa kiểm |
 |---|---|---|
-| Windows 11, PowerShell 5.1 | Bộ fixture `node --test scripts/test/dev-scripts.test.mjs`: dự án giả dùng một lần ở đường dẫn có dấu, khoảng trắng và ngoặc; tiến trình, cổng, `taskkill` thật; Docker/npm giả. | Nghiệm thu với Docker Desktop, MongoDB/Redis, seed thật và đóng terminal: do người dùng chạy theo [04-DEV-UAT.md](../.planning/phases/04-web-app-dev-scripts/04-DEV-UAT.md). Trạng thái từng ca ghi ở đó. |
+| Windows 11, PowerShell 5.1 | Bộ fixture `node --test scripts/test/dev-scripts.test.mjs` và nghiệm thu với Docker Desktop, MongoDB, Redis và seed thật trên bản sao dùng một lần. [Kết quả từng ca](../.planning/phases/04-web-app-dev-scripts/04-DEV-UAT.md) | Ca bổ sung W12 trên dữ liệu workspace chính. |
 | macOS | `bash -n` cho cả ba file `.sh` (bằng bash 5.2 của Git Bash), quét tĩnh các cú pháp không có trong bash 3.2, logic sở hữu nhóm tiến trình với `ps`/`lsof`/`kill` giả, và vòng đời thật (job control, `nohup`, `lsof`, `ps`) trên Linux WSL Ubuntu với bash 5.2. `shellcheck` không có trên máy nên chưa chạy. | **Chưa chạy thử trên macOS.** Chưa chạy bằng bash 3.2 thật, chưa chạy với `ps`/`lsof`/Docker Desktop của macOS, chưa thử đóng cửa sổ Terminal. Kết quả trên Linux không thay cho macOS. |
 
 Chạy bộ fixture:

@@ -242,7 +242,7 @@ function SaleDetail({ id }: { id: string }) {
       </div>
       <div className={view.kind ? `sale-feedback sale-feedback--${view.kind}` : "sale-feedback"} role="status" data-outcome={view.kind ?? ""}>
         {message && <p>{message}</p>}
-        {showOrdersLink && <Link className="btn btn--secondary" to="/orders">Xem đơn của tôi</Link>}
+        {showOrdersLink && <Link to="/orders">Xem đơn của tôi</Link>}
       </div>
       {readError && <p className="field__error" role="alert">Dữ liệu đã cũ. {readError} Cập nhật lúc {snapshot.updatedAt.toLocaleTimeString("vi-VN")}.</p>}
     </SaleHero>

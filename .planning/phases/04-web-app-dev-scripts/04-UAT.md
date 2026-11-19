@@ -3,7 +3,7 @@ status: testing
 phase: 04-web-app-dev-scripts
 source: [04-VERIFICATION.md]
 started: 2026-11-19T09:04:27Z
-updated: 2026-11-19T10:59:57Z
+updated: 2026-11-19T11:06:15Z
 ---
 
 ## Current Test
@@ -13,7 +13,7 @@ name: Duyệt các mục thiết kế còn mở trên demo
 expected: |
   Sau khi tải lại demo, kiểm tra chữ có dấu hiển thị đồng nhất bằng Be Vietnam Pro. Ảnh đăng nhập sau khi đổi font nằm ở `.taste-skill/phase04-be-vietnam-pro/`.
   Trên trang chủ và trang chi tiết, giá sale của sản phẩm nổi bật. Giá gốc và phần trăm giảm lấy từ giá thực tế. Trên trang chi tiết, thời điểm kết thúc và đồng hồ đếm ngược dễ đọc cạnh nút mua.
-  Khi phản hồi mua hàng có liên kết “Xem đơn của tôi”, liên kết có viền dễ nhận biết và dẫn đến trang đơn hàng.
+  Khi phản hồi mua hàng có liên kết “Xem đơn của tôi”, chữ màu xanh có gạch chân và dẫn đến trang đơn hàng.
   Xem kết quả ở 04-UI-UAT.md và ảnh `.taste-skill/phase04-zanh1B/route-contact-sheet.png`.
   Xác nhận giao diện hiện tại dùng được cho demo, hoặc chỉ ra mục bố cục, footer hay ảnh cần chỉnh trước khi đóng phase.
 awaiting: user response

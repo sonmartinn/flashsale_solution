@@ -4,10 +4,10 @@ current_phase: 04
 current_phase_name: Web App & Dev Scripts
 status: verifying
 stopped_at: Phase 04 đã chạy 9/9 kế hoạch và chờ duyệt giao diện
-last_updated: "2026-11-19T09:04:27.823Z"
+last_updated: "2026-11-19T10:24:48.918Z"
 last_activity: 2026-11-19
-last_activity_desc: Hoàn tất triển khai trang theo dõi và kiểm thử Phase 04
-state_head: bc550438a9e837d5155dc7c03fe40ae0d1a7987f
+last_activity_desc: Đổi font chính sang Be Vietnam Pro theo phản hồi UAT Phase 04
+state_head: 69fa67a8ad53b1b1057e0ee9a157c547780ab6bd
 progress:
   total_phases: 5
   completed_phases: 3
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 Phase: 04 (Web App & Dev Scripts) — VERIFYING
 Plan: 9 of 9
 Status: 9/9 kế hoạch đã thực hiện. Chờ duyệt kết quả giao diện trong 04-UAT.md.
-Last activity: 2026-11-19 — Kiểm chứng admin và hồi quy năm route
+Last activity: 2026-11-19 — Đổi font chính sang Be Vietnam Pro theo phản hồi UAT Phase 04
 
 Progress: [██████░░░░] 60% (3/5 phases), 30/30 plans hiện có đã thực hiện. Phase 05 chưa lập kế hoạch.
 
@@ -94,6 +94,12 @@ Items acknowledged and deferred at milestone close, most recent first:
 | Category | Item | Status | Deferred At | Milestone |
 |----------|------|--------|-------------|-----------|
 | *(none)* | | | | |
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 261119-nyl | Đổi font chính sang Be Vietnam Pro | 2026-11-19 | 69fa67a | [261119-nyl-switch-primary-font-to-be-vietnam-pro](./quick/261119-nyl-switch-primary-font-to-be-vietnam-pro/) |
 
 ## Session Continuity
 

@@ -71,13 +71,13 @@ Nguồn yêu cầu gốc: `docs/SPECS.md`. Chi tiết kỹ thuật (tên trườ
 
 ### Giao diện (WEB)
 
-- [ ] **WEB-01**: Frontend React 19 + React Router 7 (ghim `^7`) + Vite 8, TypeScript strict, gọi API qua proxy Vite `/api` → `http://localhost:5000`; `typecheck` và `build` đạt
-- [ ] **WEB-02**: User đăng nhập/đăng ký ở `/login`; token lưu lại và gửi kèm `Authorization: Bearer`
-- [ ] **WEB-03**: Trang chủ `/` hiển thị đợt sale đang mở (giá sale, số còn lại) và danh sách sản phẩm
-- [ ] **WEB-04**: Trang `/sales/:id` có đếm ngược tới `endAt` (hiệu chỉnh theo `now` của server) và nút mua theo `sale.mode` (khóa khi đang gửi); hiển thị thông báo kết quả theo `code`/mã trả về
+- [x] **WEB-01**: Frontend React 19 + React Router 7 (ghim `^7`) + Vite 8, TypeScript strict, gọi API qua proxy Vite `/api` → `http://localhost:5000`; `typecheck` và `build` đạt
+- [x] **WEB-02**: User đăng nhập/đăng ký ở `/login`; token lưu lại và gửi kèm `Authorization: Bearer`
+- [x] **WEB-03**: Trang chủ `/` hiển thị đợt sale đang mở (giá sale, số còn lại) và danh sách sản phẩm
+- [x] **WEB-04**: Trang `/sales/:id` có đếm ngược tới `endAt` (hiệu chỉnh theo `now` của server) và nút mua theo `sale.mode` (khóa khi đang gửi); hiển thị thông báo kết quả theo `code`/mã trả về
 - [x] **WEB-05** *(cắt thứ tư)*: Số còn lại trên trang đợt sale tự cập nhật bằng polling 1–2 giây, dọn interval khi rời trang; nếu cắt thì dùng nút làm mới
-- [ ] **WEB-06**: User xem đơn của mình ở `/orders`
-- [ ] **WEB-07** *(cắt thứ ba)*: Admin xem trang `/admin`: số liệu từ API stats (đơn vượt tô đỏ, huy hiệu đồng bộ Redis–MongoDB), nút reset có chọn mode, cập nhật liên tục để thấy bộ đếm tụt về 0 khi bắn tải, có thể tạm dừng cập nhật khi đo E2
+- [x] **WEB-06**: User xem đơn của mình ở `/orders`
+- [x] **WEB-07** *(cắt thứ ba)*: Admin xem trang `/admin`: số liệu từ API stats (đơn vượt tô đỏ, huy hiệu đồng bộ Redis–MongoDB), nút reset có chọn mode, cập nhật liên tục để thấy bộ đếm tụt về 0 khi bắn tải, có thể tạm dừng cập nhật khi đo E2
 - [ ] **WEB-08** *(cắt thứ hai)*: Trang web hiển thị biểu đồ so sánh V1 với V2 (Recharts, nạp lười) từ CSV của E2
 
 ### Script môi trường dev (DEV)
@@ -168,13 +168,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EXP-06 | Phase 3 | Complete |
 | EXP-07 | Phase 3 | Complete |
 | EXP-08 | Phase 3 | Complete |
-| WEB-01 | Phase 4 | Pending |
-| WEB-02 | Phase 4 | Pending |
-| WEB-03 | Phase 4 | Pending |
-| WEB-04 | Phase 4 | Pending |
+| WEB-01 | Phase 4 | Complete |
+| WEB-02 | Phase 4 | Complete |
+| WEB-03 | Phase 4 | Complete |
+| WEB-04 | Phase 4 | Complete |
 | WEB-05 | Phase 4 | Complete |
-| WEB-06 | Phase 4 | Pending |
-| WEB-07 | Phase 4 | Pending |
+| WEB-06 | Phase 4 | Complete |
+| WEB-07 | Phase 4 | Complete |
 | WEB-08 | Phase 5 | Pending |
 | DEV-01 | Phase 4 | Complete |
 | DEV-02 | Phase 4 | Complete |

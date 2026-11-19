@@ -3,6 +3,12 @@ Deal: hero product; palette mint-pink-accounts; Figtree; nav-split; footer-dark;
 
 Nền #f8f8f8 giữ ảnh và giá dễ đọc; xanh #1f6b3a dành cho hành động xem sale. Giữ nguyên token do dealer xuất.
 
+## Trang theo dõi và audit năm route 04-09
+
+`/admin` dùng bố cục tác vụ D-04 đồng nhất với trang đơn hàng. Mã sale và bộ điều khiển ở trên, ba số liệu chính và nhóm chi tiết ở giữa, reset ở cuối. Xác nhận nằm cùng cụm reset và chuyển focus vào nút giữ nguyên. Màu đỏ dành cho tồn âm, số bán vượt và hành động xác nhận reset.
+
+Admin đạt 22 ca trên trình duyệt. Kịch bản năm route đạt 35 ca. Ảnh desktop và mobile có trong `.taste-skill/phase04-zanh1B/route-contact-sheet.png`. Gate trả `GATE: OFF (no build active)` và lịch sử `OPEN 3` được giữ. Bảng kiểm thử từng route ghi rõ ảnh quá cỡ, khoảng trống footer, giới hạn công cụ với hồ sơ đã đăng nhập và lỗi `shoot.mjs`. [04-UI-UAT.md](../.planning/phases/04-web-app-dev-scripts/04-UI-UAT.md)
+
 ## Polling tồn kho 04-08
 
 Nút “Làm mới tồn kho” giữ vị trí trong cụm mua. Khi lần đọc lỗi, cùng vùng thông báo giữ số tồn và giờ cập nhật cuối. Cụm mua khóa tới khi đọc lại thành công. Không kéo dài trang sale để thêm phần trình bày riêng cho polling.

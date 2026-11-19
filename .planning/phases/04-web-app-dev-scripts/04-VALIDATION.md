@@ -1,15 +1,15 @@
 ---
 phase: "04"
 slug: "web-app-dev-scripts"
-status: draft
-nyquist_compliant: false
-wave_0_complete: false
+status: validated
+nyquist_compliant: true
+wave_0_complete: true
 created: "2026-11-16"
 ---
 
 # Phase 04 — Validation Strategy
 
-Planning contract only: commands targeting frontend or scripts are not runnable until their owning plan creates those files. No behavior test, browser audit or manual acceptance is recorded as passed by this document.
+Ma trận kế hoạch và bằng chứng thực thi Phase 04. Kết quả của cổng thiết kế và giới hạn kiểm tra bằng trình duyệt được ghi trong [04-UI-UAT.md](04-UI-UAT.md).
 
 ## Test Infrastructure
 
@@ -61,13 +61,13 @@ On Windows use npm.cmd; equivalent npm commands work in bash. Invoke checks sepa
 
 ## Wave 0 Requirements
 
-- [ ] 04-01 creates manifest/test script/strict configs and the isolated real API launcher; tests begin in 04-02, so the bootstrap checks type/build/browser rather than claiming zero tests.
-- [ ] 04-02 creates frontend/test/assets.test.ts; 04-03 creates api.test.ts.
-- [ ] 04-04 creates frontend/test/auth.test.ts and sale-state.test.ts.
-- [ ] 04-06 creates scripts/test/dev-scripts.test.mjs and disposable fake command/repo fixtures.
-- [ ] 04-08 creates frontend/test/polling.test.ts for the actual production scheduler.
-- [ ] 04-09 creates admin-state.test.ts and scripts/test/run-backend-checks.mjs protecting backend tests from implicit dotenv reads.
-- [ ] Browser route checks use actual components and network observations, complementing pure helper tests.
+- [x] 04-01 tạo manifest, cấu hình strict và API fixture riêng. Kiểm tra typecheck, build và tracer trình duyệt.
+- [x] 04-02 và 04-03 thêm `frontend/test/assets.test.ts` và `api.test.ts`.
+- [x] 04-04 thêm `frontend/test/auth.test.ts` và `sale-state.test.ts`.
+- [x] 04-06 thêm `scripts/test/dev-scripts.test.mjs` và fixture riêng.
+- [x] 04-08 kiểm tra bộ lập lịch production bằng `frontend/test/polling.test.ts`.
+- [x] 04-09 thêm `admin-state.test.ts` và `scripts/test/run-backend-checks.mjs` với cấu hình trống dùng một lần.
+- [x] Trình duyệt kiểm tra các component render thật và lưu quan sát request.
 
 Each harness is created and run with its owning slice. Existing backend tests are reused rather than copied into a different framework.
 
@@ -83,12 +83,16 @@ Each harness is created and run with its owning slice. Existing backend tests ar
 
 ## Validation Sign-Off
 
-- [ ] Each task has automated verification or an explicit dependency on its owning harness.
-- [ ] Focused command paths exist after the corresponding implementation task.
-- [ ] Full tests exercise observable behaviors, not just source strings.
-- [ ] Every Windows checklist case has a result and evidence.
-- [ ] Required typechecks and builds pass.
-- [ ] No unverified browser/gate/macOS result is claimed as passed.
-- [ ] nyquist_compliant is updated only after implementation/audit proves it.
+- [x] Mỗi task có lệnh kiểm tra hoặc sử dụng bộ kiểm tra đã nêu trong ma trận.
+- [x] Test bao phủ hành vi ở cấp dữ liệu, trình duyệt và script vòng đời.
+- [x] Cả 10 ca Windows bắt buộc có bằng chứng đạt.
+- [x] Typecheck và build đạt cho backend và frontend.
+- [x] Báo cáo ghi đúng `OPEN`, `ERROR` và giới hạn runtime macOS.
 
-**Approval:** pending execution; this is not a claim of passing validation.
+## Validation Audit
+
+| Ngày | Bằng chứng |
+|---|---|
+| 2026-11-19 | 58 frontend, 172 backend, 200 integration, 289 loadtest và 20 fixture script đạt. Trình duyệt kiểm chứng polling, quyền admin và năm route. Khoảng trống đánh giá thiết kế được giữ cho UAT cuối. |
+
+Nghiệm thu Windows và kết quả từng route. [04-DEV-UAT.md](04-DEV-UAT.md) · [04-UI-UAT.md](04-UI-UAT.md)

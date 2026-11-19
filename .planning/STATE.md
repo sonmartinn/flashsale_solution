@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: Web App & Dev Scripts
-status: executing
-stopped_at: Hoàn tất 04-08, sẵn sàng cho 04-09
-last_updated: "2026-11-19T08:26:18.325Z"
+status: verifying
+stopped_at: Phase 04 đã chạy 9/9 kế hoạch và chờ duyệt giao diện
+last_updated: "2026-11-19T09:04:27.823Z"
 last_activity: 2026-11-19
-last_activity_desc: Hoàn tất kiểm chứng polling trên trang sale
-state_head: 1c4aa8eb74ffacb46c15c06d8f65eed144e1f37f
+last_activity_desc: Hoàn tất triển khai trang theo dõi và kiểm thử Phase 04
+state_head: bc550438a9e837d5155dc7c03fe40ae0d1a7987f
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 30
-  completed_plans: 29
+  completed_plans: 30
   percent: 60
 ---
 
@@ -27,17 +27,17 @@ See: .planning/PROJECT.md (updated 2026-11-16)
 
 ## Current Position
 
-Phase: 04 (Web App & Dev Scripts) — EXECUTING
+Phase: 04 (Web App & Dev Scripts) — VERIFYING
 Plan: 9 of 9
-Status: 04-08 hoàn tất, 04-09 sẵn sàng
-Last activity: 2026-11-19 — Kiểm chứng polling trang sale trên trình duyệt và API fixture
+Status: 9/9 kế hoạch đã thực hiện. Chờ duyệt kết quả giao diện trong 04-UAT.md.
+Last activity: 2026-11-19 — Kiểm chứng admin và hồi quy năm route
 
-Progress: [██████░░░░] 60% (3/5 phases), 29/30 plans hoàn tất. Phase 05 chưa lập kế hoạch.
+Progress: [██████░░░░] 60% (3/5 phases), 30/30 plans hiện có đã thực hiện. Phase 05 chưa lập kế hoạch.
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 29
+- Total plans completed: 30
 - Average duration: -
 - Total execution time: 0.0 hours
 
@@ -80,6 +80,7 @@ None yet.
 - [Phase 4] 04-01/02/03 đã duyệt và hoàn tất. 04-03 còn các phát hiện về bố cục, ảnh lớn và ảnh đến muộn khi mạng chậm. Gate OFF, lịch sử OPEN3. Xem frontend/DESIGN.md và 04-03-SUMMARY.md.
 - [Phase 4] 04-04, 04-05 và 04-06 hoàn tất. Lượt fixture UI cũ dùng MongoDB flashsale_test_ui_13440 và Redis DB 13. Lock đã được lưu riêng sau khi xác nhận PID cũ đã thoát và cổng 5000 trống.
 - [Phase 4] 04-07 hoàn tất với 10/10 ca Windows bắt buộc đạt. Bản sửa `3bf2300` xác định PID khi bảng TCP bỏ sót listener. W05/W11 chạy lại đạt ở đường dẫn dự án. macOS chưa được thử ở runtime và ca bổ sung W12 còn mở. Bằng chứng ở `04-DEV-UAT.md`.
+- [Phase 4] 04-08 và 04-09 đã thực hiện. Kiểm thử hành vi, build và typecheck đạt. Còn các phát hiện về thiết kế và giới hạn checker ở `04-UI-UAT.md`. `04-UAT.md` lưu mục cần duyệt trước khi đóng phase.
 - Port 27017 is the Windows MongoDB service; always use `127.0.0.1:27018`
 - [Phase 2] Rủi ro đã chấp nhận ở UAT, phải ghi vào tài liệu rủi ro Phase 5: WR-01 (hoàn kho sau lỗi ghi đơn mơ hồ không phải E11000 có thể ra `totalQty+1`), WR-02 (ioredis `autoResendUnfulfilledCommands` mặc định bật; E4 PASS không loại bỏ rủi ro gửi lại lệnh), WR-04 (`?mode=` khác `sale.mode` vượt `totalQty` qua hai kho; báo cáo nêu điều kiện "mọi lượt mua dùng đúng mode của đợt sale")
 - [Review 2026-11-12] Các cảnh báo còn mở trong 02-REVIEW.md: WR-03 (reset chồng với lượt mua đang chạy), WR-06 (reset lỗi muộn giữ cache cũ), WR-07 (E1 nhận số user vượt ngân sách cổng); chưa sửa mã nguồn hay chấp nhận thay người dùng
@@ -96,6 +97,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-19T08:26:18.325Z
-Stopped at: Hoàn tất 04-08, sẵn sàng cho 04-09
-Resume file: None
+Last session: 2026-11-19T09:04:27.823Z
+Stopped at: Phase 04 chờ duyệt giao diện
+Resume file: .planning/phases/04-web-app-dev-scripts/04-UAT.md

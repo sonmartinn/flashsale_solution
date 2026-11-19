@@ -3,11 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "scripts": {
-    "dev": "node --watch src/server.js",
-    "start": "node src/server.js",
-    "seed": "node scripts/seed.js",
-    "reset": "node scripts/reset.js"
+    "dev": "tsx watch src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json && node -e \"require('node:fs').cpSync('src/lua','dist/lua',{recursive:true})\"",
+    "start": "node dist/server.js",
+    "start:test": "npm run build && dotenv run -q --override -f .env.test -- node dist/server.js",
+    "seed": "tsx scripts/seed.ts",
+    "reset": "tsx scripts/reset.ts",
+    "reconcile": "tsx scripts/reconcile.ts",
+    "test": "npm run build && node --import tsx --test \"test/*.test.ts\"",
+    "test:int": "npm run build && node --import tsx --test --test-concurrency=1 \"test/integration/*.test.ts\""
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -15,6 +24,15 @@
     "dotenv": "^18.0.9",
     "express": "^5.3.0",
     "ioredis": "^6.0.0",
+    "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.11.4"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^24.19.2",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
   }
 }

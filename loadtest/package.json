@@ -1,0 +1,26 @@
+{
+  "name": "flashsale-loadtest",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test \"test/*.test.ts\"",
+    "e1": "tsx scenarios/e1-correctness.ts",
+    "e2": "tsx scenarios/e2-performance.ts",
+    "e3": "tsx scenarios/e3-duplicate.ts",
+    "e4": "tsx scenarios/e4-mongo-outage.ts"
+  },
+  "dependencies": {
+    "autocannon": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/autocannon": "^7.12.7",
+    "@types/node": "^24.19.2",
+    "tsx": "^4.23.15",
+    "typescript": "~7.0.2"
+  }
+}

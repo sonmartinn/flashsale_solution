@@ -4,6 +4,22 @@ dist/
 *.log
 .DS_Store
 
-# Kết quả thô khi chạy test tải, chỉ giữ thư mục
+# Kết quả đo tải: commit các CSV tổng hợp (loadtest/results/*.csv) và .gitkeep;
+# mọi thứ khác, kể cả raw/ (JSON thô của từng lần chạy), không đưa lên git (D-12)
 loadtest/results/*
 !loadtest/results/.gitkeep
+!loadtest/results/*.csv
+
+# Bộ cài GSD: mỗi thành viên tự cài bằng lệnh trong .claude/CLAUDE.md
+# (bộ cài ghi cứng đường dẫn tuyệt đối của từng máy). Chỉ chia sẻ CLAUDE.md.
+.claude/*
+!.claude/CLAUDE.md
+
+# Bộ cài GSD cho Codex (npx ... --codex --local): cũng ghi cứng đường dẫn máy, không đưa lên git.
+.codex/
+
+# Hồ sơ trình duyệt, ảnh kiểm tra và lịch sử dealer cục bộ của skill thiết kế.
+.taste-skill/
+
+# PID, khóa vòng đời và log của script dev.
+.dev/

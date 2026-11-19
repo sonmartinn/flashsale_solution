@@ -39,3 +39,11 @@ created: 2026-11-19
 Rủi ro đã chấp nhận và cảnh báo backend vẫn theo trạng thái Phase 02. Reset UI nhắc thực hiện giữa các lượt mua hoặc bắn tải theo WR-03. [STATE.md](../../STATE.md)
 
 Bằng chứng kiểm tra script và UI. [04-DEV-UAT.md](04-DEV-UAT.md) · [04-UI-UAT.md](04-UI-UAT.md)
+
+## Security Audit 2026-11-19
+
+| Metric | Count |
+|---|---|
+| Threats found | 10 |
+| Closed | 10 |
+| Open | 0 |

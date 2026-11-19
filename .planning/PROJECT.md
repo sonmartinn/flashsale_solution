@@ -25,12 +25,12 @@ Dưới tải đồng thời, V1 và V2 **luôn** cho đúng `totalQty` đơn th
 - ✓ API `/orders/me`, admin reset, admin stats (tồn kho Mongo, tồn kho Redis, số đơn, số user khác nhau, số đơn vượt) — Phase 2
 - ✓ Script đối chiếu Redis–MongoDB, có tùy chọn sửa Redis theo MongoDB — Phase 2
 - ✓ Thư viện tải dùng chung và thí nghiệm E1–E4 tự kiểm tra; CSV chính thức do người dùng chạy và commit: 15 lượt E1 PASS, 10 lượt E3 PASS, 60 dòng E2 VALID, E4 PASS và đối soát sạch sau sửa — Phase 3 (EXP-01…EXP-08)
+- ✓ Frontend React 19: trang chủ, đợt sale với đếm ngược và polling, đăng nhập/đăng ký, đơn cá nhân và trang theo dõi admin; giao diện được duyệt cho demo — Phase 4 (WEB-01…WEB-07)
+- ✓ Script `start`/`stop` cho PowerShell 5.1 và Bash; Windows đạt 10 ca bắt buộc, Bash đã kiểm tra cú pháp và chạy vòng đời qua WSL. Chưa chạy trực tiếp trên macOS — Phase 4 (DEV-01…DEV-05)
 
 ### Active
 
-- [ ] Frontend: trang chủ, trang đợt sale (đếm ngược, polling 1–2 giây, nút mua, thông báo theo mã), đăng nhập/đăng ký, đơn của tôi, trang theo dõi admin cập nhật liên tục
 - [ ] Biểu đồ so sánh V1 với V2 từ kết quả E2
-- [ ] Script khởi chạy nhanh môi trường dev `scripts/start|stop.ps1` (Windows PowerShell 5.1) và `scripts/start|stop.sh` (macOS bash 3.2), cùng hành vi, chạy nền, idempotent, đạt các ca kiểm thử ở SPECS mục 12
 - [ ] README chạy được từ đầu. Tài liệu phân tích kết quả E1–E4 trong `docs/` để dùng cho báo cáo (trả lời 3 câu hỏi ở SPECS mục 2 bằng số liệu, nêu đánh đổi và rủi ro)
 
 ### Out of Scope
@@ -84,12 +84,12 @@ Dưới tải đồng thời, V1 và V2 **luôn** cho đúng `totalQty` đơn th
 | JSON lỗi có thêm trường `code` máy đọc được (`SOLD_OUT`, `ALREADY_BOUGHT`…), HTTP status giữ theo SPECS | Hai trường hợp 409 chỉ khác nhau ở thông báo tiếng Việt | ✓ Good — Phase 2 |
 | Lỗi tạo đơn không phải E11000 thì kiểm tra `Order.exists` trước khi hoàn kho (V1, V2); V2 gặp E11000 chỉ `INCRBY`, không `SREM` | Tránh hoàn kho dư khi ghi đơn mơ hồ (timeout nhưng đã ghi) | ⚠️ Revisit — Phase 2: chấp nhận là rủi ro còn lại (UAT WR-01), ghi vào tài liệu rủi ro Phase 5 |
 | Script tải luôn reset qua API admin; CLI reset in cảnh báo về cache | Cache đợt sale nằm trong tiến trình server, CLI không xóa được | ✓ Good — Phase 3: preflight và reset trước mỗi lượt đo |
-| Ghim `react-router@^7` | `@latest` là v8, cần Node ≥22.22, phá `engines` của SPECS | — Pending |
+| Ghim `react-router@^7` | `@latest` là v8, cần Node ≥22.22, phá `engines` của SPECS | ✓ Good — Phase 4: trình duyệt và build đã xác minh |
 | Đưa cả 4 mục có thể cắt (E4, biểu đồ web, trang admin, polling) vào v1, giữ thứ tự cắt của SPECS | Người dùng để Claude chọn; đúng phạm vi SPECS, cắt khi thiếu thời gian | — Pending |
 | `start:test` dùng `dotenv run -q --override -f .env.test` thay cho `node --env-file` | `--env-file` không ghi đè biến shell đang giữ (cmd `set NODE_ENV=test && …` để lại `"test "`); `-q` giữ boot-failure một dòng | ✓ Good — Phase 1 (UAT G-01-9) |
 | `isTestMode` so sánh thô `NODE_ENV === "test"`; `/api/health` có `testMode`, script tải kiểm tra `testMode === true` | Fail-closed khi NODE_ENV có dấu cách thừa; near-miss chỉ in `[CẢNH BÁO]` | ✓ Good — Phase 1 |
 | Service reset là factory `createSaleAdminService({ redis, onSaleReset })` | CLI truyền hook rỗng, route Phase 2 truyền `saleCache.invalidate` | ✓ Good — Phase 2 (route admin truyền `saleCache.invalidate`) |
-| `backend/.env` tạo tay bằng lệnh không in khóa trong header `.env.example`; DEV-01 tự động hóa ở Phase 4 | Không commit bí mật, không ghi đè | — Pending |
+| `backend/.env` tạo tay bằng lệnh không in khóa trong header `.env.example`; DEV-01 tự động hóa ở Phase 4 | Không commit bí mật, không ghi đè | ✓ Good — Phase 4: fixture và nghiệm thu Windows xác nhận |
 | `?mode=` lấy từ query, không chặn khi khác `sale.mode` (D-03) | Script tải cần chọn mode độc lập. Bảo đảm V1/V2 chỉ đúng khi mọi lượt mua dùng đúng mode của đợt sale | ⚠️ Revisit — chấp nhận ở UAT Phase 2 (WR-04); báo cáo phải nêu điều kiện này |
 | Giữ mặc định ioredis `autoResendUnfulfilledCommands: true` | Chấp nhận ở UAT Phase 2 (WR-02); sau khi kết nối lại có thể gửi lại `INCRBY` hoàn kho hoặc `EVALSHA` | ⚠️ Revisit — cân nhắc trước E4, ghi vào tài liệu rủi ro Phase 5 |
 | Lỗi nghiệp vụ 409/503 trong đường mua dùng `HttpError` dựng sẵn | Không chụp stack trace dưới tải | ✓ Good — Phase 2 |
@@ -115,4 +115,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-16 after Phase 3*
+*Last updated: 2026-11-19 after Phase 4*

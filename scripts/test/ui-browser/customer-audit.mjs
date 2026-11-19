@@ -289,17 +289,21 @@ try {
     await b.goto(`${BASE}/login?returnTo=%2Fsales%2F${saleId}`);
     await fillTyped(user(U + 6));
     await b.waitFor(`location.pathname === "/sales/${saleId}" && window.__btn("Mua ngay")?.disabled === false`);
+    const visibility = state => `Object.defineProperty(document, 'visibilityState', {configurable: true, value: '${state}'}); document.dispatchEvent(new Event('visibilitychange'));`;
     const startPatch = "j => { const s = Date.parse(j.now) - 7200000; j.now = new Date(s).toISOString(); j.sale.startAt = new Date(s + 4000).toISOString(); j.sale.endAt = new Date(s + 3600000).toISOString(); return j; }";
     await b.js(`window.__faults.push({ method: "GET", match: "/api/sales/${saleId}", kind: "patch-json", patch: ${JSON.stringify(startPatch)} }); window.__click("Làm mới tồn kho"); return 1;`);
     await b.waitFor(`window.__feedback() === "Đợt sale chưa mở hoặc đã kết thúc." && window.__btn("Mua ngay").disabled`);
+    // Giữ bản đọc giờ đã nhận để kiểm chứng riêng đồng hồ cục bộ, trong lúc polling tạm dừng.
+    await b.js(visibility("hidden"));
     const t0 = Date.now();
     const getsAtStart = await b.js(`return window.__gets("/sales/${saleId}");`);
     await b.waitFor(`window.__btn("Mua ngay")?.disabled === false`, 9000);
     const opened = Date.now() - t0;
     check("Giờ server lệch −2h: trước startAt khóa mua “Đợt sale chưa mở…”, tự mở khi qua startAt (~4s) không cần đọc lại", opened >= 2000 && opened <= 6000 && (await b.js(`return window.__gets("/sales/${saleId}");`)) === getsAtStart, { openedAfterMs: opened });
     const endPatch = "j => { const s = Date.parse(j.now) - 7200000; j.now = new Date(s).toISOString(); j.sale.startAt = new Date(s - 3600000).toISOString(); j.sale.endAt = new Date(s + 5000).toISOString(); return j; }";
-    await b.js(`window.__faults = []; window.__faults.push({ method: "GET", match: "/api/sales/${saleId}", kind: "patch-json", patch: ${JSON.stringify(endPatch)} }); window.__click("Làm mới tồn kho"); return 1;`);
+    await b.js(`window.__faults = []; window.__faults.push({ method: "GET", match: "/api/sales/${saleId}", kind: "patch-json", patch: ${JSON.stringify(endPatch)} }); ${visibility("visible")}`);
     await b.waitFor(`document.querySelector("[role=timer]").textContent.endsWith("phút 5 giây") || document.querySelector("[role=timer]").textContent.endsWith("phút 4 giây")`);
+    await b.js(visibility("hidden"));
     const t1 = Date.now();
     const enabledBeforeEnd = await b.js(`return window.__btn("Mua ngay").disabled === false;`);
     await b.waitFor(`window.__btn("Mua ngay").disabled && document.querySelector("[role=timer]").textContent === "0 ngày 0 giờ 0 phút 0 giây"`, 9000);
@@ -309,7 +313,7 @@ try {
     const after = await b.js(`return { timer: document.querySelector("[role=timer]").textContent, feedback: window.__feedback(), gets: window.__gets("/sales/${saleId}"), live: document.querySelector("[role=timer]").getAttribute("aria-live") };`);
     check("Còn 5 giây theo giờ server: nút mở trước hạn, đồng hồ về 0 và khóa “Đợt sale chưa mở…” đúng hạn, không phát sinh GET", enabledBeforeEnd && closed >= 3000 && closed <= 6500 && after.timer === "0 ngày 0 giờ 0 phút 0 giây" && after.feedback === "Đợt sale chưa mở hoặc đã kết thúc." && after.gets === gets && after.live === "off", { closedAfterMs: closed, after });
     await shot("sale-ended-boundary-1440");
-    await b.js(`window.__faults = []; window.__click("Làm mới tồn kho"); return 1;`);
+    await b.js(`window.__faults = []; ${visibility("visible")}`);
     await b.waitFor(`window.__btn("Mua ngay")?.disabled === false`);
     check("Bỏ lỗi tiêm: đọc lại sale thật mở mua lại", true);
     check("Ranh giới giờ không gửi POST mua nào", (await b.js(`return window.__posts();`)) === 0);

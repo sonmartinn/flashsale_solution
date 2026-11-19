@@ -1,5 +1,5 @@
 product / site-kind other — cửa hàng thời trang trực tuyến, bước đầu 04-01.
-Deal: hero product; palette mint-pink-accounts; Figtree; nav-split; footer-dark; close-type; brand-band; solid; ring; moment word-highlight. 04-02 bổ sung Be Vietnam Pro local cho glyph Việt còn thiếu, không thay deal.
+Deal: hero product; palette mint-pink-accounts; nav-split; footer-dark; close-type; brand-band; solid; ring; moment word-highlight. Sau phản hồi UAT Phase 04, tiêu đề và nội dung dùng Be Vietnam Pro cục bộ ở độ đậm 400 và 500 để chữ tiếng Việt hiển thị nhất quán. Các lượt đo bên dưới ghi cấu hình tại thời điểm kiểm tra.
 
 Nền #f8f8f8 giữ ảnh và giá dễ đọc; xanh #1f6b3a dành cho hành động xem sale. Giữ nguyên token do dealer xuất.
 

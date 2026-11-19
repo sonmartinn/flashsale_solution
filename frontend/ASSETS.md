@@ -1,6 +1,6 @@
 # Tài sản local — Flash Sale
 
-Giữ palette mint-pink-accounts, Figtree và hero product đã duyệt ở 04-01. Sáu ảnh dưới đây là **ảnh đại diện cùng loại hàng (stand-in)** cho đồ án; không phải ảnh xác nhận đúng hàng tồn, chất liệu, màu hay dáng của nhà bán. Không có người mẫu nào được giới thiệu là nhân viên/khách của Flash Sale. Cần thay bằng ảnh sản phẩm thật trước sử dụng thương mại. Tên, giá và thuộc tính vẫn lấy nguyên từ API.
+Giữ palette mint-pink-accounts và hero product đã duyệt ở 04-01. Sáu ảnh dưới đây là **ảnh đại diện cùng loại hàng (stand-in)** cho đồ án; không phải ảnh xác nhận đúng hàng tồn, chất liệu, màu hay dáng của nhà bán. Không có người mẫu nào được giới thiệu là nhân viên/khách của Flash Sale. Cần thay bằng ảnh sản phẩm thật trước sử dụng thương mại. Tên, giá và thuộc tính vẫn lấy nguyên từ API.
 
 Ảnh đã được mở và nhìn ở toàn bộ khung tải về. Tải JPEG qua CDN Pexels với `auto=compress&cs=tinysrgb&w=1200&q=80`; riêng váy hoa dùng `w=1000&q=72`. Giữ tỷ lệ ảnh gốc, không ghép, xóa logo hoặc tạo ảnh bằng AI. Ảnh sneaker 04-01 giữ nguyên byte và nguồn.
 
@@ -19,11 +19,9 @@ Tất cả ảnh theo [giấy phép Pexels](https://www.pexels.com/license/), đ
 
 ## Font
 
-- `public/assets/fonts/Figtree-Variable.ttf`: Erik Kennedy, [Google Fonts — Figtree](https://github.com/google/fonts/tree/main/ofl/figtree), [SIL OFL 1.1 local](public/assets/fonts/OFL.txt). Giữ font chính đã duyệt, variable 300–900.
-- Figtree hiện tại không có đủ tiếng Việt (kiểm tra cmap thất bại ở U+01A0 “Ơ”; metadata chính thức chỉ có latin/latin-ext). Khẳng định glyph đầy đủ ở ghi chép 04-01 không đúng. Không đổi palette hoặc deal lại vì sở thích.
-- `public/assets/fonts/BeVietnamPro-Regular.ttf`: Lâm Bảo, Tony Le, ViệtAnh Nguyễn, [Google Fonts — Be Vietnam Pro](https://github.com/google/fonts/tree/main/ofl/bevietnampro), [SIL OFL 1.1 local](public/assets/fonts/BeVietnamPro-OFL.txt). Fallback tiếng Việt local đứng ngay sau Figtree, regular 400; weight khác dùng cơ chế chọn font của browser, không khai báo regular là variable. Chỉ tải một file fallback để tổng hai font không vượt 320 KiB. Đây là ngoại lệ chức năng theo D-03/D-05 và 04-02, thay cho glyph hệ thống không kiểm soát được.
-- `src/styles/app.css` định nghĩa `@font-face`, `font-display: swap`; `index.html` preload cùng URL local. Không gọi Google Fonts hoặc CDN khi chạy ứng dụng.
-- `test/assets.test.ts` kiểm tra cmap của chuỗi font local cho chữ Việt hoa/thường, U+1EA0–U+1EF9 và dấu kết hợp. Kiểm tra này xác minh glyph tồn tại; đọc/giải mã font và ảnh thật vẫn cần bằng chứng trình duyệt.
+- Be Vietnam Pro dùng cho tiêu đề và nội dung. Hai tệp local `BeVietnamPro-Regular.ttf` (400) và `BeVietnamPro-Medium.ttf` (500) tổng cộng 268.928 byte. Tác giả gồm Lâm Bảo, Tony Le và ViệtAnh Nguyễn. [Google Fonts — Be Vietnam Pro](https://github.com/google/fonts/tree/main/ofl/bevietnampro) · [SIL OFL 1.1](public/assets/fonts/BeVietnamPro-OFL.txt)
+- `public/assets/fonts/fonts.css` nạp font với `font-display: swap` cho ứng dụng và trang nguồn ảnh. `index.html` preload bản Regular từ cùng máy chủ.
+- `test/assets.test.ts` kiểm tra cmap của từng tệp cho chữ Việt hoa/thường, U+1EA0–U+1EF9 và dấu kết hợp.
 
 ## Kiểm chứng
 

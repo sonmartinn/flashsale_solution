@@ -76,28 +76,37 @@ describe("Tài sản local cho bản demo không có mạng", () => {
     });
   }
 
-  it("Figtree và fallback local bao phủ toàn bộ chữ và dấu tiếng Việt", () => {
-    const font = readFileSync(publicFile("assets/fonts/Figtree-Variable.ttf"));
-    const fallback = readFileSync(publicFile("assets/fonts/BeVietnamPro-Regular.ttf"));
-    const vietnamese = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzĂăÂâĐđÊêÔôƠơƯưÀÁÃÈÉÌÍÒÓÕÙÚÝàáãèéìíòóõùúý\u0300\u0301\u0303\u0309\u0323";
+  it("Cả hai độ đậm của Be Vietnam Pro đều đủ chữ và dấu tiếng Việt", () => {
+    const regular = readFileSync(publicFile("assets/fonts/BeVietnamPro-Regular.ttf"));
+    const medium = readFileSync(publicFile("assets/fonts/BeVietnamPro-Medium.ttf"));
+    const vietnamese = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzĂăÂâĐđÊêÔôƠơƯưÀÁÃÈÉÌÍÒÓÕÙÚÝàáãèéìíòóõùúý\u0300\u0301\u0302\u0303\u0306\u0309\u031b\u0323";
     const codes = new Set([...vietnamese].map(character => character.codePointAt(0)!));
     for (let code = 0x1ea0; code <= 0x1ef9; code++) codes.add(code);
-    for (const code of codes) assert.ok(glyphFor(font, code) || glyphFor(fallback, code), `Thiếu glyph U+${code.toString(16)}`);
-    assert.ok(font.length + fallback.length < 320 * 1024, "Font phải trong ngân sách");
-    assert.match(readFileSync(publicFile("assets/fonts/OFL.txt"), "utf8"), /SIL OPEN FONT LICENSE/i);
+    for (const code of codes) {
+      assert.ok(glyphFor(regular, code), `Regular thiếu glyph U+${code.toString(16)}`);
+      assert.ok(glyphFor(medium, code), `Medium thiếu glyph U+${code.toString(16)}`);
+    }
+    assert.ok(regular.length + medium.length < 320 * 1024, "Font phải trong ngân sách");
     assert.match(readFileSync(publicFile("assets/fonts/BeVietnamPro-OFL.txt"), "utf8"), /SIL OPEN FONT LICENSE/i);
   });
 
   it("Font, ảnh hero và sổ nguồn đều có tham chiếu local", () => {
     const css = readFileSync(new URL("../src/styles/app.css", import.meta.url), "utf8");
+    const fonts = readFileSync(publicFile("assets/fonts/fonts.css"), "utf8");
+    const credits = readFileSync(publicFile("credits.html"), "utf8");
     const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
     const main = readFileSync(new URL("../src/main.tsx", import.meta.url), "utf8");
     const ledger = readFileSync(new URL("../ASSETS.md", import.meta.url), "utf8");
     assert.match(main, /import "\.\/styles\/app\.css"/);
-    assert.match(css, /url\("\/assets\/fonts\/Figtree-Variable\.ttf"\)/);
-    assert.match(css, /url\("\/assets\/fonts\/BeVietnamPro-Regular\.ttf"\)/);
-    assert.match(html, /href="\/assets\/fonts\/Figtree-Variable\.ttf"/);
+    assert.match(fonts, /url\("\/assets\/fonts\/BeVietnamPro-Regular\.ttf"\)[^}]*font-weight: 400;/);
+    assert.match(fonts, /url\("\/assets\/fonts\/BeVietnamPro-Medium\.ttf"\)[^}]*font-weight: 500;/);
+    assert.match(fonts, /--font-display: "Be Vietnam Pro", sans-serif;/);
+    assert.match(fonts, /--font-text: "Be Vietnam Pro", sans-serif;/);
+    assert.match(html, /rel="preload" href="\/assets\/fonts\/BeVietnamPro-Regular\.ttf"/);
+    assert.match(html, /rel="stylesheet" href="\/assets\/fonts\/fonts\.css"/);
+    assert.match(credits, /rel="stylesheet" href="\/assets\/fonts\/fonts\.css"/);
     assert.doesNotMatch(css, /(?:url\(|@import\s+)["']?https?:\/\//);
+    assert.doesNotMatch(fonts, /(?:url\(|@import\s+)["']?https?:\/\//);
     assert.doesNotMatch(html, /(?:src|href)=["']https?:\/\//);
     for (const slug of slugs) assert.ok(ledger.includes(`${slug}.jpg`), `Thiếu nguồn ảnh ${slug}`);
   });

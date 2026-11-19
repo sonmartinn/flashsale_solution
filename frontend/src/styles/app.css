@@ -1,13 +1,8 @@
-@font-face { font-family: "Figtree"; src: url("/assets/fonts/Figtree-Variable.ttf") format("truetype"); font-style: normal; font-weight: 300 900; font-display: swap; }
-/* Figtree thiếu một số chữ Việt; dùng fallback local có OFL thay font hệ thống. */
-@font-face { font-family: "Be Vietnam Pro"; src: url("/assets/fonts/BeVietnamPro-Regular.ttf") format("truetype"); font-style: normal; font-weight: 400; font-display: swap; }
 :root {
   --p-bg: #f8f8f8; --p-surface: #eeeeee; --p-ink: #0a0a0a; --p-muted: #6a6a6a;
   --p-accent: #1f6b3a; --p-accent-ink: #ffffff; --p-action: #1f6b3a; --p-action-ink: #ffffff;
   --p-inv-bg: #0a0a0a; --p-inv-surface: #171717; --p-inv-ink: #f8f8f8; --p-inv-muted: #939393;
   --p-inv-accent: #1f6b3a; --p-inv-accent-ink: #ffffff; --p-inv-action: #1f6b3a; --p-inv-action-ink: #ffffff;
-  --font-display: "Figtree", "Be Vietnam Pro", sans-serif;
-  --font-text: "Figtree", "Be Vietnam Pro", sans-serif;
   --display-weight: 400;
   --display-tracking: -0.025em;
   --display-tracking-xl: -0.035em;

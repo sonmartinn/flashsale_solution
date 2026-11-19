@@ -375,10 +375,15 @@ try {
       const state = await b.js(`
         await document.fonts.ready;
         await Promise.all([...document.images].map(i => i.decode().catch(() => null)));
-        const faces = [...document.fonts].map(f => f.family.replace(/"/g, "") + ":" + f.status);
+        const faces = [...document.fonts].map(f => ({
+          family: f.family.replace(/"/g, ""), weight: f.weight, status: f.status
+        }));
         return { faces, images: [...document.images].map(i => ({ src: new URL(i.src).pathname, ok: i.complete && i.naturalWidth > 0 })) };`);
       const external = b.resources.filter(u => !u.startsWith("http://localhost:5174/") && !u.startsWith("data:"));
-      check(`Offline ${name}: không tài nguyên ngoài, font local nạp, ảnh giải mã`, external.length === 0 && state.faces.includes("Figtree:loaded") && state.images.every(i => i.ok), { external, ...state });
+      const fontsLoaded = ["400", "500"].every(weight => state.faces.some(face =>
+        face.family === "Be Vietnam Pro" && face.weight === weight && face.status === "loaded"
+      ));
+      check(`Offline ${name}: không tài nguyên ngoài, font local nạp, ảnh giải mã`, external.length === 0 && fontsLoaded && state.images.every(i => i.ok), { external, ...state });
     }
     await b.send("Network.setBlockedURLs", { urls: [] });
     await b.js(`localStorage.clear(); return 1;`);

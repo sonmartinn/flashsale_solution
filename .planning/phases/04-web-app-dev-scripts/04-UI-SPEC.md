@@ -20,7 +20,7 @@ reviewed_at: "2026-11-18T10:23:48Z"
 | Preset | Không áp dụng |
 | Thư viện component | React và HTML ngữ nghĩa, CSS và kit `design-taste-frontend` đã chép cục bộ |
 | Thư viện icon | Không có package icon. Giữ vòng `ring` và SVG menu hiện có |
-| Font | Figtree Variable, Be Vietnam Pro Regular bổ sung glyph tiếng Việt, sau cùng `sans-serif`. Hai tệp font tải cục bộ |
+| Font | Be Vietnam Pro cho tiêu đề và nội dung, sau cùng `sans-serif`. Bản Regular (400) và Medium (500) tải cục bộ |
 
 React 19, React Router 7 và Vite 8 dùng cấu trúc dự án hiện tại. Kết quả thiết kế đã chốt là `product` với `site-kind=other`, hero `product`, palette `mint-pink-accounts`, `nav-split`, `footer-dark`, `close-type`, `brand-band`, nút `solid`, dấu `ring` và `word-highlight` ở trang chủ. Tái sử dụng `Layout`, `SaleHero`, `ErrorPanel`, `ProtectedRoute`, `.wrap`, `.task-screen` và cặp `.btn--primary` / `.btn--secondary` khi phù hợp. Quyết định D-03 và manifest hiện tại xác định kit cục bộ là hệ thống giao diện của Phase 04. Cây nguồn gốc và `frontend` không có `components.json`. [frontend/DESIGN.md](../../../frontend/DESIGN.md) · [frontend/package.json](../../../frontend/package.json) · [app.css](../../../frontend/src/styles/app.css)
 
